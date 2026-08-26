@@ -12,6 +12,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/migrations"
 	"github.com/stretchr/testify/require"
 )
 
@@ -96,6 +97,8 @@ func TestIsMigrationChecksumCompatible_AdditionalCases(t *testing.T) {
 
 func TestMigrationChecksumCompatibilityRules_CoverEditedUpgradeCompatibilityMigrations(t *testing.T) {
 	for _, name := range []string{
+		"145_allow_kiro_user_platform_quotas.sql",
+		"157_user_platform_quotas_add_grok.sql",
 		"109_auth_identity_compat_backfill.sql",
 		"110_pending_auth_and_provider_default_grants.sql",
 		"112_add_payment_order_provider_key_snapshot.sql",
@@ -110,6 +113,28 @@ func TestMigrationChecksumCompatibilityRules_CoverEditedUpgradeCompatibilityMigr
 		require.NotEmpty(t, rule.fileChecksum)
 		require.NotEmpty(t, rule.acceptedDBChecksum)
 	}
+}
+
+func TestMigration145KiroUpgradeAcceptsPreviouslyAppliedChecksum(t *testing.T) {
+	const (
+		name        = "145_allow_kiro_user_platform_quotas.sql"
+		oldChecksum = "bc174c2b9dd244f10090a322bb685c8fd6c3e8050777a07b3c92c08b1d8cae94"
+	)
+
+	content, err := migrations.FS.ReadFile(name)
+	require.NoError(t, err)
+	require.True(t, isMigrationChecksumCompatible(name, oldChecksum, migrationChecksum(string(content))))
+}
+
+func TestMigration157GrokUpgradeAcceptsPreviouslyAppliedChecksum(t *testing.T) {
+	const (
+		name        = "157_user_platform_quotas_add_grok.sql"
+		oldChecksum = "5cace8fa32c6174a72721cd9b01f28f4545de1fd7bcd9ca196a4225056ec4fb8"
+	)
+
+	content, err := migrations.FS.ReadFile(name)
+	require.NoError(t, err)
+	require.True(t, isMigrationChecksumCompatible(name, oldChecksum, migrationChecksum(string(content))))
 }
 
 func TestEnsureAtlasBaselineAligned(t *testing.T) {

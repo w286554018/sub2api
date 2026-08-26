@@ -31,13 +31,17 @@ type updateServiceGitHubClientStub struct {
 	release        *GitHubRelease
 	recentReleases []*GitHubRelease
 	recentErr      error
+	latestRepo     string
+	recentRepo     string
 }
 
-func (s *updateServiceGitHubClientStub) FetchLatestRelease(context.Context, string) (*GitHubRelease, error) {
+func (s *updateServiceGitHubClientStub) FetchLatestRelease(_ context.Context, repo string) (*GitHubRelease, error) {
+	s.latestRepo = repo
 	return s.release, nil
 }
 
-func (s *updateServiceGitHubClientStub) FetchRecentReleases(context.Context, string, int) ([]*GitHubRelease, error) {
+func (s *updateServiceGitHubClientStub) FetchRecentReleases(_ context.Context, repo string, _ int) ([]*GitHubRelease, error) {
+	s.recentRepo = repo
 	return s.recentReleases, s.recentErr
 }
 
@@ -47,6 +51,35 @@ func (s *updateServiceGitHubClientStub) DownloadFile(context.Context, string, st
 
 func (s *updateServiceGitHubClientStub) FetchChecksumFile(context.Context, string) ([]byte, error) {
 	panic("FetchChecksumFile should not be called when no update is available")
+}
+
+func TestUpdateServiceUsesConfiguredGitHubRepository(t *testing.T) {
+	t.Setenv(updateGitHubRepoEnv, " nianzs/sub2api ")
+	client := &updateServiceGitHubClientStub{
+		release: &GitHubRelease{TagName: "v0.1.177"},
+	}
+	svc := NewUpdateService(&updateServiceCacheStub{}, client, "0.1.177", "release")
+
+	_, err := svc.CheckUpdate(context.Background(), true)
+	require.NoError(t, err)
+	_, err = svc.ListRollbackVersions(context.Background())
+	require.NoError(t, err)
+
+	require.Equal(t, "nianzs/sub2api", client.latestRepo)
+	require.Equal(t, "nianzs/sub2api", client.recentRepo)
+}
+
+func TestUpdateServiceDefaultsToOfficialGitHubRepository(t *testing.T) {
+	t.Setenv(updateGitHubRepoEnv, "")
+	client := &updateServiceGitHubClientStub{
+		release: &GitHubRelease{TagName: "v0.1.177"},
+	}
+	svc := NewUpdateService(&updateServiceCacheStub{}, client, "0.1.177", "release")
+
+	_, err := svc.CheckUpdate(context.Background(), true)
+	require.NoError(t, err)
+
+	require.Equal(t, defaultGitHubRepo, client.latestRepo)
 }
 
 func TestUpdateServicePerformUpdateNoUpdateReturnsSentinel(t *testing.T) {

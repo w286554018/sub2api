@@ -28,9 +28,10 @@ var (
 )
 
 const (
-	updateCacheKey = "update_check_cache"
-	updateCacheTTL = 1200 // 20 minutes
-	githubRepo     = "Wei-Shaw/sub2api"
+	updateCacheKey      = "update_check_cache"
+	updateCacheTTL      = 1200 // 20 minutes
+	updateGitHubRepoEnv = "UPDATE_GITHUB_REPO"
+	defaultGitHubRepo   = "Wei-Shaw/sub2api"
 
 	// Security: allowed download domains for updates
 	allowedDownloadHost = "github.com"
@@ -63,6 +64,7 @@ type GitHubReleaseClient interface {
 type UpdateService struct {
 	cache          UpdateCache
 	githubClient   GitHubReleaseClient
+	githubRepo     string
 	currentVersion string
 	buildType      string // "source" for manual builds, "release" for CI builds
 }
@@ -72,9 +74,17 @@ func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, versi
 	return &UpdateService{
 		cache:          cache,
 		githubClient:   githubClient,
+		githubRepo:     configuredUpdateGitHubRepo(),
 		currentVersion: version,
 		buildType:      buildType,
 	}
+}
+
+func configuredUpdateGitHubRepo() string {
+	if repo := strings.TrimSpace(os.Getenv(updateGitHubRepoEnv)); repo != "" {
+		return repo
+	}
+	return defaultGitHubRepo
 }
 
 // UpdateInfo contains update information
@@ -363,7 +373,7 @@ func (s *UpdateService) RollbackToVersion(ctx context.Context, version string) e
 // fetchRollbackCandidates fetches recent releases and keeps the newest
 // maxRollbackVersions entries strictly older than the current version.
 func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubRelease, error) {
-	releases, err := s.githubClient.FetchRecentReleases(ctx, githubRepo, rollbackFetchPageSize)
+	releases, err := s.githubClient.FetchRecentReleases(ctx, s.githubRepo, rollbackFetchPageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +410,7 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 }
 
 func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, error) {
-	release, err := s.githubClient.FetchLatestRelease(ctx, githubRepo)
+	release, err := s.githubClient.FetchLatestRelease(ctx, s.githubRepo)
 	if err != nil {
 		return nil, err
 	}
