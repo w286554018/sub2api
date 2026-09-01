@@ -111,6 +111,7 @@ type KiroRequestContext struct {
 	CacheEmulationUsage      *Usage
 	StructuredOutputToolName string
 	StructuredOutputUserHint string
+	StructuredOutputSchema   []byte // original JSON Schema bytes for validation
 	StopSequences            []string
 	MaxOutputTokens          int
 	// EstimatedInputTokens 是调用方预估的输入 token 数，用于非流式路径兜底：
@@ -929,6 +930,19 @@ func StreamEventStreamAsAnthropicWithContext(ctx context.Context, body io.Reader
 			if err != nil {
 				inputJSON = []byte("{}")
 			}
+			// Validate structured output against schema when feature flag is on
+			if StructuredOutputValidationEnabled() && len(requestCtx.StructuredOutputSchema) > 0 {
+				if valErr := ValidateStructuredOutput(string(inputJSON), requestCtx.StructuredOutputSchema); valErr != nil {
+					log.Printf("[kiro] structured output validation failed (streaming): %v", valErr)
+					return writeEvent("error", map[string]any{
+						"type": "error",
+						"error": map[string]any{
+							"type":    "invalid_request_error",
+							"message": fmt.Sprintf("Structured output validation failed: %s", valErr.Error()),
+						},
+					})
+				}
+			}
 			if stopReason == "" || stopReason == "tool_use" {
 				stopReason = "end_turn"
 			}
@@ -1746,6 +1760,7 @@ func buildStructuredOutputTool(claudeBody []byte, requestCtx *KiroRequestContext
 		return nil, ""
 	}
 	requestCtx.StructuredOutputToolName = mappedName
+	requestCtx.StructuredOutputSchema = []byte(schema.Raw)
 	requestCtx.StructuredOutputUserHint = fmt.Sprintf("[CRITICAL] You MUST call the '%s' tool now with the structured JSON answer. Do NOT output plain text. Do NOT wrap the JSON in markdown.", mappedName)
 	if claudeBodyHasToolNamed(claudeBody, toolName, mappedName, requestCtx) {
 		return nil, fmt.Sprintf("[INSTRUCTION: You MUST respond by calling the '%s' tool with the structured JSON answer. Do not output plain text.]", mappedName)
@@ -3127,6 +3142,15 @@ func buildClaudeResponse(content string, toolUses []KiroToolUse, model string, u
 		}
 	}
 	if structuredText, remainingTools, ok := extractStructuredOutputToolText(toolUses, requestCtx); ok {
+		// Validate structured output against schema when feature flag is on
+		if StructuredOutputValidationEnabled() && len(requestCtx.StructuredOutputSchema) > 0 {
+			if err := ValidateStructuredOutput(structuredText, requestCtx.StructuredOutputSchema); err != nil {
+				log.Printf("[kiro] structured output validation failed (non-streaming): %v", err)
+				// Return validation error response instead of invalid output
+				errResp := BuildStructuredOutputErrorResponse(err)
+				return errResp
+			}
+		}
 		if len(blocks) == 1 && blocks[0]["type"] == "text" && blocks[0]["text"] == "" {
 			blocks = blocks[:0]
 		}
