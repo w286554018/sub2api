@@ -3,6 +3,8 @@ package kiro
 import (
 	"fmt"
 	"math"
+	"net"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -160,7 +162,11 @@ func TruncateResults(results []SearchResultItem, maxResults, maxBytesPerResult i
 	}
 	for i := range results {
 		if maxBytesPerResult > 0 && len(results[i].Snippet) > maxBytesPerResult {
-			results[i].Snippet = results[i].Snippet[:maxBytesPerResult-3] + "..."
+			if maxBytesPerResult <= 3 {
+				results[i].Snippet = results[i].Snippet[:maxBytesPerResult]
+			} else {
+				results[i].Snippet = results[i].Snippet[:maxBytesPerResult-3] + "..."
+			}
 		}
 	}
 	return results
@@ -237,74 +243,83 @@ func humanizeAge(t time.Time) string {
 
 // --- Security: sanitization functions ---
 
-// sanitizeURL validates and cleans a URL from search results.
+// sanitizeURL validates and cleans a URL from search results using net/url.
 func sanitizeURL(u string) string {
 	u = strings.TrimSpace(u)
 	if u == "" {
 		return ""
 	}
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return ""
+	}
 	// Rule 1: Only allow http and https
-	lower := strings.ToLower(u)
-	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return ""
 	}
-	// Rule 2: Reject URLs with credentials (user:pass@)
-	// Look for @ between :// and the first /
-	afterScheme := u[strings.Index(u, "://")+3:]
-	slashIdx := strings.Index(afterScheme, "/")
-	if slashIdx < 0 {
-		slashIdx = len(afterScheme)
-	}
-	hostPart := afterScheme[:slashIdx]
-	if strings.Contains(hostPart, "@") {
+	// Rule 2: Reject URLs with credentials
+	if parsed.User != nil {
 		return ""
 	}
-	// Rule 3: Reject localhost and private IPs
-	host := extractHost(u)
+	// Rule 3: Reject private/reserved hosts
+	host := parsed.Hostname()
 	if isPrivateHost(host) {
 		return ""
 	}
-	return u
-}
-
-func extractHost(u string) string {
-	// Strip scheme
-	if idx := strings.Index(u, "://"); idx >= 0 {
-		u = u[idx+3:]
-	}
-	// Strip path
-	if idx := strings.IndexAny(u, "/?#"); idx >= 0 {
-		u = u[:idx]
-	}
-	// Strip port
-	if idx := strings.LastIndex(u, ":"); idx >= 0 {
-		u = u[:idx]
-	}
-	return strings.ToLower(u)
+	return parsed.String()
 }
 
 func isPrivateHost(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	// Known local hostnames
 	switch host {
-	case "localhost", "127.0.0.1", "::1", "0.0.0.0":
+	case "localhost", "0.0.0.0", "[::]":
 		return true
 	}
-	// Check common private IP prefixes
-	if strings.HasPrefix(host, "10.") ||
-		strings.HasPrefix(host, "192.168.") ||
-		strings.HasPrefix(host, "fc00:") ||
-		strings.HasPrefix(host, "fd") {
+	// Parse as IP
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Not an IP — could be a hostname. Check common dangerous patterns.
+		if host == "metadata.google.internal" ||
+			strings.HasSuffix(host, ".internal") ||
+			strings.HasSuffix(host, ".local") {
+			return true
+		}
+		return false
+	}
+	// Loopback (127.0.0.0/8, ::1)
+	if ip.IsLoopback() {
 		return true
 	}
-	// 172.16.0.0/12
-	if strings.HasPrefix(host, "172.") {
-		parts := strings.SplitN(host, ".", 3)
-		if len(parts) >= 2 {
-			var second int
-			if _, err := fmt.Sscanf(parts[1], "%d", &second); err == nil {
-				if second >= 16 && second <= 31 {
-					return true
-				}
-			}
+	// Link-local (169.254.0.0/16, fe80::/10) — includes cloud metadata 169.254.169.254
+	if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+	// Private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7)
+	if isPrivateIP(ip) {
+		return true
+	}
+	// Unspecified (0.0.0.0, ::)
+	if ip.IsUnspecified() {
+		return true
+	}
+	return false
+}
+
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"fc00::/7",
+	}
+	for _, cidr := range privateRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(ip) {
+			return true
 		}
 	}
 	return false

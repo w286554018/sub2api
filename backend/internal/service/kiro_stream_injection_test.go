@@ -186,8 +186,8 @@ func TestStreamKiroWithSearchInjection_BlockIndexAdjustment(t *testing.T) {
 				if event["type"] == "content_block_start" || event["type"] == "content_block_stop" {
 					if idx, ok := event["index"].(float64); ok {
 						t.Logf("Line %d: Found %s with index=%v", i, event["type"], idx)
-						// Original upstream had index=0, after injecting 2 blocks it should be index=2
-						if idx == 2 {
+						// Original upstream had index=0, after injecting 1 search block it should be index=1
+						if idx == 1 {
 							foundAdjustedIndex = true
 						}
 					}
@@ -196,7 +196,7 @@ func TestStreamKiroWithSearchInjection_BlockIndexAdjustment(t *testing.T) {
 		}
 	}
 
-	assert.True(t, foundAdjustedIndex, "Expected to find adjusted block index=2 in output")
+	assert.True(t, foundAdjustedIndex, "Expected to find adjusted block index=1 in output")
 }
 
 func TestStreamKiroWithSearchInjection_NoContentBlocks(t *testing.T) {
@@ -300,7 +300,7 @@ func TestStreamKiroWithSearchInjection_MultiRound(t *testing.T) {
 				if event["type"] == "content_block_start" {
 					if cb, ok := event["content_block"].(map[string]any); ok {
 						if cb["type"] == "text" {
-							if idx, ok := event["index"].(float64); ok && int(idx) == 4 {
+							if idx, ok := event["index"].(float64); ok && int(idx) == 2 {
 								foundIndex4 = true
 							}
 						}
@@ -309,7 +309,7 @@ func TestStreamKiroWithSearchInjection_MultiRound(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, foundIndex4, "Expected text block index=4 after injecting 2 search rounds (offset=4)")
+	assert.True(t, foundIndex4, "Expected text block index=2 after injecting 2 search rounds (offset=2)")
 }
 
 func TestAdjustBlockIndex(t *testing.T) {

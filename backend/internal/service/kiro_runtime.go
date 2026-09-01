@@ -1074,33 +1074,33 @@ func coalesceKiroErrorMessage(statusCode int, upstreamMsg string) string {
 	}
 }
 
-// buildWebSearchRequestBody constructs a minimal Anthropic request body
-// containing only the web_search tool call with the given query.
 // executeKiroMCPWebSearch calls the Kiro MCP web_search tool and converts the result to a SearchRound.
+// Results go through FromWebSearchResults for mandatory sanitization.
 func (s *GatewayService) executeKiroMCPWebSearch(ctx context.Context, account *Account, token, query string) (*kiropkg.SearchRound, string, error) {
+	start := time.Now()
 	results, nextToken, err := s.callKiroWebSearchMCP(ctx, account, token, query)
+	RecordSearchLatency(time.Since(start))
 	if err != nil {
+		RecordMCPCall(false)
 		return nil, nextToken, fmt.Errorf("kiro web search failed: %w", err)
 	}
 	if results == nil || len(results.Results) == 0 {
+		RecordMCPCall(true)
 		return nil, nextToken, fmt.Errorf("kiro web search returned no results")
 	}
+	RecordMCPCall(true)
+
+	// Use FromWebSearchResults for mandatory sanitization (URL, snippet, prompt injection)
+	items := kiropkg.FromWebSearchResults(results)
+	items = kiropkg.TruncateResults(items, 10, 8192) // enforce limits
 
 	round := &kiropkg.SearchRound{
 		Query:     query,
 		ToolUseID: kiropkg.GenerateToolUseID(),
-		Results:   make([]kiropkg.SearchResultItem, 0, len(results.Results)),
-	}
-
-	for _, r := range results.Results {
-		item := kiropkg.SearchResultItem{
-			Title: r.Title,
-			URL:   r.URL,
-		}
-		if r.Snippet != nil {
-			item.Snippet = *r.Snippet
-		}
-		round.Results = append(round.Results, item)
+		Results:   items,
+		Source:    kiropkg.SearchSourceMCP,
+		Duration:  time.Since(start),
+		Outcome:   kiropkg.SearchOutcomeDone,
 	}
 
 	return round, nextToken, nil
@@ -1157,25 +1157,29 @@ func (s *GatewayService) streamKiroWithSearchInjection(
 
 			projector := kiropkg.NewSearchProjector(writer, allocator)
 
-			// Project all search rounds
+			// Project all search rounds — only include rounds with actual results
 			for _, round := range searchRounds {
+				if round.Outcome == kiropkg.SearchOutcomeError ||
+					round.Outcome == kiropkg.SearchOutcomeDuplicateQuery ||
+					round.Outcome == kiropkg.SearchOutcomeTimeout {
+					continue // skip failed/duplicate/timeout rounds
+				}
 				if _, err := projector.ProjectSearchRound(round); err != nil {
 					return fmt.Errorf("inject search blocks round %d: %w", round.RoundNumber, err)
 				}
 			}
 
-			// Calculate how many blocks we injected
-			// Each search round = 2 blocks (server_tool_use + web_search_tool_result)
-			blockIndexOffset = len(searchRounds) * 2
+			// Use actual writer block index to calculate offset (not assumed 2 per round)
+			blockIndexOffset = writer.BlockIndex() + 1
 			searchBlocksInjected = true
 			continue
 		}
 
-		// Adjust block indices in content_block_start and content_block_stop events
-		if searchBlocksInjected && (event == "content_block_start" || event == "content_block_stop") {
+		// Adjust block indices in content_block_start, content_block_delta, and content_block_stop
+		if searchBlocksInjected && blockIndexOffset > 0 &&
+			(event == "content_block_start" || event == "content_block_stop" || event == "content_block_delta") {
 			adjustedData, err := adjustBlockIndex(data, blockIndexOffset)
 			if err != nil {
-				// If adjustment fails, log but continue with original data
 				adjustedData = data
 			}
 			formatted := kiropkg.FormatSSE(event, adjustedData)

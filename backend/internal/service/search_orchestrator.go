@@ -162,8 +162,7 @@ func (o *kiroSearchOrchestrator) runNonStreaming(
 			round.Error = err
 			round.Results = nil
 			rounds = append(rounds, round)
-			// Continue with empty results — let model know search failed
-			results = nil
+			break // stop loop on error, propagate below
 		}
 
 		if results == nil {
@@ -222,8 +221,14 @@ func (o *kiroSearchOrchestrator) runNonStreaming(
 
 		// Check if model wants another search
 		_, nextQuery, hasNext := kiropkg.ExtractWebSearchToolUseFromResponse(parseResult.ResponseBody)
-		if !hasNext || nextQuery == "" || i+1 >= o.cfg.MaxRounds {
+		if !hasNext || nextQuery == "" {
 			round.Outcome = kiropkg.SearchOutcomeDone
+			rounds = append(rounds, round)
+			currentBody = parseResult.ResponseBody
+			break
+		}
+		if i+1 >= o.cfg.MaxRounds {
+			round.Outcome = kiropkg.SearchOutcomeMaxRounds
 			rounds = append(rounds, round)
 			currentBody = parseResult.ResponseBody
 			break
@@ -239,7 +244,16 @@ func (o *kiroSearchOrchestrator) runNonStreaming(
 		rounds[len(rounds)-1].Outcome = kiropkg.SearchOutcomeMaxRounds
 	}
 
-	return rounds, currentBody, nil
+	// Propagate last error if any round failed
+	var lastErr error
+	if len(rounds) > 0 {
+		lastRound := rounds[len(rounds)-1]
+		if lastRound.Outcome == kiropkg.SearchOutcomeError && lastRound.Error != nil {
+			lastErr = lastRound.Error
+		}
+	}
+
+	return rounds, currentBody, lastErr
 }
 
 // --- Helper ---
