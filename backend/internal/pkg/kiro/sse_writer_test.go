@@ -255,6 +255,35 @@ func TestSSEWriter_ContextCancellation(t *testing.T) {
 	}
 }
 
+func TestSSEWriter_EmptyDeltaRespectsCtxCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var buf bytes.Buffer
+	w := NewAnthropicSSEWriter(ctx, &buf, "claude-opus-5", "msg_test_ctx2")
+
+	_ = w.WriteMessageStart(10, 0, 0)
+	_ = w.StartTextBlock()
+	cancel()
+	// Empty delta should still detect cancelled context
+	err := w.WriteTextDelta("")
+	if err == nil {
+		t.Fatal("expected error on empty delta after context cancel")
+	}
+}
+
+func TestSSEWriter_WriteErrorInTerminalState(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewAnthropicSSEWriter(context.Background(), &buf, "claude-opus-5", "msg_test_werr2")
+
+	_ = w.WriteMessageStart(10, 0, 0)
+	_ = w.WriteMessageDelta("end_turn", 0)
+	_ = w.WriteMessageStop()
+	// WriteError in MessageStopped state should return a clear error
+	err := w.WriteError("api_error", "test")
+	if err == nil {
+		t.Fatal("expected error on WriteError in terminal state")
+	}
+}
+
 func TestSSEWriter_FinishFromEOF(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewAnthropicSSEWriter(context.Background(), &buf, "claude-opus-5", "msg_test_eof")

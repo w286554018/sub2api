@@ -604,6 +604,7 @@ func StreamEventStreamAsAnthropicWithContext(ctx context.Context, body io.Reader
 			if !sseValidator.ValidateEvent(event, dataMap) {
 				log.Printf("[kiro] SSE validator dropped event %q in state %s (violations: %d)",
 					event, sseValidator.State(), sseValidator.Violations())
+				return nil // drop illegal event — do not write to client
 			}
 		}
 		payload, err := json.Marshal(data)
@@ -939,13 +940,16 @@ func StreamEventStreamAsAnthropicWithContext(ctx context.Context, body io.Reader
 			if StructuredOutputValidationEnabled() && len(requestCtx.StructuredOutputSchema) > 0 {
 				if valErr := ValidateStructuredOutput(string(inputJSON), requestCtx.StructuredOutputSchema); valErr != nil {
 					log.Printf("[kiro] structured output validation failed (streaming): %v", valErr)
-					return writeEvent("error", map[string]any{
+					errMsg := fmt.Sprintf("Structured output validation failed: %s", valErr.Error())
+					// Write error SSE event to client, then return error to stop the event loop
+					_ = writeEvent("error", map[string]any{
 						"type": "error",
 						"error": map[string]any{
 							"type":    "invalid_request_error",
-							"message": fmt.Sprintf("Structured output validation failed: %s", valErr.Error()),
+							"message": errMsg,
 						},
 					})
+					return &StructuredOutputValidationError{Message: errMsg}
 				}
 			}
 			if stopReason == "" || stopReason == "tool_use" {

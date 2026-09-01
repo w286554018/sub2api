@@ -253,8 +253,11 @@ func (s *AnthropicSSEWriter) StartToolUseBlock(id, name string) error {
 	return err
 }
 
-// WriteTextDelta emits a text_delta. Empty text is silently ignored.
+// WriteTextDelta emits a text_delta. Empty text is skipped after state check.
 func (s *AnthropicSSEWriter) WriteTextDelta(text string) error {
+	if err := s.checkCtx(); err != nil {
+		return err
+	}
 	if text == "" {
 		return nil
 	}
@@ -271,8 +274,11 @@ func (s *AnthropicSSEWriter) WriteTextDelta(text string) error {
 	})
 }
 
-// WriteThinkingDelta emits a thinking_delta. Empty text is silently ignored.
+// WriteThinkingDelta emits a thinking_delta. Empty text is skipped after state check.
 func (s *AnthropicSSEWriter) WriteThinkingDelta(thinking string) error {
+	if err := s.checkCtx(); err != nil {
+		return err
+	}
 	if thinking == "" {
 		return nil
 	}
@@ -289,8 +295,11 @@ func (s *AnthropicSSEWriter) WriteThinkingDelta(thinking string) error {
 	})
 }
 
-// WriteSignatureDelta emits a signature_delta. Empty signature is silently ignored.
+// WriteSignatureDelta emits a signature_delta. Empty signature is skipped after state check.
 func (s *AnthropicSSEWriter) WriteSignatureDelta(signature string) error {
+	if err := s.checkCtx(); err != nil {
+		return err
+	}
 	if signature == "" {
 		return nil
 	}
@@ -307,8 +316,11 @@ func (s *AnthropicSSEWriter) WriteSignatureDelta(signature string) error {
 	})
 }
 
-// WriteInputJSONDelta emits an input_json_delta. Empty JSON is silently ignored.
+// WriteInputJSONDelta emits an input_json_delta. Empty JSON is skipped after state check.
 func (s *AnthropicSSEWriter) WriteInputJSONDelta(partialJSON string) error {
+	if err := s.checkCtx(); err != nil {
+		return err
+	}
 	if partialJSON == "" {
 		return nil
 	}
@@ -383,7 +395,10 @@ func (s *AnthropicSSEWriter) WritePing() error {
 // WriteError emits an error event and transitions to terminal state.
 func (s *AnthropicSSEWriter) WriteError(errType, message string) error {
 	if s.state.isTerminal() {
-		return s.err
+		if s.err != nil {
+			return s.err
+		}
+		return s.setErr(fmt.Errorf("WriteError in terminal state %s", s.state))
 	}
 	_ = s.writeSSE("error", map[string]any{
 		"type":  "error",
