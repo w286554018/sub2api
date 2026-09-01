@@ -288,3 +288,10 @@ func newKiroJSONRequest(ctx context.Context, endpointURL string, payload []byte,
 	applyKiroConditionalHeaders(req, account)
 	return req, nil
 }
+
+// isKiroServerToolsWebSearchEnabled checks if the request header
+// x-kiro-enable-websearch is set to "server-tools".
+func isKiroServerToolsWebSearchEnabled(headers http.Header) bool {
+	val := strings.TrimSpace(headers.Get("x-kiro-enable-websearch"))
+	return strings.EqualFold(val, "server-tools")
+}

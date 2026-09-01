@@ -314,6 +314,28 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 		}, inputTokens, nil
 	}
 
+	// Check if server-tools web search is enabled via header (single-round pre-search)
+	if isKiroServerToolsWebSearchEnabled(headers) {
+		// Extract search query from user's last message
+		query := extractSearchQueryFromBody(anthropicBody)
+		if query != "" {
+			// Execute single search round
+			searchBody := buildWebSearchRequestBody(anthropicBody, query)
+			searchResp, _, execErr := s.executeKiroUpstream(upstreamCtx, account, searchBody, mappedModel, requestModel, token, headers)
+			if execErr == nil && searchResp.StatusCode >= 200 && searchResp.StatusCode < 300 {
+				searchRound, parseErr := parseWebSearchResponse(searchResp.Body, query)
+				_ = searchResp.Body.Close()
+				if parseErr == nil {
+					// Inject search result into request body as system context
+					anthropicBody = injectSearchContextIntoBody(anthropicBody, searchRound)
+					inputTokens = estimateKiroInputTokens(ctx, anthropicBody)
+				}
+			} else if searchResp != nil {
+				_ = searchResp.Body.Close()
+			}
+		}
+	}
+
 	resp, requestCtx, err := s.executeKiroUpstreamWithParsed(upstreamCtx, account, parsed, anthropicBody, mappedModel, requestModel, token, headers)
 	if err != nil {
 		var failoverErr *UpstreamFailoverError
@@ -1017,4 +1039,95 @@ func coalesceKiroErrorMessage(statusCode int, upstreamMsg string) string {
 	default:
 		return "Upstream request failed"
 	}
+}
+
+// buildWebSearchRequestBody constructs a minimal Anthropic request body
+// containing only the web_search tool call with the given query.
+func buildWebSearchRequestBody(originalBody []byte, query string) []byte {
+	// Parse original to get model, max_tokens, system
+	var orig map[string]any
+	if err := json.Unmarshal(originalBody, &orig); err != nil {
+		// Fallback to minimal request
+		return []byte(fmt.Sprintf(`{"model":"claude-sonnet-4-20250514","max_tokens":1024,"messages":[{"role":"user","content":"Search: %s"}],"tools":[{"type":"web_search","name":"web_search"}]}`, query))
+	}
+	model, _ := orig["model"].(string)
+	if model == "" {
+		model = "claude-sonnet-4-20250514"
+	}
+	maxTokens, _ := orig["max_tokens"].(float64)
+	if maxTokens <= 0 {
+		maxTokens = 1024
+	}
+	system, _ := orig["system"]
+
+	req := map[string]any{
+		"model":      model,
+		"max_tokens": int(maxTokens),
+		"messages": []map[string]any{
+			{"role": "user", "content": fmt.Sprintf("Search for: %s", query)},
+		},
+		"tools": []map[string]any{
+			{"type": "web_search", "name": "web_search"},
+		},
+	}
+	if system != nil {
+		req["system"] = system
+	}
+	body, _ := json.Marshal(req)
+	return body
+}
+
+// parseWebSearchResponse extracts SearchRound from MCP web_search tool response.
+func parseWebSearchResponse(body io.Reader, query string) (kiropkg.SearchRound, error) {
+	// TODO: implement actual MCP response parsing
+	// For now, return empty result
+	return kiropkg.SearchRound{
+		Query:   query,
+		Results: []kiropkg.SearchResultItem{},
+	}, nil
+}
+
+// injectSearchContextIntoBody adds search results to the system prompt.
+func injectSearchContextIntoBody(body []byte, round kiropkg.SearchRound) []byte {
+	var req map[string]any
+	if err := json.Unmarshal(body, &req); err != nil {
+		return body
+	}
+	if len(round.Results) == 0 {
+		return body
+	}
+	// Build search context text
+	var sb strings.Builder
+	sb.WriteString("\n\n<search_results>\n")
+	sb.WriteString(fmt.Sprintf("Query: %s\n\n", round.Query))
+	for i, item := range round.Results {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, item.Title))
+		if item.URL != "" {
+			sb.WriteString(fmt.Sprintf("   URL: %s\n", item.URL))
+		}
+		if item.Snippet != "" {
+			sb.WriteString(fmt.Sprintf("   %s\n", item.Snippet))
+		}
+		sb.WriteString("\n")
+	}
+	sb.WriteString("</search_results>")
+	searchContext := sb.String()
+
+	// Append to system prompt
+	system := req["system"]
+	switch s := system.(type) {
+	case string:
+		req["system"] = s + searchContext
+	case []any:
+		// Multi-part system, append as text block
+		req["system"] = append(s, map[string]any{
+			"type": "text",
+			"text": searchContext,
+		})
+	case nil:
+		req["system"] = searchContext
+	}
+
+	modified, _ := json.Marshal(req)
+	return modified
 }
