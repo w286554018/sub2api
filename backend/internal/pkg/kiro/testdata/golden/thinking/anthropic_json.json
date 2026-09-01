@@ -1,0 +1,16 @@
+{
+  "id": "msg_test_000002",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5",
+  "content": [
+    {"type": "thinking", "thinking": "Let me think about this step by step. The user is asking about the capital of France. Paris is the capital and most populous city of France.", "signature": "test_signature_placeholder"},
+    {"type": "text", "text": "The capital of France is Paris."}
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 30,
+    "output_tokens": 45
+  }
+}

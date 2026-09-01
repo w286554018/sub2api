@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -585,7 +586,20 @@ func StreamEventStreamAsAnthropicWithContext(ctx context.Context, body io.Reader
 	currentMessageID := ""
 	var outputTextBuf strings.Builder
 
+	// SSE state machine validation (behind feature flag)
+	var sseValidator *SSEValidator
+	if SSEStateMachineEnabled() {
+		sseValidator = NewSSEValidator()
+	}
+
 	writeEvent := func(event string, data any) error {
+		dataMap, _ := data.(map[string]any)
+		if sseValidator != nil && dataMap != nil {
+			if !sseValidator.ValidateEvent(event, dataMap) {
+				log.Printf("[kiro] SSE validator dropped event %q in state %s (violations: %d)",
+					event, sseValidator.State(), sseValidator.Violations())
+			}
+		}
 		payload, err := json.Marshal(data)
 		if err != nil {
 			return err
