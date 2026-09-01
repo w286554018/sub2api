@@ -256,6 +256,29 @@ func (s *AnthropicSSEWriter) StartToolUseBlock(id, name string) error {
 	return err
 }
 
+// StartServerToolUseBlock emits content_block_start for a server_tool_use block.
+// Per Kiro protocol, server tools emit full tool_result inline (no input_json_delta).
+func (s *AnthropicSSEWriter) StartServerToolUseBlock(id, name string) error {
+	if err := s.checkTransition("content_block_start"); err != nil {
+		return err
+	}
+	s.blockIndex++
+	s.blockType = "server_tool_use"
+	err := s.writeSSE("content_block_start", map[string]any{
+		"type":  "content_block_start",
+		"index": s.blockIndex,
+		"content_block": map[string]any{
+			"type": "server_tool_use",
+			"id":   id,
+			"name": name,
+		},
+	})
+	if err == nil {
+		s.state = StateInContentBlock
+	}
+	return err
+}
+
 // WriteTextDelta emits a text_delta. Empty text is skipped after state check.
 func (s *AnthropicSSEWriter) WriteTextDelta(text string) error {
 	if err := s.checkCtx(); err != nil {
@@ -337,6 +360,29 @@ func (s *AnthropicSSEWriter) WriteInputJSONDelta(partialJSON string) error {
 		"type":  "content_block_delta",
 		"index": s.blockIndex,
 		"delta": map[string]any{"type": "input_json_delta", "partial_json": partialJSON},
+	})
+}
+
+// WriteWebSearchToolResultDelta emits a web_search_tool_result_delta.
+// Per spec, web_search_tool_result is sent as complete blocks (no true streaming),
+// but this method exists for protocol symmetry and future extension.
+func (s *AnthropicSSEWriter) WriteWebSearchToolResultDelta(resultJSON string) error {
+	if err := s.checkCtx(); err != nil {
+		return err
+	}
+	if resultJSON == "" {
+		return nil
+	}
+	if err := s.checkTransition("content_block_delta"); err != nil {
+		return err
+	}
+	if s.blockType != "server_tool_use" {
+		return s.setErr(fmt.Errorf("web_search_tool_result_delta in %s block", s.blockType))
+	}
+	return s.writeSSE("content_block_delta", map[string]any{
+		"type":  "content_block_delta",
+		"index": s.blockIndex,
+		"delta": map[string]any{"type": "web_search_tool_result_delta", "json": resultJSON},
 	})
 }
 
@@ -629,6 +675,8 @@ func (v *SSEValidator) isDeltaTypeValid(deltaType string) bool {
 		return deltaType == "thinking_delta" || deltaType == "signature_delta"
 	case "tool_use":
 		return deltaType == "input_json_delta"
+	case "server_tool_use":
+		return deltaType == "web_search_tool_result_delta"
 	}
 	return true // unknown block type — don't block
 }
