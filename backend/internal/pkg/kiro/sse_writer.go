@@ -93,18 +93,21 @@ func (s *AnthropicSSEWriter) Err() error {
 // --- Internal helpers ---
 
 func (s *AnthropicSSEWriter) setErr(err error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.err == nil {
-		s.mu.Lock()
 		s.err = err
-		s.mu.Unlock()
 		s.state = StateError
 	}
 	return s.err
 }
 
 func (s *AnthropicSSEWriter) checkCtx() error {
-	if s.err != nil {
-		return s.err
+	s.mu.Lock()
+	currentErr := s.err
+	s.mu.Unlock()
+	if currentErr != nil {
+		return currentErr
 	}
 	if err := s.ctx.Err(); err != nil {
 		return s.setErr(fmt.Errorf("context cancelled: %w", err))
@@ -481,18 +484,44 @@ func (v *SSEValidator) State() StreamState { return v.state }
 // the current state. It updates internal state and returns true if valid.
 // If invalid, it logs the violation and returns false.
 func (v *SSEValidator) ValidateEvent(eventName string, data map[string]any) bool {
-	// ping and error are always allowed in non-terminal states
-	if eventName == "ping" {
-		return !v.state.isTerminal()
+	sseType := ""
+	if t, ok := data["type"].(string); ok {
+		sseType = t
 	}
-	if eventName == "error" {
+
+	// #3 fix: verify eventName matches data.type (except for ping/error which use eventName directly)
+	if sseType != "" && eventName != sseType && eventName != "ping" && eventName != "error" {
+		log.Printf("[SSEValidator] eventName %q does not match data.type %q", eventName, sseType)
+		v.violations++
+		return false
+	}
+
+	// ping: allowed in non-terminal states
+	if eventName == "ping" || sseType == "ping" {
+		if v.state.isTerminal() {
+			log.Printf("[SSEValidator] ping in terminal state %s", v.state)
+			v.violations++
+			return false
+		}
+		return true
+	}
+
+	// error: transitions to terminal in non-terminal states
+	if eventName == "error" || sseType == "error" {
+		if v.state.isTerminal() {
+			log.Printf("[SSEValidator] error in terminal state %s", v.state)
+			v.violations++
+			return false
+		}
 		v.state = StateError
 		return true
 	}
 
-	sseType := ""
-	if t, ok := data["type"].(string); ok {
-		sseType = t
+	// Missing type field
+	if sseType == "" {
+		log.Printf("[SSEValidator] missing or non-string 'type' in event data")
+		v.violations++
+		return false
 	}
 
 	valid := false
@@ -512,13 +541,7 @@ func (v *SSEValidator) ValidateEvent(eventName string, data map[string]any) bool
 			if cb, ok := data["content_block"].(map[string]any); ok {
 				v.blockType, _ = cb["type"].(string)
 			}
-			// Validate index
-			if idx, ok := data["index"]; ok {
-				if idxF, ok2 := idx.(float64); ok2 && int(idxF) != v.blockIndex {
-					log.Printf("[SSEValidator] block index mismatch: got %d, expected %d", int(idxF), v.blockIndex)
-					v.violations++
-				}
-			}
+			v.validateBlockIndex(data)
 		} else if sseType == "message_delta" {
 			valid = true
 			nextState = StateMessageDelta
@@ -547,6 +570,7 @@ func (v *SSEValidator) ValidateEvent(eventName string, data map[string]any) bool
 			if cb, ok := data["content_block"].(map[string]any); ok {
 				v.blockType, _ = cb["type"].(string)
 			}
+			v.validateBlockIndex(data)
 		} else if sseType == "message_delta" {
 			valid = true
 			nextState = StateMessageDelta
@@ -566,6 +590,35 @@ func (v *SSEValidator) ValidateEvent(eventName string, data map[string]any) bool
 
 	v.state = nextState
 	return true
+}
+
+// #4 fix: support int, int64, float64 for block index validation
+func (v *SSEValidator) validateBlockIndex(data map[string]any) {
+	idx, ok := data["index"]
+	if !ok {
+		return
+	}
+	var got int
+	switch n := idx.(type) {
+	case int:
+		got = n
+	case int64:
+		got = int(n)
+	case float64:
+		got = int(n)
+	case json.Number:
+		if i, err := n.Int64(); err == nil {
+			got = int(i)
+		} else {
+			return
+		}
+	default:
+		return
+	}
+	if got != v.blockIndex {
+		log.Printf("[SSEValidator] block index mismatch: got %d, expected %d", got, v.blockIndex)
+		v.violations++
+	}
 }
 
 func (v *SSEValidator) isDeltaTypeValid(deltaType string) bool {

@@ -17,13 +17,30 @@ func StructuredOutputValidationEnabled() bool {
 	return v == "true" || v == "1" || v == "yes"
 }
 
+// Maximum sizes for schema validation inputs to prevent abuse.
+const (
+	maxSchemaBytes = 64 * 1024  // 64 KB
+	maxOutputBytes = 512 * 1024 // 512 KB
+)
+
 // ValidateStructuredOutput validates a JSON string against a JSON Schema.
 // Returns nil if validation passes, or a descriptive error if it fails.
 //
 // Schema compilation failures are treated as degradation: a warning is logged
 // and nil is returned (the output passes through unvalidated).
+// Oversized inputs are also degraded to avoid CPU/memory abuse.
 func ValidateStructuredOutput(jsonText string, schemaBytes []byte) error {
 	if len(schemaBytes) == 0 || len(jsonText) == 0 {
+		return nil
+	}
+
+	// #8 fix: enforce size limits
+	if len(schemaBytes) > maxSchemaBytes {
+		log.Printf("[kiro] structured output: schema too large (%d bytes > %d), degrading", len(schemaBytes), maxSchemaBytes)
+		return nil
+	}
+	if len(jsonText) > maxOutputBytes {
+		log.Printf("[kiro] structured output: output too large (%d bytes > %d), degrading", len(jsonText), maxOutputBytes)
 		return nil
 	}
 

@@ -459,3 +459,73 @@ func TestSSEValidator_FeatureFlag(t *testing.T) {
 		t.Fatal("SSE state machine should be off by default")
 	}
 }
+
+// --- Review fix verification tests ---
+
+func TestSSEValidator_EventNameTypeMismatch(t *testing.T) {
+	v := NewSSEValidator()
+	// eventName doesn't match data.type
+	ok := v.ValidateEvent("message_stop", map[string]any{"type": "message_start"})
+	if ok {
+		t.Fatal("should reject when eventName != data.type")
+	}
+	if v.Violations() != 1 {
+		t.Fatalf("violations = %d, want 1", v.Violations())
+	}
+}
+
+func TestSSEValidator_MissingType(t *testing.T) {
+	v := NewSSEValidator()
+	ok := v.ValidateEvent("message_start", map[string]any{"no_type": "here"})
+	if ok {
+		t.Fatal("should reject missing type field")
+	}
+	if v.Violations() != 1 {
+		t.Fatalf("violations = %d, want 1", v.Violations())
+	}
+}
+
+func TestSSEValidator_BlockIndexIntType(t *testing.T) {
+	v := NewSSEValidator()
+	v.ValidateEvent("message_start", map[string]any{"type": "message_start"})
+	// Use Go int (not float64) for index — should still be validated
+	ok := v.ValidateEvent("content_block_start", map[string]any{
+		"type": "content_block_start", "index": 5, // wrong: should be 0
+		"content_block": map[string]any{"type": "text"},
+	})
+	if !ok {
+		t.Fatal("event should still be valid (index mismatch is a violation, not a rejection)")
+	}
+	if v.Violations() != 1 {
+		t.Fatalf("violations = %d, want 1 for index mismatch", v.Violations())
+	}
+}
+
+func TestSSEValidator_PingInTerminalState(t *testing.T) {
+	v := NewSSEValidator()
+	v.ValidateEvent("message_start", map[string]any{"type": "message_start"})
+	v.ValidateEvent("message_delta", map[string]any{"type": "message_delta"})
+	v.ValidateEvent("message_stop", map[string]any{"type": "message_stop"})
+	// ping in MessageStopped should be rejected and counted
+	ok := v.ValidateEvent("ping", map[string]any{"type": "ping"})
+	if ok {
+		t.Fatal("ping should be rejected in terminal state")
+	}
+	if v.Violations() != 1 {
+		t.Fatalf("violations = %d, want 1", v.Violations())
+	}
+}
+
+func TestSSEValidator_ErrorInTerminalState(t *testing.T) {
+	v := NewSSEValidator()
+	v.ValidateEvent("message_start", map[string]any{"type": "message_start"})
+	v.ValidateEvent("message_delta", map[string]any{"type": "message_delta"})
+	v.ValidateEvent("message_stop", map[string]any{"type": "message_stop"})
+	ok := v.ValidateEvent("error", map[string]any{"type": "error"})
+	if ok {
+		t.Fatal("error should be rejected in terminal state")
+	}
+	if v.Violations() != 1 {
+		t.Fatalf("violations = %d, want 1", v.Violations())
+	}
+}

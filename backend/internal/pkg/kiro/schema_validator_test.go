@@ -2,6 +2,7 @@ package kiro
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -158,5 +159,37 @@ func TestBuildStructuredOutputErrorResponse(t *testing.T) {
 func TestStructuredOutputValidationEnabled_Default(t *testing.T) {
 	if StructuredOutputValidationEnabled() {
 		t.Fatal("should be off by default")
+	}
+}
+
+func TestValidateStructuredOutput_OversizedSchema_Degrades(t *testing.T) {
+	// Schema larger than 64KB should degrade gracefully
+	bigSchema := []byte(`{"type":"object","properties":{`)
+	for i := 0; i < 7000; i++ {
+		if i > 0 {
+			bigSchema = append(bigSchema, ',')
+		}
+		prop := fmt.Sprintf(`"prop%d":{"type":"string"}`, i)
+		bigSchema = append(bigSchema, []byte(prop)...)
+	}
+	bigSchema = append(bigSchema, []byte(`}}`)...)
+
+	if len(bigSchema) <= 64*1024 {
+		t.Skipf("schema not large enough: %d bytes", len(bigSchema))
+	}
+
+	err := ValidateStructuredOutput(`{"prop0":"test"}`, bigSchema)
+	if err != nil {
+		t.Fatalf("oversized schema should degrade, got: %v", err)
+	}
+}
+
+func TestValidateStructuredOutput_OversizedOutput_Degrades(t *testing.T) {
+	schema := []byte(`{"type":"object"}`)
+	bigOutput := `{"data":"` + strings.Repeat("x", 512*1024+1) + `"}`
+
+	err := ValidateStructuredOutput(bigOutput, schema)
+	if err != nil {
+		t.Fatalf("oversized output should degrade, got: %v", err)
 	}
 }
