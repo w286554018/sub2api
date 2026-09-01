@@ -295,3 +295,22 @@ func isKiroServerToolsWebSearchEnabled(headers http.Header) bool {
 	val := strings.TrimSpace(headers.Get("x-kiro-enable-websearch"))
 	return strings.EqualFold(val, "server-tools")
 }
+
+// getKiroWebSearchMode returns the web search mode from request headers.
+// Possible values:
+//   - "single": Single-round pre-search (inject into system prompt)
+//   - "orchestrated": Multi-round orchestrated search with server_tool_use blocks
+//   - "": Disabled
+func getKiroWebSearchMode(headers http.Header) string {
+	val := strings.TrimSpace(headers.Get("x-kiro-websearch-mode"))
+	switch strings.ToLower(val) {
+	case "single", "orchestrated":
+		return strings.ToLower(val)
+	default:
+		// Backward compat: x-kiro-enable-websearch: server-tools → single mode
+		if isKiroServerToolsWebSearchEnabled(headers) {
+			return "single"
+		}
+		return ""
+	}
+}

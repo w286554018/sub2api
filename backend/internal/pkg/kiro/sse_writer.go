@@ -197,6 +197,17 @@ func (s *AnthropicSSEWriter) WriteMessageStart(inputTokens, cacheCreate, cacheRe
 	return err
 }
 
+// SkipMessageStart transitions the writer to StateMessageStarted without
+// emitting a message_start event. Use this when the message_start has already
+// been written to the stream (e.g., when injecting content mid-stream).
+func (s *AnthropicSSEWriter) SkipMessageStart() error {
+	if s.state != StateInit {
+		return s.setErr(fmt.Errorf("cannot skip message_start: already in state %s", s.state))
+	}
+	s.state = StateMessageStarted
+	return nil
+}
+
 // StartTextBlock emits content_block_start for a text block.
 func (s *AnthropicSSEWriter) StartTextBlock() error {
 	if err := s.checkTransition("content_block_start"); err != nil {
