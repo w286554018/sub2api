@@ -77,14 +77,19 @@ func (o *kiroSearchOrchestrator) executeSearchRound(
 	roundCtx, cancel := context.WithTimeout(ctx, o.cfg.RoundTimeout)
 	defer cancel()
 
+	start := time.Now()
 	results, nextToken, err := o.svc.callKiroWebSearchMCP(roundCtx, account, token, query)
+	RecordSearchLatency(time.Since(start))
+
 	if err == nil && results != nil {
+		RecordMCPCall(true)
 		items := kiropkg.FromWebSearchResults(results)
 		items = kiropkg.TruncateResults(items, o.cfg.MaxResults, o.cfg.MaxResultBytes)
 		return items, nextToken, nil
 	}
 
 	// MCP failed — log and continue (no gateway fallback yet in Kiro path)
+	RecordMCPCall(false)
 	log.Printf("[kiro] MCP search failed for query %q: %v", kiropkg.SanitizeQueryForLog(query), err)
 	return nil, nextToken, err
 }

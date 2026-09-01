@@ -316,6 +316,7 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 
 		// Check web search mode from headers
 		webSearchMode := getKiroWebSearchMode(headers)
+		RecordSearchMode(webSearchMode)
 		var preSearchRounds []kiropkg.SearchRound
 		switch webSearchMode {
 		case "single":
@@ -388,10 +389,12 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 		if len(preSearchRounds) > 0 {
 			streamErr := s.streamKiroWithSearchInjection(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx, preSearchRounds)
 			if streamErr != nil {
+				RecordStreamInjection(false)
 				_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
 				_ = pw.CloseWithError(streamErr)
 				return
 			}
+			RecordStreamInjection(true)
 		} else {
 			_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx)
 			if streamErr != nil {
