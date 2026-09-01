@@ -455,7 +455,12 @@ func BuildKiroPayloadWithContext(claudeBody []byte, modelID, profileArn, origin 
 		thinking = nil
 		requestCtx.ThinkingEnabled = false
 	}
-	systemPrompt := buildInjectedSystemPrompt(baseSystem, thinking, toolChoiceHint)
+	var systemPrompt string
+	if ConditionalInjectionEnabled() {
+		systemPrompt = buildConditionalSystemPrompt(baseSystem, thinking, toolChoiceHint, hasFileWriteTools(claudeBody))
+	} else {
+		systemPrompt = buildInjectedSystemPrompt(baseSystem, thinking, toolChoiceHint)
+	}
 
 	history, currentUserMsg, currentToolResults := processMessages(filteredMessages, modelID, normalizeOrigin(origin), &requestCtx)
 	history = prependSystemHistory(history, systemPrompt, modelID, normalizeOrigin(origin))
@@ -1555,6 +1560,90 @@ func buildInjectedSystemPrompt(systemPrompt string, thinking *thinkingDirective,
 		}
 	}
 	return systemPrompt
+}
+
+// ConditionalInjectionEnabled returns true if conditional system prompt
+// injection is enabled via environment variable.
+func ConditionalInjectionEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("SUB2API_KIRO_CONDITIONAL_INJECTION")))
+	return v == "true" || v == "1" || v == "yes"
+}
+
+// buildConditionalSystemPrompt creates a minimal system prompt that only
+// injects what is actually needed for the request. Called when the
+// SUB2API_KIRO_CONDITIONAL_INJECTION feature flag is enabled.
+//
+// Conditions:
+//   - Identity prompt: NOT injected (model stays native Claude)
+//   - Temporal context: only if SUB2API_KIRO_TIME_CONTEXT env is set
+//   - Tool choice hint: only if non-empty (already conditional)
+//   - Chunked write policy: only if request includes file write/edit tools
+//   - Thinking prefix: only if thinking directive is set (already conditional)
+func buildConditionalSystemPrompt(systemPrompt string, thinking *thinkingDirective, toolChoiceHint string, hasFileTools bool) string {
+	systemPrompt = strings.TrimSpace(systemPrompt)
+
+	var promptParts []string
+	// No identity prompt — let model behave as native Claude
+
+	if temporalContext := buildKiroTemporalContext(); temporalContext != "" {
+		promptParts = append(promptParts, temporalContext)
+	}
+	if systemPrompt != "" {
+		promptParts = append(promptParts, systemPrompt)
+	}
+	if len(promptParts) > 0 {
+		systemPrompt = strings.Join(promptParts, "\n\n")
+	}
+
+	if toolChoiceHint != "" {
+		if systemPrompt != "" {
+			systemPrompt += "\n"
+		}
+		systemPrompt += toolChoiceHint
+	}
+
+	// Only inject chunked write policy when file tools are present
+	if hasFileTools && !strings.Contains(systemPrompt, systemChunkedWritePolicy) {
+		systemPrompt += "\n" + systemChunkedWritePolicy
+	}
+
+	if thinking != nil {
+		switch thinking.Mode {
+		case "adaptive":
+			effort := strings.TrimSpace(thinking.Effort)
+			if effort == "" {
+				effort = "high"
+			}
+			thinkingPrefix := "<thinking_mode>adaptive</thinking_mode>\n<thinking_effort>" + effort + "</thinking_effort>"
+			return thinkingPrefix + "\n\n" + systemPrompt
+		default:
+			budget := thinking.BudgetTokens
+			if budget <= 0 {
+				budget = 16000
+			}
+			thinkingPrefix := "<thinking_mode>enabled</thinking_mode>\n<max_thinking_length>" + strconv.Itoa(budget) + "</max_thinking_length>"
+			return thinkingPrefix + "\n\n" + systemPrompt
+		}
+	}
+	return systemPrompt
+}
+
+// hasFileWriteTools checks if the request contains file write/edit tools
+// that require the chunked write policy instruction.
+func hasFileWriteTools(claudeBody []byte) bool {
+	tools := gjson.GetBytes(claudeBody, "tools")
+	if !tools.IsArray() {
+		return false
+	}
+	for _, tool := range tools.Array() {
+		name := strings.ToLower(strings.TrimSpace(tool.Get("name").String()))
+		switch name {
+		case "write", "write_to_file", "fswrite", "create_file", "edit",
+			"edit_file", "apply_diff", "str_replace_editor":
+			return true
+		}
+	}
+	return false
 }
 
 func buildKiroTemporalContext() string {
