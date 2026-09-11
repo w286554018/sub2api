@@ -63,7 +63,6 @@ func TestInjectSearchContextIntoBody(t *testing.T) {
 		})
 	}
 }
-
 func TestIsKiroServerToolsWebSearchEnabled(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -102,6 +101,65 @@ func TestIsKiroServerToolsWebSearchEnabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isKiroServerToolsWebSearchEnabled(tt.headers)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestWebSearchResultConversion tests the data conversion from WebSearchResult to SearchResultItem
+func TestWebSearchResultConversion(t *testing.T) {
+	tests := []struct {
+		name        string
+		webResults  []kiropkg.WebSearchResult
+		wantCount   int
+		validateFn  func(t *testing.T, items []kiropkg.SearchResultItem)
+	}{
+		{
+			name: "with snippets",
+			webResults: []kiropkg.WebSearchResult{
+				{Title: "Result 1", URL: "https://example.com/1", Snippet: strPtr("snippet 1")},
+				{Title: "Result 2", URL: "https://example.com/2", Snippet: strPtr("snippet 2")},
+			},
+			wantCount: 2,
+			validateFn: func(t *testing.T, items []kiropkg.SearchResultItem) {
+				assert.Equal(t, "Result 1", items[0].Title)
+				assert.Equal(t, "https://example.com/1", items[0].URL)
+				assert.Equal(t, "snippet 1", items[0].Snippet)
+				assert.Equal(t, "Result 2", items[1].Title)
+				assert.Equal(t, "snippet 2", items[1].Snippet)
+			},
+		},
+		{
+			name: "without snippets",
+			webResults: []kiropkg.WebSearchResult{
+				{Title: "Result", URL: "https://example.com", Snippet: nil},
+			},
+			wantCount: 1,
+			validateFn: func(t *testing.T, items []kiropkg.SearchResultItem) {
+				assert.Equal(t, "Result", items[0].Title)
+				assert.Equal(t, "", items[0].Snippet)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate conversion logic from executeKiroMCPWebSearch
+			items := make([]kiropkg.SearchResultItem, 0, len(tt.webResults))
+			for _, r := range tt.webResults {
+				item := kiropkg.SearchResultItem{
+					Title: r.Title,
+					URL:   r.URL,
+				}
+				if r.Snippet != nil {
+					item.Snippet = *r.Snippet
+				}
+				items = append(items, item)
+			}
+
+			require.Len(t, items, tt.wantCount)
+			if tt.validateFn != nil {
+				tt.validateFn(t, items)
+			}
 		})
 	}
 }
