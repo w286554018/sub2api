@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -120,6 +121,84 @@ func TestForwardAsRawChatCompletions_ForcesStreamUsageUpstreamAndPassesUsageDown
 	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
 	require.True(t, gjson.GetBytes(upstream.lastBody, "stream_options.include_usage").Bool())
 	require.Contains(t, rec.Body.String(), `"usage"`)
+	require.Contains(t, rec.Body.String(), "data: [DONE]")
+}
+
+func TestForwardAsRawChatCompletions_TracksGeminiChatImageTier(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gemini-3.1-flash-image","messages":[{"role":"user","content":"draw a fish"}],"stream":false,"modalities":["text","image"],"extra_body":{"google":{"image_config":{"image_size":"4K"}}}}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	// The tracker only needs a sufficiently large, syntactically valid data URL
+	// to identify an image. The live endpoint test below verifies real JPEG
+	// dimensions; keeping this fixture small makes the unit test fast.
+	encoded := strings.Repeat("A", 64)
+	upstreamBody := fmt.Sprintf(`{"id":"chatcmpl_image","object":"chat.completion","model":"gemini-3.1-flash-image","choices":[{"index":0,"message":{"role":"assistant","content":"![image](data:image/jpeg;base64,%s)"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}`, encoded)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid_gemini_chat_image"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
+
+	svc := &OpenAIGatewayService{
+		cfg:          rawChatCompletionsTestConfig(),
+		httpUpstream: upstream,
+	}
+	result, err := svc.forwardAsRawChatCompletions(context.Background(), c, rawChatCompletionsTestAccount(), body, "")
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 1, result.ImageCount)
+	require.Equal(t, "4K", result.ImageInputSize)
+	require.Equal(t, "4K", result.ImageSize)
+	require.Equal(t, ImageSizeSourceInput, result.ImageSizeSource)
+	require.Contains(t, rec.Body.String(), "data:image/jpeg;base64")
+}
+
+func TestForwardAsRawChatCompletions_TracksGeminiChatImageTierStreaming(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gemini-3-pro-image","messages":[{"role":"user","content":"draw a fish"}],"stream":true,"modalities":["text","image"],"extra_body":{"google":{"image_config":{"image_size":"1K"}}}}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	encoded := strings.Repeat("A", 64)
+	content := "![image](data:image/jpeg;base64," + encoded + ")"
+	cut := len(content) / 2
+	upstreamBody := strings.Join([]string{
+		fmt.Sprintf(`data: {"id":"chatcmpl_image_stream","object":"chat.completion.chunk","model":"gemini-3-pro-image","choices":[{"index":0,"delta":{"content":%q}}]}`, content[:cut]),
+		"",
+		fmt.Sprintf(`data: {"id":"chatcmpl_image_stream","object":"chat.completion.chunk","model":"gemini-3-pro-image","choices":[{"index":0,"delta":{"content":%q}}]}`, content[cut:]),
+		"",
+		`data: {"id":"chatcmpl_image_stream","object":"chat.completion.chunk","model":"gemini-3-pro-image","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_gemini_chat_image_stream"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
+
+	svc := &OpenAIGatewayService{
+		cfg:          rawChatCompletionsTestConfig(),
+		httpUpstream: upstream,
+	}
+	result, err := svc.forwardAsRawChatCompletions(context.Background(), c, rawChatCompletionsTestAccount(), body, "")
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 1, result.ImageCount)
+	require.Equal(t, "1K", result.ImageInputSize)
+	require.Equal(t, "1K", result.ImageSize)
+	require.Equal(t, ImageSizeSourceInput, result.ImageSizeSource)
 	require.Contains(t, rec.Body.String(), "data: [DONE]")
 }
 
@@ -1204,7 +1283,7 @@ func TestBufferRawChatCompletions_RejectsOversizedResponse(t *testing.T) {
 	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
 	svc.cfg.Gateway.UpstreamResponseReadMaxBytes = 3
 
-	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now(), openAIChatImageBillingContext{})
 	require.ErrorIs(t, err, ErrUpstreamResponseBodyTooLarge)
 	require.Nil(t, result)
 	require.Equal(t, http.StatusBadGateway, rec.Code)

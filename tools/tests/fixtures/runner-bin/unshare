@@ -1,0 +1,3 @@
+#!/bin/sh
+printf '%s\n' "$@" >> "$OFFLINE_FIXTURE_LOG"
+exit "${OFFLINE_FIXTURE_UNSHARE_RC:-75}"

@@ -666,16 +666,13 @@
               {{ t('admin.accounts.grokMediaEligibility.hint') }}
             </p>
           </div>
-          <select
+          <Select
             v-model="grokMediaEligibilityMode"
-            class="input"
             data-testid="grok-media-eligibility-mode"
+            :options="grokMediaEligibilityOptions"
             :disabled="grokMediaEligibilityLoading"
-          >
-            <option value="auto">{{ t('admin.accounts.grokMediaEligibility.auto') }}</option>
-            <option value="enabled">{{ t('admin.accounts.grokMediaEligibility.enabled') }}</option>
-            <option value="disabled">{{ t('admin.accounts.grokMediaEligibility.disabled') }}</option>
-          </select>
+            :aria-label="t('admin.accounts.grokMediaEligibility.title')"
+          />
           <p v-if="grokMediaEligibilityLoading" class="text-xs text-gray-500 dark:text-gray-400">
             {{ t('admin.accounts.grokMediaEligibility.loading') }}
           </p>
@@ -1987,6 +1984,13 @@
             </div>
           </div>
         </div>
+        <label
+          v-if="canEditCodexFingerprintConvergence"
+          class="mt-3 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+        >
+          <input v-model="codexFingerprintConvergenceEnabled" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          {{ t('admin.accounts.openai.codexFingerprintConvergence') }}
+        </label>
       </div>
 
       <!-- OpenAI WS Mode 三态（off/ctx_pool/passthrough） -->
@@ -3263,6 +3267,11 @@ const selectableGroups = computed(() => {
 // Spark 影子账号(parent_account_id 非空):代理恒继承母账号,不可独立编辑(外审 B/P1),
 // 故隐藏代理选择器。
 const isSparkShadow = computed(() => props.account?.parent_account_id != null)
+const canEditCodexFingerprintConvergence = computed(() =>
+  props.account?.platform === 'openai' &&
+  (props.account.type === 'oauth' || props.account.type === 'setup-token') &&
+  !isSparkShadow.value
+)
 
 const hideAccountLongContextBilling = computed(() => {
   return allSelectedGroupsEnableLongContextPricing(form.group_ids, props.groups)
@@ -3508,6 +3517,11 @@ const isGrokOAuthAccount = computed(
 )
 const grokMediaEligibilityMode = ref<GrokMediaEligibilityMode>('auto')
 const grokMediaEligibilityInitialMode = ref<GrokMediaEligibilityMode>('auto')
+const grokMediaEligibilityOptions = computed<Array<{ value: GrokMediaEligibilityMode; label: string }>>(() => [
+  { value: 'auto', label: t('admin.accounts.grokMediaEligibility.auto') },
+  { value: 'enabled', label: t('admin.accounts.grokMediaEligibility.enabled') },
+  { value: 'disabled', label: t('admin.accounts.grokMediaEligibility.disabled') }
+])
 const grokMediaEligibilityState = ref<GrokMediaEligibilityState | null>(null)
 const grokMediaEligibilityLoading = ref(false)
 const grokMediaEligibilityError = ref('')
@@ -3673,6 +3687,7 @@ const codexCLIOnlyEnabled = ref(false)
 const codexCLIOnlyAppServerEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const codexFingerprintMode = ref<CodexFingerprintMode>('off')
+const codexFingerprintConvergenceEnabled = ref(false)
 type CodexImageToolMode = 'inherit' | 'enabled' | 'disabled' | 'block'
 const codexImageToolMode = ref<CodexImageToolMode>('inherit')
 type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
@@ -4161,6 +4176,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   codexCLIOnlyEnabled.value = false
   codexCLIOnlyAppServerEnabled.value = false
   codexFingerprintMode.value = 'off'
+  codexFingerprintConvergenceEnabled.value =
+    canEditCodexFingerprintConvergence.value && extra?.codex_experimental_fingerprint_convergence === true
   codexImageToolMode.value = 'inherit'
   anthropicPassthroughEnabled.value = false
   anthropicAPIKeyAuthScheme.value = 'x_api_key'
@@ -5820,6 +5837,11 @@ const handleSubmit = async () => {
         } else {
           delete newExtra.codex_cli_only_allow_app_server
         }
+      }
+      if (canEditCodexFingerprintConvergence.value && codexFingerprintConvergenceEnabled.value) {
+        newExtra.codex_experimental_fingerprint_convergence = true
+      } else {
+        delete newExtra.codex_experimental_fingerprint_convergence
       }
 
       // 指纹收敛模式：默认 off（不写入）；device/session/full 是显式 opt-in，

@@ -312,7 +312,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				nil,
 			)
 		}
-		if turnMetadata := strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)); turnMetadata != "" {
+		frameTurnMetadata := gjson.GetBytes(normalized, "client_metadata."+openAIWSTurnMetadataHeader)
+		hasFrameTurnMetadata := frameTurnMetadata.Type == gjson.String && strings.TrimSpace(frameTurnMetadata.Str) != ""
+		if turnMetadata := strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader)); turnMetadata != "" && !hasFrameTurnMetadata {
 			next, setErr := applyPayloadMutation(normalized, "client_metadata."+openAIWSTurnMetadataHeader, turnMetadata)
 			if setErr != nil {
 				return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", setErr)
@@ -320,13 +322,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			normalized = next
 		}
 		accountIdentitySourceRaw := append([]byte(nil), normalized...)
-		accountScopedPayload, accountScoped, scopeErr := applyCodexAccountIdentityClientMetadataRaw(normalized, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
-		if scopeErr != nil {
-			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket identity metadata", scopeErr)
+		identityPayload, identityErr := applyCodexIdentityToWSPayload(c, account, normalized)
+		if identityErr != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket identity metadata", identityErr)
 		}
-		if accountScoped {
-			normalized = accountScopedPayload
-		}
+		normalized = identityPayload
 		if responsesLite {
 			litePayload, _, liteErr := normalizeOpenAIResponsesLitePayloadForAccount(normalized, account)
 			if liteErr != nil {
@@ -487,7 +487,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		writeCtx, cancel := newOpenAIWSDownstreamWriteContext(ctx, hooks, s.openAIWSWriteTimeout())
 		defer cancel()
 		message = restoreCodexToolNamesFromContext(c, message)
-		return clientConn.Write(writeCtx, coderws.MessageText, message)
+		if err := clientConn.Write(writeCtx, coderws.MessageText, message); err != nil {
+			return err
+		}
+		s.noteOpenAICodexTurnStateFromWSEvent(c, account, message)
+		return nil
 	}
 
 	readClientMessage := func() ([]byte, error) {
@@ -522,7 +526,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	useHTTPBridge := forceHTTPBridge || s.shouldBridgeOpenAIWSHTTP(account, firstPayload.payloadBytes, firstPayload.previousResponseID)
-	turnState := strings.TrimSpace(c.GetHeader(openAIWSTurnStateHeader))
+	turnState := s.guardOpenAICodexTurnStateValue(c, account, c.GetHeader(openAIWSTurnStateHeader))
+	clientTurnState := turnState
 	stateStore := s.getOpenAIWSStateStore()
 	groupID := getOpenAIGroupIDFromContext(c)
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
@@ -540,7 +545,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		if turnState == "" && stateStore != nil && sessionHash != "" {
 			if savedTurnState, ok := stateStore.GetSessionTurnState(groupID, sessionHash); ok {
-				turnState = savedTurnState
+				turnState = s.guardOpenAICodexTurnStateValue(c, account, savedTurnState)
 			}
 		}
 
@@ -678,6 +683,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					return fmt.Errorf("resolve Grok websocket cache identity: %w", err)
 				}
 			}
+			bridgePayloadRaw = s.guardOpenAICodexWSFrameTurnState(c, account, bridgePayloadRaw)
+			bridgePayloadBytes = len(bridgePayloadRaw)
 			result, bridgeErr := s.proxyOpenAIWSHTTPBridgeTurn(
 				ctx,
 				c,
@@ -930,15 +937,18 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		connID := strings.TrimSpace(lease.ConnID())
 		if handshakeTurnState := strings.TrimSpace(lease.HandshakeHeader(openAIWSTurnStateHeader)); handshakeTurnState != "" {
 			turnState = handshakeTurnState
+			s.noteOpenAICodexTurnStateOrigin(c, account, handshakeTurnState)
 			if stateStore != nil && sessionHash != "" {
 				stateStore.BindSessionTurnState(groupID, sessionHash, handshakeTurnState, s.openAIWSSessionStickyTTL())
 			}
-			updatedHeaders := cloneHeader(baseAcquireReq.Headers)
-			if updatedHeaders == nil {
-				updatedHeaders = make(http.Header)
+			if !codexDeviceWireProfileEnabled(c, account) {
+				updatedHeaders := cloneHeader(baseAcquireReq.Headers)
+				if updatedHeaders == nil {
+					updatedHeaders = make(http.Header)
+				}
+				updatedHeaders.Set(openAIWSTurnStateHeader, handshakeTurnState)
+				baseAcquireReq.Headers = updatedHeaders
 			}
-			updatedHeaders.Set(openAIWSTurnStateHeader, handshakeTurnState)
-			baseAcquireReq.Headers = updatedHeaders
 		}
 		logOpenAIWSModeInfo(
 			"ingress_ws_upstream_connected account_id=%d turn=%d conn_id=%s conn_reused=%v conn_pick_ms=%d queue_wait_ms=%d preferred_conn_id=%s",
@@ -961,7 +971,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		turnStart := time.Now()
 		wroteDownstream := false
-		if err := lease.WriteJSONWithContextTimeout(ctx, json.RawMessage(payload), s.openAIWSWriteTimeout()); err != nil {
+		payload = s.guardOpenAICodexWSFrameTurnState(c, account, payload)
+		payload = applyCodexWSFrameWireProfile(c, account, payload, clientTurnState)
+		if err := writeCodexWSFrame(ctx, c, account, lease, payload, s.openAIWSWriteTimeout()); err != nil {
 			return nil, wrapOpenAIWSIngressTurnError(
 				"write_upstream",
 				fmt.Errorf("write upstream websocket request: %w", err),

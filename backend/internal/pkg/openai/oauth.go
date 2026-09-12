@@ -178,11 +178,11 @@ func base64URLEncode(data []byte) string {
 
 // BuildAuthorizationURL builds the OpenAI OAuth authorization URL
 func BuildAuthorizationURL(state, codeChallenge, redirectURI string) string {
-	return BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, OAuthPlatformOpenAI)
+	return BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, OAuthPlatformOpenAI, CodexDefaultOriginator)
 }
 
 // BuildAuthorizationURLForPlatform builds authorization URL by platform.
-func BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, platform string) string {
+func BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, platform, originator string) string {
 	if redirectURI == "" {
 		redirectURI = DefaultRedirectURI
 	}
@@ -201,6 +201,11 @@ func BuildAuthorizationURLForPlatform(state, codeChallenge, redirectURI, platfor
 	params.Set("id_token_add_organizations", "true")
 	if codexFlow {
 		params.Set("codex_cli_simplified_flow", "true")
+		originator = strings.TrimSpace(originator)
+		if originator == "" {
+			originator = CodexDefaultOriginator
+		}
+		params.Set("originator", originator)
 	}
 
 	return fmt.Sprintf("%s?%s", AuthorizeURL, params.Encode())

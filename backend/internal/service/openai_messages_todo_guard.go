@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
+	"github.com/tidwall/gjson"
 )
 
 const (
-	openAICompatClaudeCodeTodoGuardMarker = "<sub2api-claude-code-todo-guard>"
-	openAICompatClaudeCodeTodoGuardText   = openAICompatClaudeCodeTodoGuardMarker + "\nWhen using Claude Code todo or task tracking tools, keep the visible task list consistent. Do not send final or summary text while any item remains in_progress. Before finishing, asking the user to choose, or reporting a blocker, update the todo list so completed work is completed and deferred work is pending/open; leave an item in_progress only when active work will continue in the same turn.\n</sub2api-claude-code-todo-guard>"
+	openAICompatClaudeCodeTodoGuardMarker       = "<todo-guard>"
+	openAICompatClaudeCodeTodoGuardLegacyMarker = "<sub2api-claude-code-todo-guard>"
+	openAICompatClaudeCodeTodoGuardText         = openAICompatClaudeCodeTodoGuardMarker + "\nWhen using Claude Code todo or task tracking tools, keep the visible task list consistent. Do not send final or summary text while any item remains in_progress. Before finishing, asking the user to choose, or reporting a blocker, update the todo list so completed work is completed and deferred work is pending/open; leave an item in_progress only when active work will continue in the same turn.\n</todo-guard>"
 )
 
 func appendOpenAICompatClaudeCodeTodoGuard(req *apicompat.ResponsesRequest) bool {
@@ -21,7 +23,7 @@ func appendOpenAICompatClaudeCodeTodoGuard(req *apicompat.ResponsesRequest) bool
 	if err := json.Unmarshal(req.Input, &items); err != nil {
 		return false
 	}
-	if len(items) == 0 || responsesInputItemsContainText(items, openAICompatClaudeCodeTodoGuardMarker) {
+	if len(items) == 0 || containsOpenAICompatTodoGuard(gjson.ParseBytes(req.Input)) {
 		return false
 	}
 
@@ -62,7 +64,9 @@ func appendOpenAICompatClaudeCodeTodoGuardToRequestBody(reqBody map[string]any) 
 	}
 
 	input, ok := reqBody["input"].([]any)
-	if !ok || len(input) == 0 || inputContainsText(input, openAICompatClaudeCodeTodoGuardMarker) {
+	if !ok || len(input) == 0 ||
+		inputContainsText(input, openAICompatClaudeCodeTodoGuardMarker) ||
+		inputContainsText(input, openAICompatClaudeCodeTodoGuardLegacyMarker) {
 		return false
 	}
 
@@ -106,13 +110,30 @@ func responsesInputItemsContainText(items []apicompat.ResponsesInputItem, needle
 	return false
 }
 
+// Compare decoded strings so JSON's HTML/Unicode escaping cannot defeat dedup.
+func containsOpenAICompatTodoGuard(value gjson.Result) bool {
+	if value.Type == gjson.String {
+		return strings.Contains(value.Str, openAICompatClaudeCodeTodoGuardMarker) ||
+			strings.Contains(value.Str, openAICompatClaudeCodeTodoGuardLegacyMarker)
+	}
+	if !value.IsArray() && !value.IsObject() {
+		return false
+	}
+	found := false
+	value.ForEach(func(_, child gjson.Result) bool {
+		found = containsOpenAICompatTodoGuard(child)
+		return !found
+	})
+	return found
+}
+
 func inputContainsText(input []any, needle string) bool {
 	needle = strings.TrimSpace(needle)
 	if needle == "" {
 		return false
 	}
 	for _, item := range input {
-		b, err := json.Marshal(item)
+		b, err := marshalOpenAIUpstreamJSON(item)
 		if err == nil && strings.Contains(string(b), needle) {
 			return true
 		}

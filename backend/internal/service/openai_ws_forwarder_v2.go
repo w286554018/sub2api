@@ -66,9 +66,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	turnState := ""
 	turnMetadata := ""
 	if c != nil && c.Request != nil {
-		turnState = strings.TrimSpace(c.GetHeader(openAIWSTurnStateHeader))
+		turnState = s.guardOpenAICodexTurnStateValue(c, account, c.GetHeader(openAIWSTurnStateHeader))
 		turnMetadata = strings.TrimSpace(c.GetHeader(openAIWSTurnMetadataHeader))
 	}
+	clientTurnState := turnState
 	setOpenAIWSTurnMetadata(payload, turnMetadata)
 	applyStagedCodexFingerprintClientMetadata(c, account, payload)
 	previousResponseID := openAIWSPayloadString(payload, "previous_response_id")
@@ -126,7 +127,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	}
 	if turnState == "" && stateStore != nil && sessionHash != "" {
 		if savedTurnState, ok := stateStore.GetSessionTurnState(groupID, sessionHash); ok {
-			turnState = savedTurnState
+			turnState = s.guardOpenAICodexTurnStateValue(c, account, savedTurnState)
 		}
 	}
 	preferredConnID := ""
@@ -310,6 +311,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		len(handshakeTurnState),
 	)
 	if handshakeTurnState != "" {
+		s.noteOpenAICodexTurnStateOrigin(c, account, handshakeTurnState)
 		if stateStore != nil && sessionHash != "" {
 			stateStore.BindSessionTurnState(groupID, sessionHash, handshakeTurnState, s.openAIWSSessionStickyTTL())
 		}
@@ -320,10 +322,12 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 
 	if err := s.performOpenAIWSGeneratePrewarm(
 		ctx,
+		c,
 		lease,
 		decision,
 		payload,
 		previousResponseID,
+		clientTurnState,
 		reqBody,
 		account,
 		stateStore,
@@ -332,7 +336,13 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		return nil, err
 	}
 
-	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
+	raw, marshalErr := marshalOpenAIUpstreamJSON(payload)
+	if marshalErr != nil {
+		return nil, wrapOpenAIWSFallback("write_request", marshalErr)
+	}
+	raw = s.guardOpenAICodexWSFrameTurnState(c, account, raw)
+	raw = applyCodexWSFrameWireProfile(c, account, raw, clientTurnState)
+	if err := writeCodexWSFrame(ctx, c, account, lease, raw, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
 		logOpenAIWSModeInfo(
 			"write_request_fail account_id=%d conn_id=%s cause=%s payload_bytes=%d",
@@ -472,6 +482,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		frame = append(frame, '\n', '\n')
 		_, wErr := c.Writer.Write(frame)
 		if wErr == nil {
+			s.noteOpenAICodexTurnStateFromWSEvent(c, account, message)
 			wroteDownstream = true
 			pendingFlushEvents++
 			flushStreamWriter(forceFlush)

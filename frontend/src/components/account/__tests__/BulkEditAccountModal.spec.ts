@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import BulkEditAccountModal from '../BulkEditAccountModal.vue'
 import ModelWhitelistSelector from '../ModelWhitelistSelector.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { adminAPI } from '@/api/admin'
 
 const { showError, showSuccess, translate } = vi.hoisted(() => ({
@@ -79,6 +80,198 @@ function mountModal(extraProps: Record<string, unknown> = {}) {
     }
   })
 }
+
+describe('BulkEditAccountModal convergence', () => {
+  beforeEach(() => {
+    vi.mocked(adminAPI.accounts.bulkUpdate).mockReset().mockResolvedValue({ success: 2, failed: 0, results: [] })
+    vi.mocked(adminAPI.accounts.checkMixedChannelRisk).mockReset().mockResolvedValue({ has_risk: false })
+    showError.mockReset()
+  })
+
+  function convergenceInput(wrapper: ReturnType<typeof mountModal>) {
+    return wrapper.findAll('label')
+      .find(label => label.text() === 'admin.accounts.openai.codexFingerprintConvergence')
+      ?.find<HTMLInputElement>('input')
+  }
+
+  const valueSelector = '[data-testid="bulk-codex-fingerprint-convergence-select"]'
+
+  it('leaves convergence unchanged by default when updating another field', async () => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    expect(convergenceInput(wrapper)?.element.checked).toBe(false)
+    await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], { rate_multiplier: 1 })
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['oauth', 'enabled', true],
+    ['oauth', 'disabled', false],
+    ['setup-token', 'enabled', true],
+    ['setup-token', 'disabled', false]
+  ])('submits standalone %s convergence %s with explicit merge semantics', async (type, value, enabled) => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: [type] })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.get(valueSelector).setValue(value)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], {
+      extra: { codex_experimental_fingerprint_convergence: enabled }
+    })
+    const payload = vi.mocked(adminAPI.accounts.bulkUpdate).mock.calls[0][1]
+    const persistedExtra = {
+      codex_experimental_fingerprint_convergence: true,
+      codex_fingerprint_mode: 'device',
+      codex_fingerprint_seed: 'server-owned-seed',
+      unrelated_setting: 'retain',
+      ...payload.extra
+    }
+    expect(persistedExtra).toEqual({
+      codex_experimental_fingerprint_convergence: enabled,
+      codex_fingerprint_mode: 'device',
+      codex_fingerprint_seed: 'server-owned-seed',
+      unrelated_setting: 'retain'
+    })
+    wrapper.unmount()
+  })
+
+  it('keeps mode and convergence independently editable', async () => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth', 'setup-token'] })
+    await wrapper.get('#bulk-edit-openai-codex-fingerprint-mode-enabled').setValue(true)
+    await wrapper.get('[data-testid="bulk-codex-fingerprint-mode-select"]').setValue('session')
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.get(valueSelector).setValue('disabled')
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], {
+      extra: { codex_fingerprint_mode: 'session', codex_experimental_fingerprint_convergence: false }
+    })
+    wrapper.unmount()
+  })
+
+  it('returns to unchanged after the apply checkbox is cleared', async () => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.get(valueSelector).setValue('disabled')
+    await convergenceInput(wrapper)!.setValue(false)
+    expect(wrapper.get(valueSelector).attributes('disabled')).toBeDefined()
+    await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], { rate_multiplier: 1 })
+    wrapper.unmount()
+  })
+
+  it.each([
+    { selectedPlatforms: ['openai'], selectedTypes: ['oauth'] },
+    { selectedPlatforms: ['openai'], selectedTypes: ['setup-token'] },
+    { selectedPlatforms: ['openai'], selectedTypes: ['apikey'] },
+    { selectedPlatforms: ['anthropic'], selectedTypes: ['oauth'] }
+  ])('resets the apply checkbox on reopen for $selectedPlatforms / $selectedTypes', async nextSelection => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true, accountIds: [3, 4], ...nextSelection })
+    expect(convergenceInput(wrapper)?.element.checked ?? false).toBe(false)
+    await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([3, 4], { rate_multiplier: 1 })
+    wrapper.unmount()
+  })
+
+  it('resets the value as well as the apply checkbox on reopen', async () => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.get(valueSelector).setValue('disabled')
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    expect(convergenceInput(wrapper)?.element.checked).toBe(false)
+    expect(wrapper.get<HTMLSelectElement>(valueSelector).element.value).toBe('enabled')
+    expect(wrapper.get(valueSelector).attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it.each([
+    { selectedPlatforms: ['openai'], selectedTypes: ['apikey'] },
+    { selectedPlatforms: ['openai'], selectedTypes: ['oauth', 'apikey'] },
+    { selectedPlatforms: ['openai', 'anthropic'], selectedTypes: ['oauth'] },
+    { selectedPlatforms: ['anthropic'], selectedTypes: ['oauth'] },
+    { selectedPlatforms: [], selectedTypes: [] }
+  ])('rejects hidden convergence when selection changes to $selectedPlatforms / $selectedTypes', async nextSelection => {
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.setProps(nextSelection)
+    expect(convergenceInput(wrapper)?.exists() ?? false).toBe(false)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('admin.accounts.bulkEdit.noFieldsSelected')
+
+    await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith([1, 2], { rate_multiplier: 1 })
+    wrapper.unmount()
+  })
+
+  it('uses filtered target metadata for visibility and payload gates', async () => {
+    const wrapper = mountModal({
+      selectedPlatforms: ['openai'],
+      selectedTypes: ['oauth'],
+      target: { mode: 'filtered', filters: { platform: 'openai' }, selectedPlatforms: ['openai'], selectedTypes: ['oauth'] }
+    })
+    await convergenceInput(wrapper)!.setValue(true)
+    await wrapper.setProps({
+      target: { mode: 'filtered', filters: { platform: 'anthropic' }, selectedPlatforms: ['anthropic'], selectedTypes: ['apikey'] }
+    })
+    expect(convergenceInput(wrapper)?.exists() ?? false).toBe(false)
+    await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith({
+      filters: { platform: 'anthropic' },
+      rate_multiplier: 1
+    })
+    wrapper.unmount()
+  })
+
+  it.each([false, true])('rechecks hidden convergence at confirmation time (other field: %s)', async withRate => {
+    vi.mocked(adminAPI.accounts.bulkUpdate).mockRejectedValueOnce({
+      status: 409, error: 'mixed_channel_warning', message: 'Confirm group assignment'
+    })
+    const wrapper = mountModal({ selectedPlatforms: ['openai'], selectedTypes: ['oauth'] })
+    await convergenceInput(wrapper)!.setValue(true)
+    if (withRate) {
+      await wrapper.get('#bulk-edit-rate-multiplier-enabled').setValue(true)
+    }
+    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
+
+    await wrapper.setProps({ selectedTypes: ['apikey'] })
+    wrapper.getComponent(ConfirmDialog).vm.$emit('confirm')
+    await flushPromises()
+
+    if (withRate) {
+      expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(2)
+      expect(adminAPI.accounts.bulkUpdate).toHaveBeenLastCalledWith([1, 2], {
+        rate_multiplier: 1,
+        confirm_mixed_channel_risk: true
+      })
+    } else {
+      expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
+      expect(showError).toHaveBeenCalledWith('admin.accounts.bulkEdit.noFieldsSelected')
+    }
+    wrapper.unmount()
+  })
+})
 
 describe('BulkEditAccountModal', () => {
   beforeEach(() => {

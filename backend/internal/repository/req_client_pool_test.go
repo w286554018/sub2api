@@ -140,3 +140,40 @@ func TestInstrumentReqClientRecordsDependency(t *testing.T) {
 	header := collector.HeaderValue(time.Now(), "bypass")
 	require.True(t, strings.Contains(header, "dep_http;dur="), header)
 }
+
+func TestCreateCodexBackendReqClientSendsNoBrowserFingerprint(t *testing.T) {
+	codex, err := CreateCodexBackendReqClient("")
+	require.NoError(t, err)
+	privacy, err := CreatePrivacyReqClient("")
+	require.NoError(t, err)
+	require.NotSame(t, codex, privacy, "quota and privacy must not share an impersonated client")
+	require.Equal(t, 30*time.Second, codex.GetClient().Timeout)
+	again, err := CreateCodexBackendReqClient("")
+	require.NoError(t, err)
+	require.Same(t, codex, again)
+
+	capture := func(client *req.Client) http.Header {
+		t.Helper()
+		client = client.Clone()
+		var headers http.Header
+		client.GetTransport().WrapRoundTripFunc(func(http.RoundTripper) req.HttpRoundTripFunc {
+			return func(r *http.Request) (*http.Response, error) {
+				headers = r.Header.Clone()
+				recorder := httptest.NewRecorder()
+				recorder.WriteHeader(http.StatusNoContent)
+				return recorder.Result(), nil
+			}
+		})
+		_, err := client.R().Get("https://quota.invalid/usage")
+		require.NoError(t, err)
+		return headers
+	}
+	headers := capture(codex)
+	for _, key := range []string{"Sec-Ch-Ua", "Sec-Ch-Ua-Mobile", "Sec-Ch-Ua-Platform", "Upgrade-Insecure-Requests"} {
+		require.Empty(t, headers.Get(key), key)
+	}
+	require.NotContains(t, headers.Get("User-Agent"), "Chrome")
+	require.NotEmpty(t, capture(privacy).Get("Sec-Ch-Ua"), "privacy must retain browser headers")
+	_, err = CreateCodexBackendReqClient("://missing-scheme")
+	require.ErrorContains(t, err, "invalid proxy URL")
+}

@@ -37,7 +37,7 @@ func alphaSearchResponsesSSE(output string) string {
 		"event: response.output_text.annotation.added\n" +
 		`data: {"type":"response.output_text.annotation.added","annotation":{"type":"url_citation","url":"https://example.com/news","title":"Example News"}}` + "\n\n" +
 		"event: response.completed\n" +
-		`data: {"type":"response.completed","response":{"output":[{"type":"message","content":[{"type":"output_text","text":` + strconv.Quote(output) + `}]}]}}` + "\n\n"
+		`data: {"type":"response.completed","response":{"status":"completed","error":null,"incomplete_details":null,"output":[{"type":"message","content":[{"type":"output_text","text":` + strconv.Quote(output) + `}]}]}}` + "\n\n"
 }
 
 func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
@@ -101,7 +101,9 @@ func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
 		scopeCodexAccountIdentityValue(account, 0, "turn", "search-turn"),
 		gjson.Get(upstream.lastReq.Header.Get("X-Codex-Turn-Metadata"), "turn_id").String(),
 	)
-	require.JSONEq(t, string(body), string(upstream.lastBody))
+	scopedSession := gjson.Get(upstream.lastReq.Header.Get("X-Codex-Turn-Metadata"), "session_id").String()
+	require.Equal(t, scopedSession, gjson.GetBytes(upstream.lastBody, "id").String())
+	require.Equal(t, strings.Replace(string(body), `"id":"search-session"`, `"id":"`+scopedSession+`"`, 1), string(upstream.lastBody))
 }
 
 func TestForwardAlphaSearchPATUsesResponsesWebSearchFallback(t *testing.T) {
@@ -212,8 +214,8 @@ func TestForwardAlphaSearchPATBackfillsMissingChatGPTAccountMetadata(t *testing.
 
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(`{"output":"search result"}`)),
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(alphaSearchResponsesSSE("search result"))),
 	}}
 	oauthService := NewOpenAIOAuthService(nil, nil)
 	service := &OpenAIGatewayService{

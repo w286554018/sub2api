@@ -333,6 +333,7 @@ func createTestPayload(modelID string) (map[string]any, error) {
 // mode is optional - "compact" routes OpenAI accounts to the /responses/compact probe path
 // opts is optional media (image/audio data URLs for real generation / STT).
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
+	c.Set(accountTestCredentialsOnlyKey, false)
 	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
 
@@ -872,6 +873,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 
 // testOpenAIAccountConnection tests an OpenAI account's connection
 func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, mode string) error {
+	c.Set(accountTestCredentialsOnlyKey, false)
 	ctx := c.Request.Context()
 	mode = normalizeAccountTestMode(mode)
 
@@ -886,6 +888,19 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// /responses wire and does NOT apply the legacy compact-only mapping
 	// (post-#5641 semantics: compact_model_mapping is /responses/compact-only).
 	testModelID = account.GetMappedModel(testModelID)
+	credentialAccount := account
+	if account.IsCredentialShadow() {
+		resolved, err := resolveCredentialAccount(ctx, s.accountRepo, account)
+		if err != nil {
+			return s.sendErrorAndEnd(c, err.Error())
+		}
+		credentialAccount = resolved
+	}
+	// This credential check must precede every inference mode, including images
+	// and compact tests. Admin request metadata does not describe a Codex session.
+	if codexDeviceWireProfileEnabledFor(account, credentialAccount) {
+		return s.testOpenAICodexFreshSessionProbe(c, ctx, account, testModelID)
+	}
 	if mode == AccountTestModeCompact {
 		return s.testOpenAICompactConnection(c, account, testModelID)
 	}
@@ -900,15 +915,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			return s.testOpenAIImageAPIKey(c, ctx, account, testModelID, imagePrompt)
 		}
 		return s.testOpenAIImageOAuth(c, ctx, account, testModelID, imagePrompt)
-	}
-
-	credentialAccount := account
-	if account.IsCredentialShadow() {
-		resolved, err := resolveCredentialAccount(ctx, s.accountRepo, account)
-		if err != nil {
-			return s.sendErrorAndEnd(c, err.Error())
-		}
-		credentialAccount = resolved
 	}
 
 	// Determine authentication method and API URL
@@ -2841,6 +2847,50 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 	}
 }
 
+const accountTestCredentialsOnlyKey = "account_test_credentials_only"
+
+// AccountTestCredentialsOnly reports the outcome of this test, not an account
+// setting: only a successful fresh models probe proves credential-only health.
+func AccountTestCredentialsOnly(c *gin.Context) bool {
+	return c != nil && c.GetBool(accountTestCredentialsOnlyKey)
+}
+
+func (s *AccountTestService) testOpenAICodexFreshSessionProbe(c *gin.Context, ctx context.Context, account *Account, testModelID string) error {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	if s.openaiGatewayService == nil {
+		return s.sendErrorAndEnd(c, "OpenAI gateway service is not configured for the Codex fresh-session probe")
+	}
+	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+	manifest, err := s.openaiGatewayService.ProbeCodexModelsManifest(ctx, account)
+	if err != nil {
+		var upstreamErr *codexModelsManifestUpstreamError
+		if errors.As(err, &upstreamErr) {
+			switch upstreamErr.statusCode {
+			case http.StatusTooManyRequests:
+				s.reconcileOpenAI429State(ctx, account, upstreamErr.headers, upstreamErr.body)
+			case http.StatusUnauthorized:
+				if s.accountRepo != nil {
+					_ = s.accountRepo.SetError(ctx, account.ID, fmt.Sprintf("Authentication failed (401): %s", string(upstreamErr.body)))
+				}
+			}
+		}
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Codex fresh-session probe (GET /models) failed: %v", err))
+	}
+	if manifest == nil || manifest.NotModified || len(manifest.Body) == 0 {
+		return s.sendErrorAndEnd(c, "Codex fresh-session probe (GET /models) returned an empty manifest")
+	}
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf(
+		"Fresh-session probe: GET /backend-api/codex/models returned %d models; no inference request was sent.",
+		gjson.GetBytes(manifest.Body, "models.#").Int(),
+	)})
+	c.Set(accountTestCredentialsOnlyKey, true)
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
+}
+
 // createOpenAITestPayload creates a test payload for OpenAI Responses API
 func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 	payload := map[string]any{
@@ -3367,12 +3417,13 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 	}
 
 	return &ScheduledTestResult{
-		Status:       status,
-		ResponseText: responseText,
-		ErrorMessage: errMsg,
-		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
-		StartedAt:    startedAt,
-		FinishedAt:   finishedAt,
+		CredentialsOnly: AccountTestCredentialsOnly(ginCtx),
+		Status:          status,
+		ResponseText:    responseText,
+		ErrorMessage:    errMsg,
+		LatencyMs:       finishedAt.Sub(startedAt).Milliseconds(),
+		StartedAt:       startedAt,
+		FinishedAt:      finishedAt,
 	}, nil
 }
 

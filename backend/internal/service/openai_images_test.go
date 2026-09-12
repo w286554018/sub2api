@@ -305,7 +305,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_PromptOnlyDefaultsRemainBa
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
-	require.Equal(t, "gpt-image-2", parsed.Model)
+	require.Equal(t, "gpt-image-2.5-sunburst", parsed.Model)
 	require.Equal(t, OpenAIImagesCapabilityBasic, parsed.RequiredCapability)
 }
 

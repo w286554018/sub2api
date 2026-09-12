@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -n "${OFFLINE_FIXTURE_TIMEOUT_RC:-}" ]; then
+  exit "$OFFLINE_FIXTURE_TIMEOUT_RC"
+fi
+shift 3
+exec "$@"

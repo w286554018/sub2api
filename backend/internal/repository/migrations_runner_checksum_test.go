@@ -12,6 +12,33 @@ import (
 )
 
 func TestIsMigrationChecksumCompatible(t *testing.T) {
+	t.Run("145历史平台约束checksum可兼容", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"145_allow_kiro_user_platform_quotas.sql",
+			"d5662e58880a4cd75950cfba9be3c25e8cf49d7b94d49684cc5777e779c88eee",
+			"bc174c2b9dd244f10090a322bb685c8fd6c3e8050777a07b3c92c08b1d8cae94",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("145未知checksum不可兼容", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"145_allow_kiro_user_platform_quotas.sql",
+			"d5662e58880a4cd75950cfba9be3c25e8cf49d7b94d49684cc5777e779c88eee",
+			"0000000000000000000000000000000000000000000000000000000000000000",
+		)
+		require.False(t, ok)
+	})
+
+	t.Run("157历史平台约束checksum可兼容", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"157_user_platform_quotas_add_grok.sql",
+			"5cace8fa32c6174a72721cd9b01f28f4545de1fd7bcd9ca196a4225056ec4fb8",
+			"a918734da39c2e5a82e4a5e9511bac1f4cf7e310ceadd647df52692320633c1b",
+		)
+		require.True(t, ok)
+	})
+
 	t.Run("054历史checksum可兼容", func(t *testing.T) {
 		ok := isMigrationChecksumCompatible(
 			"054_drop_legacy_cache_columns.sql",

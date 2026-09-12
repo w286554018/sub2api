@@ -31,7 +31,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-GITHUB_REPO="nianzs/sub2api"
+GITHUB_REPO="${GITHUB_REPO:-nianzs/sub2api}"
 INSTALL_DIR="/opt/sub2api"
 SERVICE_NAME="sub2api"
 SERVICE_USER="sub2api"

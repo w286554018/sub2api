@@ -990,6 +990,24 @@
           </p>
           <Select v-model="codexFingerprintMode" data-testid="bulk-codex-fingerprint-mode-select" :options="codexFingerprintModeOptions" />
         </div>
+        <label class="mt-3 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input
+            v-model="enableCodexFingerprintConvergence"
+            type="checkbox"
+            aria-controls="bulk-edit-codex-fingerprint-convergence"
+            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          {{ t('admin.accounts.openai.codexFingerprintConvergence') }}
+        </label>
+        <Select
+          id="bulk-edit-codex-fingerprint-convergence"
+          v-model="codexFingerprintConvergenceMode"
+          data-testid="bulk-codex-fingerprint-convergence-select"
+          class="mt-2"
+          :aria-label="t('admin.accounts.openai.codexFingerprintConvergence')"
+          :options="enabledDisabledOptions"
+          :disabled="!enableCodexFingerprintConvergence"
+        />
       </div>
 
       <!-- Upstream billing auto probe (any API-key platform) -->
@@ -1025,7 +1043,7 @@
             v-model="upstreamBillingAutoProbeMode"
             :disabled="!enableUpstreamBillingAutoProbe"
             data-testid="bulk-edit-upstream-billing-auto-probe-select"
-            :options="upstreamBillingAutoProbeOptions"
+            :options="enabledDisabledOptions"
             aria-labelledby="bulk-edit-upstream-billing-auto-probe-label"
           />
         </div>
@@ -1710,6 +1728,8 @@ const codexCLIOnlyAppServerEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const enableCodexFingerprintMode = ref(false)
 const codexFingerprintMode = ref<CodexFingerprintMode>('off')
+const enableCodexFingerprintConvergence = ref(false)
+const codexFingerprintConvergenceMode = ref<'enabled' | 'disabled'>('enabled')
 const codexFingerprintModeOptions = computed(() => [
   { value: 'off' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintOff') },
   { value: 'device' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintDevice') },
@@ -1744,7 +1764,7 @@ const statusOptions = computed(() => [
   { value: 'active', label: t('common.active') },
   { value: 'inactive', label: t('common.inactive') }
 ])
-const upstreamBillingAutoProbeOptions = computed(() => [
+const enabledDisabledOptions = computed(() => [
   { value: 'enabled', label: t('common.enabled') },
   { value: 'disabled', label: t('common.disabled') }
 ])
@@ -2123,6 +2143,11 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
     // load_factor 落 0，proxy_id 落 0 —— 批量路径一律用显式哨兵值，不用省略。
     extra.codex_fingerprint_mode = codexFingerprintMode.value
   }
+  if (enableCodexFingerprintConvergence.value && allOpenAIOAuth.value) {
+    const extra = ensureExtra()
+    // Bulk merges extra, so disabling requires an explicit false.
+    extra.codex_experimental_fingerprint_convergence = codexFingerprintConvergenceMode.value === 'enabled'
+  }
 
   if (enableOpenAICompactMode.value) {
     const extra = ensureExtra()
@@ -2238,6 +2263,7 @@ const handleSubmit = async () => {
     enableCodexCLIOnly.value ||
     enableCodexCLIOnlyAppServer.value ||
     enableCodexFingerprintMode.value ||
+    (enableCodexFingerprintConvergence.value && allOpenAIOAuth.value) ||
     enableOpenAICompactMode.value ||
     enableOpenAICompactModelMapping.value ||
     enableRpmLimit.value ||
@@ -2285,10 +2311,26 @@ const handleSubmit = async () => {
 }
 
 const submitBulkUpdate = async (baseUpdates: Record<string, unknown>) => {
+  const updates: Record<string, unknown> = { ...baseUpdates }
+  const extra = updates.extra as Record<string, unknown> | undefined
+  // Confirmation can outlive the selection used to build its pending payload.
+  if (!allOpenAIOAuth.value && extra && 'codex_experimental_fingerprint_convergence' in extra) {
+    const nextExtra = { ...extra }
+    delete nextExtra.codex_experimental_fingerprint_convergence
+    if (Object.keys(nextExtra).length > 0) {
+      updates.extra = nextExtra
+    } else {
+      delete updates.extra
+    }
+    if (Object.keys(updates).length === 0) {
+      appStore.showError(t('admin.accounts.bulkEdit.noFieldsSelected'))
+      return
+    }
+  }
   // 无论是预检查确认还是 409 兜底确认，只要 mixedChannelConfirmed 为 true 就带上 flag
-  const updates = mixedChannelConfirmed.value
-    ? { ...baseUpdates, confirm_mixed_channel_risk: true }
-    : baseUpdates
+  if (mixedChannelConfirmed.value) {
+    updates.confirm_mixed_channel_risk = true
+  }
 
   submitting.value = true
 
@@ -2364,6 +2406,8 @@ const handleMixedChannelCancel = () => {
 watch(
   () => props.show,
   (newShow) => {
+    enableCodexFingerprintConvergence.value = false
+    codexFingerprintConvergenceMode.value = 'enabled'
     if (!newShow) {
       // Reset all enable flags
       enableBaseUrl.value = false

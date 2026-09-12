@@ -189,14 +189,16 @@ func TestGuardOpenAICodexTurnStateEcho(t *testing.T) {
 	t.Run("expired_provenance_passthrough_and_pruned", func(t *testing.T) {
 		svc := &OpenAIGatewayService{}
 		c, _ := newTurnStateTestContext(t, 7, "sess-g4")
-		svc.openaiCodexTurnStateOrigins.Store("7\x00sess-g4", openAICodexTurnStateOrigin{
+		key := openAICodexTurnStateKey("blob-A")
+		svc.openaiCodexTurnStateOrigins.Store(key, openAICodexTurnStateOrigin{
 			accountID: 42,
+			owner:     openAICodexTurnStateOwner(c, &Account{ID: 42}),
 			expiresAt: time.Now().Add(-time.Minute),
 		})
 		h := newOutbound("blob-A")
 		svc.guardOpenAICodexTurnStateEcho(c, &Account{ID: 43}, h)
 		require.Equal(t, "blob-A", h.Get("x-codex-turn-state"))
-		_, ok := svc.openaiCodexTurnStateOrigins.Load("7\x00sess-g4")
+		_, ok := svc.openaiCodexTurnStateOrigins.Load(key)
 		require.False(t, ok)
 	})
 

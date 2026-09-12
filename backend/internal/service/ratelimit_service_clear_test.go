@@ -223,7 +223,7 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearsErrorAndRateLi
 	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
 	svc.SetAccountRuntimeBlocker(blocker)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 42)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 42, false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.ClearedError)
@@ -251,7 +251,7 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_NoRecoverableStateIs
 	cache := &tempUnschedCacheRecorder{}
 	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 7)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 7, false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.False(t, result.ClearedError)
@@ -276,7 +276,7 @@ func TestRateLimitService_RecoverAccountAfterSuccessfulTest_ClearErrorFailed(t *
 	}
 	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
 
-	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 9)
+	result, err := svc.RecoverAccountAfterSuccessfulTest(context.Background(), 9, false)
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Equal(t, 1, repo.getByIDCalls)
@@ -306,4 +306,36 @@ func TestRateLimitService_RecoverAccountState_InvalidatesOAuthTokenOnErrorRecove
 	require.Equal(t, 1, repo.clearErrorCalls)
 	require.Len(t, invalidator.accounts, 1)
 	require.Equal(t, int64(21), invalidator.accounts[0].ID)
+}
+
+func TestRateLimitService_RecoverAccountState_CredentialsOnlyClearsErrorButKeepsRuntimeWindows(t *testing.T) {
+	now, later := time.Now(), time.Now().Add(time.Hour)
+	for _, status := range []string{StatusError, StatusActive} {
+		t.Run(status, func(t *testing.T) {
+			account := &Account{
+				ID: 43, Status: status, Type: AccountTypeOAuth,
+				RateLimitedAt: &now, RateLimitResetAt: &later,
+				OverloadUntil: &later, TempUnschedulableUntil: &later,
+				Extra: map[string]any{
+					"model_rate_limits":        map[string]any{"gpt-5.5": true},
+					"antigravity_quota_scopes": map[string]any{"gemini": true},
+				},
+			}
+			repo := &rateLimitClearRepoStub{getByIDAccount: account}
+			cache := &tempUnschedCacheRecorder{}
+			svc := NewRateLimitService(repo, nil, &config.Config{}, nil, cache)
+			result, err := svc.RecoverAccountState(context.Background(), account.ID, AccountRecoveryOptions{CredentialsOnly: true})
+			require.NoError(t, err)
+			require.Equal(t, status == StatusError, result.ClearedError)
+			require.False(t, result.ClearedRateLimit)
+			require.Zero(t, repo.clearRateLimitCalls)
+			require.Zero(t, repo.clearModelRateLimitCalls)
+			require.Zero(t, repo.clearAntigravityCalls)
+			require.Zero(t, repo.clearTempUnschedCalls)
+			require.Empty(t, cache.deletedIDs)
+			require.Equal(t, &later, account.RateLimitResetAt)
+			require.Equal(t, &later, account.OverloadUntil)
+			require.Equal(t, &later, account.TempUnschedulableUntil)
+		})
+	}
 }

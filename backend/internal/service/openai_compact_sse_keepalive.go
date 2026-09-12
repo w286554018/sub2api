@@ -59,10 +59,22 @@ func startOpenAISSEKeepalive(c *gin.Context, interval time.Duration) func() {
 	if c == nil || c.Writer == nil || interval <= 0 {
 		return func() {}
 	}
+	carriedBytes := 0
+	if value, ok := c.Get(openAICompactSSEKeepaliveKey); ok {
+		if previous, valid := value.(*openAICompactSSEKeepalive); valid && previous != nil {
+			previous.mu.Lock()
+			carriedBytes = previous.bytes
+			previous.mu.Unlock()
+		}
+	}
 	originalWriter := c.Writer
 	k := &openAICompactSSEKeepalive{
 		writer: originalWriter,
-		stop:   make(chan struct{}),
+		// The handler reuses one Gin context across account attempts. Preserve
+		// prior heartbeat accounting so a later failover does not reinterpret
+		// an earlier attempt's comments as semantic output.
+		bytes: carriedBytes,
+		stop:  make(chan struct{}),
 	}
 	c.Set(openAICompactSSEKeepaliveKey, k)
 	wrappedWriter := &openAICompactKeepaliveWriter{ResponseWriter: originalWriter, k: k}

@@ -52,6 +52,8 @@ type SuccessfulTestRecoveryResult struct {
 
 // AccountRecoveryOptions 控制账号恢复时的附加行为。
 type AccountRecoveryOptions struct {
+	// A models probe validates credentials, not inference capacity.
+	CredentialsOnly bool
 	InvalidateToken bool
 }
 
@@ -2118,7 +2120,7 @@ func (s *RateLimitService) RecoverAccountState(ctx context.Context, accountID in
 		}
 	}
 
-	if hasRecoverableRuntimeState(account) {
+	if !options.CredentialsOnly && hasRecoverableRuntimeState(account) {
 		if err := s.ClearRateLimit(ctx, accountID); err != nil {
 			return nil, err
 		}
@@ -2134,10 +2136,10 @@ func (s *RateLimitService) RecoverAccountState(ctx context.Context, accountID in
 	return result, nil
 }
 
-// RecoverAccountAfterSuccessfulTest 将一次成功测试视为正常请求，
-// 按需恢复 error / rate-limit / overload / temp-unsched / model-rate-limit 等运行时状态。
-func (s *RateLimitService) RecoverAccountAfterSuccessfulTest(ctx context.Context, accountID int64) (*SuccessfulTestRecoveryResult, error) {
-	return s.RecoverAccountState(ctx, accountID, AccountRecoveryOptions{})
+// RecoverAccountAfterSuccessfulTest limits credential-probe recovery to errors;
+// an inference success may also clear rate-limit and other runtime windows.
+func (s *RateLimitService) RecoverAccountAfterSuccessfulTest(ctx context.Context, accountID int64, credentialsOnly bool) (*SuccessfulTestRecoveryResult, error) {
+	return s.RecoverAccountState(ctx, accountID, AccountRecoveryOptions{CredentialsOnly: credentialsOnly})
 }
 
 func (s *RateLimitService) ClearTempUnschedulable(ctx context.Context, accountID int64) error {

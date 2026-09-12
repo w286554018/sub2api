@@ -3720,6 +3720,20 @@
             />
           </button>
         </div>
+        <div class="mt-4 flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.codexFingerprintConvergence') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.codexFingerprintConvergenceDesc') }}
+            </p>
+          </div>
+          <input
+            v-model="codexFingerprintConvergenceEnabled"
+            type="checkbox"
+            data-testid="create-codex-fingerprint-convergence"
+            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+        </div>
       </div>
 
       <!-- Codex 指纹收敛模式（仅 OpenAI OAuth） -->
@@ -4883,6 +4897,7 @@ const codexCLIOnlyEnabled = ref(false)
 const codexCLIOnlyAppServerEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const codexFingerprintMode = ref<CodexFingerprintMode>('off')
+const codexFingerprintConvergenceEnabled = ref(false)
 const codexFingerprintModeOptions = computed(() => [
   { value: 'off' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintOff') },
   { value: 'device' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintDevice') },
@@ -5438,6 +5453,7 @@ watch(
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       codexCLIOnlyAppServerEnabled.value = false
+      codexFingerprintConvergenceEnabled.value = false
     }
     if (newPlatform !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
@@ -5953,6 +5969,7 @@ const resetForm = () => {
   codexCLIOnlyEnabled.value = false
   codexCLIOnlyAppServerEnabled.value = false
   codexFingerprintMode.value = 'off'
+  codexFingerprintConvergenceEnabled.value = false
   anthropicPassthroughEnabled.value = false
   anthropicAPIKeyAuthScheme.value = 'x_api_key'
   webSearchEmulationMode.value = 'default'
@@ -6059,6 +6076,11 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     extra.codex_fingerprint_mode = codexFingerprintMode.value
   } else {
     delete extra.codex_fingerprint_mode
+  }
+  if (accountCategory.value === 'oauth-based' && codexFingerprintConvergenceEnabled.value) {
+    extra.codex_experimental_fingerprint_convergence = true
+  } else {
+    delete extra.codex_experimental_fingerprint_convergence
   }
   if (openAICompactMode.value !== 'auto') {
     extra.openai_compact_mode = openAICompactMode.value

@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ "$1" = /proc/self/ns/net ]; then
+  printf 'net:[fixture-current]\n'
+elif [ "$1" = /proc/self/ns/user ]; then
+  printf 'user:[fixture-current]\n'
+else
+  exec /usr/bin/readlink "$@"
+fi

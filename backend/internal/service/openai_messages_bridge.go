@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +13,7 @@ func isOpenAICompatMessagesBridgeBody(body []byte) bool {
 	if len(body) == 0 {
 		return false
 	}
-	if bytes.Contains(body, []byte(openAICompatClaudeCodeTodoGuardMarker)) {
+	if containsOpenAICompatTodoGuard(gjson.ParseBytes(body)) {
 		return true
 	}
 	return isOpenAICompatMessagesBridgePromptCacheKey(gjson.GetBytes(body, "prompt_cache_key").String())
@@ -24,7 +23,9 @@ func isOpenAICompatMessagesBridgeRequestBody(reqBody map[string]any) bool {
 	if reqBody == nil {
 		return false
 	}
-	if input, ok := reqBody["input"].([]any); ok && inputContainsText(input, openAICompatClaudeCodeTodoGuardMarker) {
+	if input, ok := reqBody["input"].([]any); ok &&
+		(inputContainsText(input, openAICompatClaudeCodeTodoGuardMarker) ||
+			inputContainsText(input, openAICompatClaudeCodeTodoGuardLegacyMarker)) {
 		return true
 	}
 	return isOpenAICompatMessagesBridgePromptCacheKey(firstNonEmptyString(reqBody["prompt_cache_key"]))

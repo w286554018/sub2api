@@ -256,6 +256,59 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it.each([true, false])('submits convergence %s on Codex imports independently of fingerprint mode', async enabled => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="create-codex-fingerprint-convergence"]').setValue(true)
+    await wrapper.get('[data-testid="create-codex-fingerprint-convergence"]').setValue(enabled)
+    await wrapper.get('[data-testid="create-codex-fingerprint-mode-select"]').setValue('session')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Codex convergence')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await wrapper.get('[data-testid="import-codex-session"]').trigger('click')
+    await flushPromises()
+
+    expect(importCodexSessionMock).toHaveBeenCalledTimes(1)
+    const extra = importCodexSessionMock.mock.calls[0][0].extra
+    if (enabled) {
+      expect(extra.codex_experimental_fingerprint_convergence).toBe(true)
+    } else {
+      expect(extra).not.toHaveProperty('codex_experimental_fingerprint_convergence')
+    }
+    expect(extra.codex_fingerprint_mode).toBe('session')
+    expect(extra).not.toHaveProperty('codex_fingerprint_seed')
+    wrapper.unmount()
+  })
+
+  it.each(['openai', 'anthropic'])('does not submit hidden convergence after switching to %s API-key creation', async platform => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="create-codex-fingerprint-convergence"]').setValue(true)
+    if (platform === 'anthropic') {
+      await selectButtonByText(wrapper, 'Anthropic')
+    }
+    await selectButtonByText(wrapper, platform === 'openai' ? 'API Key' : 'admin.accounts.claudeConsole')
+    expect(wrapper.find('[data-testid="create-codex-fingerprint-convergence"]').exists()).toBe(false)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('API-key account')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('test-api-key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0][0].extra ?? {}).not.toHaveProperty('codex_experimental_fingerprint_convergence')
+    wrapper.unmount()
+  })
+
+  it('resets convergence when the create dialog reopens', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="create-codex-fingerprint-convergence"]').setValue(true)
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    await selectButtonByText(wrapper, 'OpenAI')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="create-codex-fingerprint-convergence"]').element.checked).toBe(false)
+    wrapper.unmount()
+  })
+
   it('sets month and year expiry presets without submitting the account form', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-01-31T12:34:00'))

@@ -1,0 +1,8 @@
+#!/bin/sh
+case "$*" in
+  'link set lo up') exit 0 ;;
+  '-o link show') printf '1: lo: <LOOPBACK,UP> mtu 65536\n' ;;
+  'route show') [ "${OFFLINE_FIXTURE_ROUTE_IPV6:-0}" = 1 ] || exit 83 ;;
+  '-6 route show') exit 83 ;;
+  *) exit 84 ;;
+esac

@@ -74,6 +74,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
 	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
 	SetOpsUpstreamModel(c, upstreamModel)
+	imageBilling := resolveOpenAIChatImageBillingContext(body, originalModel, billingModel, upstreamModel)
 	grokCacheIdentity := ""
 	if account.Platform == PlatformGrok {
 		// Resolve before image bridging or other body rewrites so the fallback is
@@ -238,9 +239,9 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	var result *OpenAIForwardResult
 	var forwardErr error
 	if clientStream {
-		result, forwardErr = s.streamRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime, len(body))
+		result, forwardErr = s.streamRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime, len(body), imageBilling)
 	} else {
-		result, forwardErr = s.bufferRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+		result, forwardErr = s.bufferRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime, imageBilling)
 	}
 	if result != nil {
 		addOpenAIUsage(&result.Usage, bridgeUsage)
@@ -278,6 +279,7 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 	serviceTier *string,
 	startTime time.Time,
 	requestBodyLen int,
+	imageBilling openAIChatImageBillingContext,
 ) (*OpenAIForwardResult, error) {
 	observer := upstreamResponseModelObserverFromContext(c)
 	if observer == nil {
@@ -289,6 +291,10 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 
 	var usage OpenAIUsage
 	var firstTokenMs *int
+	var imageTracker *openAIChatImageOutputTracker
+	if imageBilling.Enabled {
+		imageTracker = newOpenAIChatImageOutputTracker()
+	}
 	clientDisconnected := false
 	clientOutputStarted := false
 	pendingLines := make([]string, 0, 8)
@@ -334,6 +340,9 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 			trimmedPayload := strings.TrimSpace(payload)
 			terminal.ObserveDataLine(trimmedPayload)
 			if trimmedPayload != "[DONE]" {
+				if imageTracker != nil {
+					imageTracker.ObserveSSEData([]byte(payload))
+				}
 				observer.ObserveOpenAI([]byte(payload), strings.TrimSpace(gjson.Get(payload, "type").String()))
 				usageOnlyChunk := isOpenAIChatUsageOnlyStreamChunk(payload)
 				if u := extractCCStreamUsage(payload); u != nil {
@@ -361,7 +370,7 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 	}
 
 	resultWithUsage := func() *OpenAIForwardResult {
-		return &OpenAIForwardResult{
+		result := &OpenAIForwardResult{
 			RequestID:                     requestID,
 			UpstreamHeaders:               resp.Header,
 			Usage:                         usage,
@@ -377,6 +386,14 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 			Duration:                      time.Since(startTime),
 			FirstTokenMs:                  firstTokenMs,
 		}
+		if imageTracker != nil {
+			result.ImageCount, result.ImageOutputSizes = imageTracker.Result()
+			if result.ImageCount > 0 {
+				result.ImageInputSize = imageBilling.InputSize
+				ApplyOpenAIImageBillingResolution(result)
+			}
+		}
+		return result
 	}
 
 	scanErr := scanner.Err()
@@ -492,6 +509,7 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	reasoningEffort *string,
 	serviceTier *string,
 	startTime time.Time,
+	imageBilling openAIChatImageBillingContext,
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
@@ -512,6 +530,13 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	if parsedUsage, ok := extractOpenAIUsageFromJSONBytes(respBody); ok {
 		usage = parsedUsage
 	}
+	var imageCount int
+	var imageOutputSizes []string
+	if imageBilling.Enabled {
+		imageTracker := newOpenAIChatImageOutputTracker()
+		imageTracker.ObserveJSON(respBody)
+		imageCount, imageOutputSizes = imageTracker.Result()
+	}
 	responseModel := gjson.GetBytes(respBody, "model").String()
 	if requiresBillableGrokChatUsage(account, billingModel, upstreamModel, responseModel) && !hasBillableGrokChatUsage(usage) {
 		upstreamRequestID := firstNonEmpty(requestID, resp.Header.Get("xai-request-id"))
@@ -530,7 +555,7 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	c.Writer.WriteHeader(http.StatusOK)
 	_, _ = c.Writer.Write(respBody)
 
-	return &OpenAIForwardResult{
+	result := &OpenAIForwardResult{
 		RequestID:                     requestID,
 		UpstreamHeaders:               resp.Header,
 		Usage:                         usage,
@@ -544,7 +569,14 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 		ServiceTier:                   resolvedOpenAIUpstreamServiceTier(c, serviceTier),
 		Stream:                        false,
 		Duration:                      time.Since(startTime),
-	}, nil
+		ImageCount:                    imageCount,
+		ImageInputSize:                imageBilling.InputSize,
+		ImageOutputSizes:              imageOutputSizes,
+	}
+	if result.ImageCount > 0 {
+		ApplyOpenAIImageBillingResolution(result)
+	}
+	return result, nil
 }
 
 // buildOpenAIChatCompletionsURL 拼接上游 Chat Completions 端点 URL。

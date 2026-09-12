@@ -1150,7 +1150,7 @@ func TestValidateCodexSparkInputAllowsTextOnly(t *testing.T) {
 	require.NoError(t, validateCodexSparkInput(reqBody, "gpt-5.3-codex-spark"))
 }
 
-func TestApplyCodexOAuthTransform_AddsSparkImageUnsupportedInstructions(t *testing.T) {
+func TestApplyCodexOAuthTransform_PreservesSparkInstructions(t *testing.T) {
 	reqBody := map[string]any{
 		"model":        "gpt-5.3-codex-spark",
 		"instructions": "existing instructions",
@@ -1162,11 +1162,7 @@ func TestApplyCodexOAuthTransform_AddsSparkImageUnsupportedInstructions(t *testi
 
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
-	require.Contains(t, instructions, "existing instructions")
-	require.Contains(t, instructions, codexSparkImageUnsupportedMarker)
-	require.Contains(t, instructions, "does not support image generation")
-	require.Contains(t, instructions, "switch to a non-Spark Codex model")
-	require.NotContains(t, instructions, codexImageGenerationBridgeMarker)
+	require.Equal(t, "existing instructions", instructions)
 }
 
 func TestApplyCodexOAuthTransform_DoesNotAddSparkImageUnsupportedForNonSpark(t *testing.T) {
@@ -1179,7 +1175,29 @@ func TestApplyCodexOAuthTransform_DoesNotAddSparkImageUnsupportedForNonSpark(t *
 	applyCodexOAuthTransform(reqBody, true, false)
 	instructions, ok := reqBody["instructions"].(string)
 	require.True(t, ok)
-	require.NotContains(t, instructions, codexSparkImageUnsupportedMarker)
+	require.Equal(t, "existing instructions", instructions)
+}
+
+func TestImageBridgeAuxiliaryNeutralAndLegacyDeduplication(t *testing.T) {
+	for _, existing := range []string{"project instructions", "<codex-image-generation>", "<sub2api-codex-image-generation>"} {
+		t.Run(existing, func(t *testing.T) {
+			body := map[string]any{
+				"model": "gpt-5.4", "instructions": existing,
+				"tools": []any{map[string]any{"type": "image_generation"}},
+			}
+			changed := applyCodexImageGenerationBridgeInstructions(body)
+			if existing == "project instructions" {
+				require.True(t, changed)
+				require.Contains(t, body["instructions"], "<codex-image-generation>")
+				require.Contains(t, body["instructions"], "</codex-image-generation>")
+				require.NotContains(t, body["instructions"], "sub2api")
+			} else {
+				require.False(t, changed)
+				require.Equal(t, existing, body["instructions"])
+			}
+			require.False(t, applyCodexImageGenerationBridgeInstructions(body))
+		})
+	}
 }
 
 // gpt-5.3-codex-spark rejects the image_generation tool upstream (HTTP 400

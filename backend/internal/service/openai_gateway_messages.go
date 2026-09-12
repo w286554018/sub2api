@@ -240,9 +240,22 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if codexResult.PromptCacheKey != "" {
 			promptCacheKey = codexResult.PromptCacheKey
 		}
+		bridgeRestore, bridgeIdentity := s.injectOpenAICompatBridgeIdentity(c, account, reqBody, promptCacheKey)
+		defer bridgeRestore()
+		var fpIDs *codexFingerprintIDs
+		if account.GetCodexFingerprintMode() == codexFingerprintDevice {
+			fpIDs = resolveCodexFingerprintIDsWithBody(c, account, nil, reqBody["client_metadata"])
+		}
 		applyCodexAccountIdentityClientMetadataMap(reqBody, codexAccountIdentitySource(c, account), apiKeyID)
-		delete(reqBody, "prompt_cache_key")
-		if shouldAutoInjectPromptCacheKeyForCompat(upstreamModel) {
+		if fpIDs != nil {
+			applyCodexFingerprintClientMetadata(reqBody, fpIDs)
+		}
+		stageCodexFingerprintIDs(c, fpIDs)
+		stageCodexConvergenceBodyIdentityMap(c, codexAccountIdentitySource(c, account), reqBody)
+		if !bridgeIdentity {
+			delete(reqBody, "prompt_cache_key")
+		}
+		if shouldAutoInjectPromptCacheKeyForCompat(upstreamModel) && !codexDeviceWireProfileEnabled(c, account) {
 			compatTurnState = s.getOpenAICompatSessionTurnState(ctx, c, account, promptCacheKey)
 		}
 		// OAuth codex transform forces stream=true upstream, so always use
@@ -351,7 +364,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 
 	// Override session_id with a deterministic UUID derived from the isolated
 	// session key, ensuring different API keys produce different upstream sessions.
-	if account.Platform != PlatformGrok && promptCacheKey != "" {
+	if account.Platform != PlatformGrok && promptCacheKey != "" && !codexDeviceWireProfileEnabled(c, account) {
 		isolatedSessionID := generateSessionUUID(isolateOpenAIUpstreamSessionID(apiKeyID, codexAccountIdentitySource(c, account), promptCacheKey))
 		upstreamReq.Header.Set("session_id", isolatedSessionID)
 		if upstreamReq.Header.Get("conversation_id") != "" {
@@ -364,6 +377,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		// originator/OpenAI-Beta 返回 404（issue #3901）。
 		ensureCodexIdentityHeaders(upstreamReq.Header)
 		enforceCodexIdentityHeaders(upstreamReq.Header)
+		applyCodexDeviceWireProfile(c, account, upstreamReq.Header, false)
 		logger.L().Debug("openai messages: upstream identity restored",
 			zap.Int64("account_id", account.ID),
 			zap.String("upstream_model", upstreamModel),
@@ -481,9 +495,24 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		s.updateGrokUsageFromResponse(withGrokTeamRateLimitModel(ctx, upstreamModel), account, resp.Header, resp.StatusCode)
 	}
 
-	if account.UsesOpenAICodexProtocol() && promptCacheKey != "" {
-		if turnState := strings.TrimSpace(resp.Header.Get("x-codex-turn-state")); turnState != "" {
-			s.bindOpenAICompatSessionTurnState(ctx, c, account, promptCacheKey, turnState)
+	var onOutputDelivered func(http.Header)
+	if account.UsesOpenAICodexProtocol() {
+		if turnState := extractOpenAICodexTurnState(resp.Header); turnState != "" {
+			bindDeliveredState := func(deliveredHeaders http.Header) {
+				if account.Platform != PlatformGrok {
+					s.noteOpenAICodexTurnStateOrigin(c, account, extractOpenAICodexTurnState(deliveredHeaders))
+				}
+				// Selected Messages output can retain internal continuation state
+				// even when filtering or an earlier ping withheld the client header.
+				if promptCacheKey != "" {
+					s.bindOpenAICompatSessionTurnState(ctx, c, account, promptCacheKey, turnState)
+				}
+			}
+			if account.Platform == PlatformGrok {
+				bindDeliveredState(nil)
+			} else {
+				onOutputDelivered = bindDeliveredState
+			}
 		}
 	}
 
@@ -492,10 +521,10 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	var result *OpenAIForwardResult
 	var handleErr error
 	if clientStream {
-		result, handleErr = s.handleAnthropicStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime)
+		result, handleErr = s.handleAnthropicStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime, onOutputDelivered)
 	} else {
 		// Client wants JSON: buffer the streaming response and assemble a JSON reply.
-		result, handleErr = s.handleAnthropicBufferedStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime)
+		result, handleErr = s.handleAnthropicBufferedStreamingResponse(resp, c, account, originalModel, billingModel, upstreamModel, startTime, onOutputDelivered)
 	}
 
 	// cyber_policy：标记已设、error 已按 Anthropic 格式发给客户端。丢弃 result、返回哨兵，
@@ -577,6 +606,7 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	billingModel string,
 	upstreamModel string,
 	startTime time.Time,
+	onOutputDelivered ...func(http.Header),
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
@@ -648,6 +678,9 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 
 	anthropicResp := apicompat.ResponsesToAnthropic(finalResponse, originalModel)
 
+	if len(onOutputDelivered) > 0 && onOutputDelivered[0] != nil {
+		defer observeOpenAICodexHTTPDelivery(c, onOutputDelivered[0])()
+	}
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	}
@@ -922,9 +955,32 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 	billingModel string,
 	upstreamModel string,
 	startTime time.Time,
+	onOutputDelivered ...func(http.Header),
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header)
+	writeKeepaliveHeaders := writeStreamHeaders
+	if account != nil && account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
+		writeKeepaliveHeaders = s.newStreamHeaderWriter(c, nil)
+		writeSelectedHeaders := writeStreamHeaders
+		writeStreamHeaders = func() {
+			if !c.Writer.Written() {
+				writeSelectedHeaders()
+			}
+		}
+	}
+	var restoreDelivery func()
+	beginOutputDelivery := func() {
+		if restoreDelivery == nil && len(onOutputDelivered) > 0 && onOutputDelivered[0] != nil {
+			// Pings and pre-output errors are not a selected Messages response.
+			restoreDelivery = observeOpenAICodexHTTPDelivery(c, onOutputDelivered[0])
+		}
+	}
+	defer func() {
+		if restoreDelivery != nil {
+			restoreDelivery()
+		}
+	}()
 
 	state := apicompat.NewResponsesEventToAnthropicState()
 	state.Model = originalModel
@@ -1039,7 +1095,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 						UpstreamOutTok: usage.OutputTokens,
 					})
 					if !clientDisconnected {
-						writeStreamHeaders()
+						writeKeepaliveHeaders()
 						clientMsg := msg
 						if clientMsg == "" {
 							clientMsg = "Request blocked by upstream cyber-security policy"
@@ -1081,7 +1137,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 						writeAnthropicError(c, errStatus, errType, errMsg)
 						clientOutputStarted = true
 					} else {
-						writeStreamHeaders()
+						writeKeepaliveHeaders()
 						if _, err := fmt.Fprint(c.Writer, buildAnthropicStreamErrorSSE(errType, errMsg)); err == nil {
 							c.Writer.Flush()
 						}
@@ -1104,6 +1160,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					)
 					continue
 				}
+				beginOutputDelivery()
 				writeStreamHeaders()
 				if _, err := fmt.Fprint(c.Writer, sse); err != nil {
 					clientDisconnected = true
@@ -1135,6 +1192,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 				if err != nil {
 					continue
 				}
+				beginOutputDelivery()
 				writeStreamHeaders()
 				if _, err := fmt.Fprint(c.Writer, sse); err != nil {
 					clientDisconnected = true
@@ -1314,7 +1372,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 				continue
 			}
 			// Send Anthropic-format ping event
-			writeStreamHeaders()
+			writeKeepaliveHeaders()
 			if _, err := fmt.Fprint(c.Writer, "event: ping\ndata: {\"type\":\"ping\"}\n\n"); err != nil {
 				// Client disconnected
 				logger.L().Info("openai messages stream: client disconnected during keepalive",
