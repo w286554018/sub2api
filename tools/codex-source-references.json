@@ -1,0 +1,13 @@
+{
+  "repository": "openai/codex",
+  "baseline": "e7637306bc9246a3e42e407cb94f96b7ed345e3e",
+  "audited_target": "KlN-4096/sub2api@b0092e436df4485ffc2e16f14b77f0631fa58501",
+  "paths": [
+    "codex-rs/codex-api/src/requests/headers.rs",
+    "codex-rs/codex-api/src/endpoint/responses.rs",
+    "codex-rs/core/src/responses_metadata.rs",
+    "codex-rs/core/src/client.rs",
+    "codex-rs/core/src/session/session.rs",
+    "codex-rs/core/src/state/auto_compact_window.rs"
+  ]
+}

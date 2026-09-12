@@ -415,6 +415,18 @@ GEMINI_OAUTH_CLIENT_SECRET=GOCSPX-your-client-secret
 
 For production servers using systemd.
 
+The installer reads `GITHUB_REPO` as an optional `owner/repository` override
+for release lookup, archive and checksum downloads. Unset or empty retains
+`nianzs/sub2api`. When intentionally installing another trusted repository, pass
+it to the installer process, for example `sudo env GITHUB_REPO=owner/repository
+bash install.sh`; setting it on the download command alone does not pass it
+through a pipeline.
+
+`sub2api.service` includes a commented `SUB2API_IMAGES_MAIN_MODEL` example for
+the Responses controller used by image generation. It is unset by default;
+choose an available controller before enabling the example. This does not
+force a deployment-specific model.
+
 ### One-Line Installation
 
 ```bash

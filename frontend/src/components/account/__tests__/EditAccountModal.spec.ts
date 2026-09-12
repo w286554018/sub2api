@@ -362,6 +362,144 @@ function mountModal(account = buildAccount(), renderGroupSelector = false) {
   })
 }
 
+describe('EditAccountModal convergence', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    updateAccountMock.mockReset().mockResolvedValue({})
+    checkMixedChannelRiskMock.mockReset().mockResolvedValue({ has_risk: false })
+  })
+
+  function convergenceInput(wrapper: ReturnType<typeof mountModal>) {
+    return wrapper.findAll('label')
+      .find(label => label.text() === 'admin.accounts.openai.codexFingerprintConvergence')
+      ?.find<HTMLInputElement>('input')
+  }
+
+  it.each([
+    ['oauth', 'off'],
+    ['oauth', 'device'],
+    ['oauth', 'session'],
+    ['oauth', 'full'],
+    ['setup-token', 'device']
+  ])('preserves %s convergence and %s mode on an unrelated save', async (type, mode) => {
+    const account = type === 'oauth' ? buildOpenAIOAuthParentAccount() : buildOpenAISetupTokenAccount()
+    account.extra = {
+      codex_fingerprint_mode: mode,
+      codex_fingerprint_seed: 'server-owned-seed',
+      codex_experimental_fingerprint_convergence: true,
+      unrelated_setting: { enabled: true }
+    }
+    const wrapper = mountModal(account)
+    expect(convergenceInput(wrapper)?.element.checked).toBe(true)
+
+    await wrapper.get('form#edit-account-form input[type="text"]').setValue('Renamed account')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    const payload = updateAccountMock.mock.calls[0][1]
+    expect(payload.name).toBe('Renamed account')
+    expect(payload.extra).toMatchObject({
+      codex_experimental_fingerprint_convergence: true,
+      codex_fingerprint_seed: 'server-owned-seed',
+      unrelated_setting: { enabled: true }
+    })
+    if (mode === 'off') {
+      expect(payload.extra).not.toHaveProperty('codex_fingerprint_mode')
+    } else {
+      expect(payload.extra.codex_fingerprint_mode).toBe(mode)
+    }
+    wrapper.unmount()
+  })
+
+  it.each(['oauth', 'setup-token'])('enables convergence without changing %s mode or seed', async type => {
+    const account = type === 'oauth' ? buildOpenAIOAuthParentAccount() : buildOpenAISetupTokenAccount()
+    account.extra = { codex_fingerprint_mode: 'session', codex_fingerprint_seed: 'existing-seed' }
+    const wrapper = mountModal(account)
+    const input = convergenceInput(wrapper)
+    expect(input?.element.checked).toBe(false)
+    await input!.setValue(true)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0][1].extra).toMatchObject({
+      codex_experimental_fingerprint_convergence: true,
+      codex_fingerprint_mode: 'session',
+      codex_fingerprint_seed: 'existing-seed'
+    })
+    wrapper.unmount()
+  })
+
+  it.each(['oauth', 'setup-token'])('disables %s convergence through full extra replacement', async type => {
+    const account = type === 'oauth' ? buildOpenAIOAuthParentAccount() : buildOpenAISetupTokenAccount()
+    account.extra = {
+      codex_experimental_fingerprint_convergence: true,
+      codex_fingerprint_mode: 'device',
+      codex_fingerprint_seed: 'existing-seed',
+      unrelated_setting: { retained: true }
+    }
+    const wrapper = mountModal(account)
+    expect(convergenceInput(wrapper)?.element.checked).toBe(true)
+    await convergenceInput(wrapper)!.setValue(false)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    const replacement = updateAccountMock.mock.calls[0][1].extra
+    expect(replacement).not.toHaveProperty('codex_experimental_fingerprint_convergence')
+    expect(replacement).toMatchObject({
+      codex_fingerprint_mode: 'device',
+      codex_fingerprint_seed: 'existing-seed',
+      unrelated_setting: { retained: true }
+    })
+    expect(account.extra.codex_experimental_fingerprint_convergence).toBe(true)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['API-key', buildAccount],
+    ['credential shadow', buildOpenAISparkShadowAccount]
+  ])('does not offer or submit convergence for an OpenAI %s', async (_name, build) => {
+    const account = build()
+    account.extra = { codex_experimental_fingerprint_convergence: true, unrelated_setting: 'retain' }
+    const wrapper = mountModal(account)
+    expect(convergenceInput(wrapper)?.exists() ?? false).toBe(false)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0][1].extra).not.toHaveProperty('codex_experimental_fingerprint_convergence')
+    expect(updateAccountMock.mock.calls[0][1].extra.unrelated_setting).toBe('retain')
+    wrapper.unmount()
+  })
+
+  it('does not offer convergence for another OAuth provider', () => {
+    const wrapper = mountModal(buildKiroOAuthAccount())
+    expect(convergenceInput(wrapper)?.exists() ?? false).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('reloads convergence from the account on every reopen', async () => {
+    const account = buildOpenAIOAuthParentAccount()
+    account.extra = { codex_experimental_fingerprint_convergence: true }
+    const wrapper = mountModal(account)
+    await convergenceInput(wrapper)!.setValue(false)
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    expect(convergenceInput(wrapper)?.element.checked).toBe(true)
+
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true, account: buildOpenAISetupTokenAccount() })
+    expect(convergenceInput(wrapper)?.element.checked).toBe(false)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(updateAccountMock.mock.calls[0][1].extra).not.toHaveProperty('codex_experimental_fingerprint_convergence')
+    wrapper.unmount()
+  })
+})
+
 describe('EditAccountModal', () => {
   beforeEach(() => {
     authIsSimpleMode.value = true

@@ -71,11 +71,14 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 	}
 	// x-codex-turn-state 不在通用响应头白名单内，按 Codex 协议显式回传：
 	// 客户端会在同回合的后续请求中回带（openai_codex_turn_state.go）。
-	// OpenAI 首个语义输出前只暂存，溯源在 applyAttemptResponseHeaders 真正提交时记录。
+	// OpenAI 首个语义输出前只暂存，溯源由实际下游写入结果确认。
 	if stageFirstOutput {
 		stageOpenAICodexTurnState(&attemptResponseHeaders, resp.Header)
+		defer observeOpenAICodexHTTPDelivery(c, func(deliveredHeaders http.Header) {
+			s.noteStagedOpenAICodexTurnStateCommitted(c, account, deliveredHeaders)
+		})()
 	} else {
-		s.relayOpenAICodexTurnState(c, account, resp.Header)
+		defer s.stageOpenAICodexHTTPResponseDelivery(c, account, resp.Header)()
 	}
 
 	// Set SSE response headers
@@ -98,9 +101,6 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 				c.Writer.Header().Add(key, value)
 			}
 		}
-		// 暂存头此刻才真正写给客户端：turn-state 溯源在这里记录（见
-		// noteStagedOpenAICodexTurnStateCommitted 的 failover 说明）。
-		s.noteStagedOpenAICodexTurnStateCommitted(c, account, attemptResponseHeaders)
 		// These headers describe this gateway's SSE stream and are stable across
 		// account attempts. Keep them authoritative over upstream values.
 		c.Header("Content-Type", "text/event-stream")
@@ -1651,7 +1651,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	// Codex 协议要求 /responses/compact JSON 响应携带 x-codex-turn-state
 	// （codex-api/src/endpoint/compact.rs 从响应头捕获），显式回传。
-	s.relayOpenAICodexTurnState(c, account, resp.Header)
+	defer s.stageOpenAICodexHTTPResponseDelivery(c, account, resp.Header)()
 
 	contentType := "application/json"
 	if s.cfg != nil && !s.cfg.Security.ResponseHeaders.Enabled {
@@ -1758,7 +1758,7 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	logOpenAISuccessMissingUsage(c.Request.Context(), c, account, resp, usage, terminalType, false)
-	s.relayOpenAICodexTurnState(c, account, resp.Header)
+	defer s.stageOpenAICodexHTTPResponseDelivery(c, account, resp.Header)()
 
 	contentType := "application/json; charset=utf-8"
 	if !ok {

@@ -396,8 +396,8 @@ func normalizeOpenAICompactRequestBody(body []byte) ([]byte, bool, error) {
 		return body, false, nil
 	}
 	normalized := []byte(`{}`)
-	// Keep the current Codex /compact schema while still dropping request-scoped
-	// fields such as prompt_cache_key, store, and stream.
+	// Account selection happens after normalization. Keep optional device fields
+	// here and let the selected account's wire profile filter them at egress.
 	for _, field := range []string{
 		"model",
 		"input",
@@ -408,6 +408,8 @@ func normalizeOpenAICompactRequestBody(body []byte) ([]byte, bool, error) {
 		"service_tier",
 		"text",
 		"previous_response_id",
+		"prompt_cache_key",
+		"access_programs",
 	} {
 		value := gjson.GetBytes(body, field)
 		if !value.Exists() {

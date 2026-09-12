@@ -1,0 +1,29 @@
+name: Read-only Codex source drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  pull_request:
+    paths:
+      - 'tools/check_codex_source_drift.py'
+      - 'tools/codex-source-references.json'
+      - 'tools/tests/test_source_drift.py'
+      - '.github/workflows/codex-source-drift.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Offline drift fixtures
+        run: python3 tools/check_codex_source_drift.py --selftest
+      - name: Explicit anonymous upstream comparison
+        if: github.event_name != 'pull_request'
+        run: python3 tools/check_codex_source_drift.py --network

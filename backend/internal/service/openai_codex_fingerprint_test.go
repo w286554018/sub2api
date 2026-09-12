@@ -83,6 +83,29 @@ func TestGetCodexFingerprintMode(t *testing.T) {
 	}
 }
 
+func TestCodexFingerprintConvergenceKeepsUUIDv7AndWindowNumber(t *testing.T) {
+	account := newTestOAuthAccount(9911, map[string]any{
+		codexFingerprintModeExtraKey:        "device",
+		codexFingerprintConvergenceExtraKey: true,
+		codexFingerprintSeedExtraKey:        "11111111-1111-4111-8111-111111111111",
+	})
+	ids := resolveCodexFingerprintIDsWithWindow(account, "0198f0de-7b2e-7abc-8def-123456789abc", codexFingerprintDevice, "3")
+	require.NotNil(t, ids)
+	require.Equal(t, uint64(3), ids.windowNumber)
+	require.Equal(t, uuid.Version(4), uuid.MustParse(ids.installationID).Version())
+}
+
+func TestCodexFingerprintConvergenceDisabledPreservesLegacyWindow(t *testing.T) {
+	account := newTestOAuthAccount(9912, map[string]any{
+		codexFingerprintModeExtraKey: "session",
+		codexFingerprintSeedExtraKey: "11111111-1111-4111-8111-111111111111",
+	})
+	ids := resolveCodexFingerprintIDsWithWindow(account, "", codexFingerprintSession, "9")
+	require.NotNil(t, ids)
+	require.Equal(t, uint64(0), ids.windowNumber)
+	require.Equal(t, account.GetCodexFingerprintMode(), ids.mode)
+}
+
 // --- resolveConvergedInstallationID ---
 
 func TestResolveConvergedInstallationID_UsesDeviceID(t *testing.T) {

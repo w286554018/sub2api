@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/gin-gonic/gin"
@@ -109,6 +111,8 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 			"session-id",
 			"thread-id",
 			"x-client-request-id",
+			"x-openai-memgen-request",
+			"x-responsesapi-include-timing-metrics",
 		} {
 			if value := c.Request.Header.Get(name); strings.TrimSpace(value) != "" {
 				headers.Set(name, value)
@@ -146,6 +150,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	}
 	applyCodexAccountIdentityHeaders(headers, codexAccountIdentitySource(c, account), getAPIKeyIDFromContext(c))
 	applyStagedCodexFingerprintHeaders(c, account, headers)
+	applyCodexFingerprintConvergenceHeaders(c, codexAccountIdentitySource(c, account), headers)
 
 	if account != nil && account.UsesOpenAICodexProtocol() {
 		if err := resolveAndSetOpenAIChatGPTAccountHeaders(ctx, s.accountRepo, headers, account); err != nil {
@@ -184,6 +189,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 	// 覆盖所有 WS 模式（ctx_pool/dedicated/passthrough）的握手头。
 	account.ApplyHeaderOverrides(headers)
 	setOpenAICodexRoutingHint(headers, account, routingModel, routingServiceTier)
+	applyCodexDeviceWireProfile(c, account, headers, true)
 	logOpenAIRoutingDiagnostics(
 		ctx,
 		account,
@@ -219,28 +225,109 @@ func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any
 }
 
 func setOpenAIWSTurnMetadata(payload map[string]any, turnMetadata string) {
+	setOpenAIWSClientMetadataIfMissing(payload, openAIWSTurnMetadataHeader, turnMetadata)
+}
+
+const codexWSStreamRequestStartKey = "x-codex-ws-stream-request-start-ms"
+
+func applyCodexWSFrameWireProfile(c *gin.Context, account *Account, payload []byte, turnState string) []byte {
+	if !codexDeviceWireProfileEnabled(c, account) || !gjson.ValidBytes(payload) || !gjson.ParseBytes(payload).IsObject() {
+		return payload
+	}
+	if eventType := gjson.GetBytes(payload, "type").String(); eventType != "" && eventType != "response.create" {
+		return payload
+	}
+	if turnState = strings.TrimSpace(turnState); turnState != "" {
+		payload = setCodexWSClientMetadataString(payload, openAICodexTurnStateHeader, turnState, true)
+	}
+	payload = setCodexWSClientMetadataString(payload, codexWSStreamRequestStartKey,
+		strconv.FormatInt(time.Now().UnixMilli(), 10), false)
+	return reorderCodexTopLevelFields(payload, codexWSCreateFieldOrder)
+}
+
+func setCodexWSClientMetadataString(payload []byte, key, value string, onlyMissing bool) []byte {
+	if !gjson.ValidBytes(payload) || !gjson.ParseBytes(payload).IsObject() {
+		return payload
+	}
+	rawValue, err := marshalOpenAIUpstreamJSON(value)
+	if err != nil {
+		return payload
+	}
+	encoded := string(rawValue)
+	foundMetadata := false
+	next := rewriteCodexJSONMembers(string(payload), func(name string, metadata gjson.Result) (string, bool) {
+		if name != "client_metadata" {
+			return "", false
+		}
+		foundMetadata = true
+		if !metadata.IsObject() {
+			return "", false
+		}
+		found := false
+		updated := rewriteCodexJSONMembers(metadata.Raw, func(name string, member gjson.Result) (string, bool) {
+			if name != key {
+				return "", false
+			}
+			found = true
+			if member.Type == gjson.String && (member.Str == value || (onlyMissing && strings.TrimSpace(member.Str) != "")) {
+				return "", false
+			}
+			return encoded, true
+		})
+		if !found {
+			var setErr error
+			updated, setErr = sjson.SetRaw(updated, key, encoded)
+			if setErr != nil {
+				return "", false
+			}
+		}
+		return updated, updated != metadata.Raw
+	})
+	if !foundMetadata {
+		next, err = sjson.SetRaw(next, "client_metadata."+key, encoded)
+		if err != nil {
+			return payload
+		}
+	}
+	return []byte(next)
+}
+
+func writeCodexWSFrame(ctx context.Context, c *gin.Context, account *Account, lease *openAIWSConnLease, payload []byte, timeout time.Duration) error {
+	if codexDeviceWireProfileEnabled(c, account) {
+		return lease.WriteTextWithContextTimeout(ctx, payload, timeout)
+	}
+	return lease.WriteJSONWithContextTimeout(ctx, json.RawMessage(payload), timeout)
+}
+
+func setOpenAIWSClientMetadataIfMissing(payload map[string]any, key, value string) {
 	if len(payload) == 0 {
 		return
 	}
-	metadata := strings.TrimSpace(turnMetadata)
-	if metadata == "" {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return
 	}
 
 	switch existing := payload["client_metadata"].(type) {
 	case map[string]any:
-		existing[openAIWSTurnMetadataHeader] = metadata
+		if current, ok := existing[key].(string); ok && strings.TrimSpace(current) != "" {
+			return
+		}
+		existing[key] = value
 		payload["client_metadata"] = existing
 	case map[string]string:
+		if strings.TrimSpace(existing[key]) != "" {
+			return
+		}
 		next := make(map[string]any, len(existing)+1)
 		for k, v := range existing {
 			next[k] = v
 		}
-		next[openAIWSTurnMetadataHeader] = metadata
+		next[key] = value
 		payload["client_metadata"] = next
 	default:
 		payload["client_metadata"] = map[string]any{
-			openAIWSTurnMetadataHeader: metadata,
+			key: value,
 		}
 	}
 }

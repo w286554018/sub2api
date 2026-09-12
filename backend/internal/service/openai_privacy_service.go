@@ -14,6 +14,9 @@ import (
 // Injected from repository layer to avoid import cycles.
 type PrivacyClientFactory func(proxyURL string) (*req.Client, error)
 
+// CodexBackendClientFactory keeps non-browser quota clients distinct in DI.
+type CodexBackendClientFactory func(proxyURL string) (*req.Client, error)
+
 const (
 	openAISettingsURL = "https://chatgpt.com/backend-api/settings/account_user_setting"
 

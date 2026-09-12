@@ -47,6 +47,12 @@ type openAIWSIdlePingCapable interface {
 	SupportsIdlePingWithoutReader() bool
 }
 
+type openAIWSRawTextWriter interface {
+	WriteFrame(ctx context.Context, msgType coderws.MessageType, payload []byte) error
+}
+
+var _ openAIWSRawTextWriter = (*coderOpenAIWSClientConn)(nil)
+
 // openAIWSClientDialer 抽象 WS 建连器。
 type openAIWSClientDialer interface {
 	Dial(ctx context.Context, wsURL string, headers http.Header, proxyURL string) (openAIWSClientConn, int, http.Header, error)

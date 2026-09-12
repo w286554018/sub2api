@@ -1534,9 +1534,11 @@ func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {
 	start := time.Now()
 	err := svc.performOpenAIWSGeneratePrewarm(
 		ctx,
+		nil,
 		lease,
 		OpenAIWSProtocolDecision{Transport: OpenAIUpstreamTransportResponsesWebsocketV2},
 		payload,
+		"",
 		"",
 		map[string]any{"model": "gpt-5.1"},
 		account,

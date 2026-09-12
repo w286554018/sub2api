@@ -11,17 +11,7 @@ import (
 )
 
 func newTestBillingServiceForResolver() *BillingService {
-	bs := &BillingService{
-		fallbackPrices: make(map[string]*ModelPricing),
-	}
-	bs.fallbackPrices["claude-sonnet-4"] = &ModelPricing{
-		InputPricePerToken:         3e-6,
-		OutputPricePerToken:        15e-6,
-		CacheCreationPricePerToken: 3.75e-6,
-		CacheReadPricePerToken:     0.3e-6,
-		SupportsCacheBreakdown:     false,
-	}
-	return bs
+	return NewBillingService(nil, nil)
 }
 
 func TestResolve_NoGroupID(t *testing.T) {

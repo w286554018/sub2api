@@ -86,8 +86,8 @@ func (c *stubQuotaTokenCache) AcquireRefreshLock(_ context.Context, _ string, _ 
 
 func (c *stubQuotaTokenCache) ReleaseRefreshLock(_ context.Context, _ string) error { return nil }
 
-// newQuotaRedirectingFactory 返回 PrivacyClientFactory，将请求重定向到 httptest.Server。
-func newQuotaRedirectingFactory(srv *httptest.Server) PrivacyClientFactory {
+// newQuotaRedirectingFactory redirects quota calls to a local HTTP server.
+func newQuotaRedirectingFactory(srv *httptest.Server) CodexBackendClientFactory {
 	targetURL, _ := url.Parse(srv.URL)
 	return func(_ string) (*req.Client, error) {
 		c := req.C().WrapRoundTripFunc(func(rt req.RoundTripper) req.RoundTripFunc {
@@ -571,7 +571,7 @@ func TestQueryUsageIncludesResetCreditExpirations_EndToEnd(t *testing.T) {
 	require.NotNil(t, usage.RateLimitResetCredits)
 	require.Equal(t, 2, usage.RateLimitResetCredits.AvailableCount)
 	require.Equal(t, 1, detailCalls)
-	require.Equal(t, openaiQuotaCodexBeta, capturedBeta)
+	require.Empty(t, capturedBeta, "quota requests must not carry the legacy beta header")
 	require.Equal(t, []OpenAIRateLimitResetCreditDetail{
 		{ExpiresAt: "2026-07-03T04:05:06Z"},
 		{ExpiresAt: "2026-07-04T04:05:06Z"},
@@ -588,6 +588,22 @@ func TestQueryUsageIncludesResetCreditExpirations_EndToEnd(t *testing.T) {
 	encoded, err := json.Marshal(usage)
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "secret-credit-id")
+}
+
+func TestBuildCodexCommonHeadersMinimalIdentity(t *testing.T) {
+	const canonicalUA = "codex_cli_rs/0.200.1 (Ubuntu 22.4.0; x86_64) xterm-256color"
+	SetCodexCanonicalUserAgentResolver(func() string { return canonicalUA })
+	t.Cleanup(func() { SetCodexCanonicalUserAgentResolver(nil) })
+	for _, fedRAMP := range []bool{false, true} {
+		want := map[string]string{
+			"authorization": "Bearer test-token", "chatgpt-account-id": "test-account",
+			"user-agent": canonicalUA,
+		}
+		if fedRAMP {
+			want["x-openai-fedramp"] = "true"
+		}
+		require.Equal(t, want, buildCodexCommonHeaders("test-token", "test-account", fedRAMP))
+	}
 }
 
 func TestQueryUsageResetCreditDetails401NonFatal(t *testing.T) {

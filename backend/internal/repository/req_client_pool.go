@@ -98,3 +98,12 @@ func CreatePrivacyReqClient(proxyURL string) (*req.Client, error) {
 		Impersonate: true, // Enable Chrome TLS fingerprint impersonation
 	})
 }
+
+// CreateCodexBackendReqClient uses a non-browser client for Codex quota APIs.
+// Impersonate is part of the pool key, so privacy clients remain independent.
+func CreateCodexBackendReqClient(proxyURL string) (*req.Client, error) {
+	return getSharedReqClient(reqClientOptions{
+		ProxyURL: proxyURL,
+		Timeout:  30 * time.Second,
+	})
+}
