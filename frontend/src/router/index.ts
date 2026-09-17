@@ -561,6 +561,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/account-health',
+    name: 'AdminAccountHealth',
+    component: () => import('@/views/admin/AccountHealthView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Account Health',
+      titleKey: 'admin.accountHealth.title',
+      descriptionKey: 'admin.accountHealth.routeDescription'
+    }
+  },
+  {
     path: '/admin/intelligent-tests',
     name: 'AdminIntelligentTests',
     component: () => import('@/views/admin/IntelligentTestsView.vue'),

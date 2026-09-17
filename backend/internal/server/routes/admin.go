@@ -117,6 +117,9 @@ func RegisterAdminRoutes(
 		// 智能测试中心
 		registerIntelligentTestRoutes(admin, h)
 
+		// 账号健康只读看板
+		registerAccountHealthRoutes(admin, h)
+
 		// 渠道管理
 		registerGlobalPricingRoutes(admin, h)
 		registerChannelRoutes(admin, h)
@@ -793,6 +796,15 @@ func registerIntelligentTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 		tests.GET("/settings", h.Admin.IntelligentTest.Settings)
 		tests.PUT("/settings/:test_type", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.UpdateSetting)
 		tests.POST("/evaluate-preview", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.PreviewEvaluation)
+	}
+}
+
+func registerAccountHealthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	health := admin.Group("/account-health")
+	{
+		health.GET("", h.Admin.AccountHealth.Snapshot)
+		health.GET("/settings", h.Admin.AccountHealth.Settings)
+		health.PUT("/settings", middleware.SuperAdminOnly(), h.Admin.AccountHealth.UpdateSettings)
 	}
 }
 

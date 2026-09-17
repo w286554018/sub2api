@@ -39,6 +39,7 @@ import auditAPI from './audit'
 import pluginsAPI from './plugins'
 import globalPricingAPI from './globalPricing'
 import intelligentTestsAPI from './intelligentTests'
+import accountHealthAPI from './accountHealth'
 
 /**
  * Unified admin API object for convenient access
@@ -79,7 +80,8 @@ export const adminAPI = {
   audit: auditAPI,
   plugins: pluginsAPI,
   globalPricing: globalPricingAPI,
-  intelligentTests: intelligentTestsAPI
+  intelligentTests: intelligentTestsAPI,
+  accountHealth: accountHealthAPI
 }
 
 export {
@@ -118,7 +120,8 @@ export {
   auditAPI,
   pluginsAPI,
   globalPricingAPI,
-  intelligentTestsAPI
+  intelligentTestsAPI,
+  accountHealthAPI
 }
 
 export default adminAPI
@@ -144,3 +147,11 @@ export type {
   IntelligentTestSetting,
   IntelligentTestStatus,
 } from './intelligentTests'
+export type {
+  AccountHealthItem,
+  AccountHealthListParams,
+  AccountHealthListResponse,
+  AccountHealthOverview,
+  AccountHealthSettings,
+  AccountHealthState,
+} from './accountHealth'

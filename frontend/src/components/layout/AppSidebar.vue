@@ -801,6 +801,7 @@ const adminNavItems = computed((): NavItem[] => {
     },
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+    { path: '/admin/account-health', label: t('admin.accountHealth.nav'), icon: SignalIcon },
     { path: '/admin/intelligent-tests', label: t('admin.intelligentTests.nav'), icon: BrainIcon },
     { path: '/admin/prompt-rules', label: t('nav.promptRules'), icon: PromptIcon },
     { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement, superAdminOnly: true },

@@ -976,6 +976,7 @@ var ProviderSet = wire.NewSet(
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
 	ProvideIntelligentTestService,
+	NewAccountHealthService,
 	NewGroupCapacityService,
 	NewChannelService,
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),

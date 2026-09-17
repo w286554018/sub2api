@@ -37,6 +37,7 @@ type AdminHandlers struct {
 	APIKey                 *admin.AdminAPIKeyHandler
 	ScheduledTest          *admin.ScheduledTestHandler
 	IntelligentTest        *admin.IntelligentTestHandler
+	AccountHealth          *admin.AccountHealthHandler
 	GlobalPricing          *admin.GlobalPricingHandler
 	Channel                *admin.ChannelHandler
 	ChannelMonitor         *admin.ChannelMonitorHandler
