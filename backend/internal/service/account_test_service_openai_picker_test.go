@@ -18,8 +18,8 @@ func TestFetchOpenAIAccountModelsFillsPickerLabels(t *testing.T) {
 	models, err := svc.FetchOpenAIAccountModels(context.Background(), newCodexModelsTestAccount())
 	require.NoError(t, err)
 	wantLabels := map[string]string{
-		"gpt-5.6-terra":          "gpt-5.6-terra",
-		"codex-auto-review":      "codex-auto-review",
+		"gpt-5.6-terra":          "GPT-5.6 Terra",
+		"codex-auto-review":      "Codex Auto Review",
 		"gpt-image-1":            "GPT Image 1",
 		"gpt-image-1.5":          "GPT Image 1.5",
 		"gpt-image-2":            "GPT Image 2",

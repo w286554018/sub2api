@@ -104,7 +104,7 @@ func TestImagesAuxiliaryDeviceWireAndOptOut(t *testing.T) {
 				svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 				parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 				require.NoError(t, err)
-				result, err := svc.ForwardImages(context.Background(), c, account, body, parsed, "")
+				result, err := svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, account, body, parsed, "")
 				require.NoError(t, err)
 				require.NotNil(t, result)
 				wire := auxiliaryDecodeRequest(t, upstream.lastReq, upstream.lastBody)
@@ -136,7 +136,7 @@ func TestImagesAuxiliaryOAuthFallbackKeepsControllerAndMapping(t *testing.T) {
 			upstream := &httpUpstreamRecorder{resp: auxiliaryImageResponse()}
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 			parsed := &OpenAIImagesRequest{Endpoint: "/v1/images/generations", Model: " ", Prompt: "draw a square", N: 1}
-			_, err := svc.forwardOpenAIImagesOAuth(context.Background(), c, codexIdentityAccount(), parsed, mapped)
+			_, err := svc.forwardOpenAIImagesOAuth(withOpenAIImagesForceResponses(context.Background()), c, codexIdentityAccount(), parsed, mapped)
 			require.NoError(t, err)
 			wire := auxiliaryDecodeRequest(t, upstream.lastReq, upstream.lastBody)
 			require.Equal(t, "gpt-6-astra", gjson.GetBytes(wire, "model").String())
@@ -176,7 +176,7 @@ func TestImagesAuxiliaryCredentialSourceAndFailover(t *testing.T) {
 			c := codexIdentityHTTPContext("/v1/images/generations", http.Header{"Content-Type": {"application/json"}})
 			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 			require.NoError(t, err)
-			_, err = svc.ForwardImages(context.Background(), c, child, body, parsed, "")
+			_, err = svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, child, body, parsed, "")
 			require.NoError(t, err)
 			wire := auxiliaryDecodeRequest(t, upstream.lastReq, upstream.lastBody)
 			require.Equal(t, sourceEnabled, gjson.GetBytes(wire, "client_metadata.x-codex-installation-id").Exists())
@@ -187,7 +187,7 @@ func TestImagesAuxiliaryCredentialSourceAndFailover(t *testing.T) {
 				require.Empty(t, upstream.lastReq.Header.Get("Content-Encoding"))
 				require.Equal(t, "responses=experimental", upstream.lastReq.Header.Get("OpenAI-Beta"))
 			}
-			_, err = svc.ForwardImages(context.Background(), c, other, body, parsed, "")
+			_, err = svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, other, body, parsed, "")
 			require.NoError(t, err)
 			require.Empty(t, upstream.lastReq.Header.Get("Content-Encoding"))
 			require.Empty(t, upstream.lastReq.Header.Get("x-codex-installation-id"))

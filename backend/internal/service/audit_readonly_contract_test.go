@@ -123,7 +123,7 @@ func TestAuditImagesDeviceWire(t *testing.T) {
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
-	_, err = svc.ForwardImages(context.Background(), c, codexIdentityAccount(), body, parsed, "")
+	_, err = svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, codexIdentityAccount(), body, parsed, "")
 	require.NoError(t, err)
 	wire := auditDecodeWire(t, upstream)
 	require.NotEmpty(t, gjson.GetBytes(wire, "client_metadata.x-codex-installation-id").String())

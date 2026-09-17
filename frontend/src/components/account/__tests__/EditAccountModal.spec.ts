@@ -341,6 +341,22 @@ function buildOpenAIOAuthParentAccount() {
   } as any
 }
 
+function buildAdobeAccount(modelMapping?: Record<string, string>) {
+  return {
+    ...buildAccount(),
+    id: 9,
+    name: 'Adobe Firefly',
+    platform: 'adobe',
+    type: 'oauth',
+    credentials: {
+      cookie: 'aux_sid=abc; ims=def',
+      access_token: 'ims-token',
+      ...(modelMapping ? { model_mapping: modelMapping } : {})
+    },
+    extra: {}
+  } as any
+}
+
 function mountModal(account = buildAccount(), renderGroupSelector = false) {
   return mount(EditAccountModal, {
     props: {
@@ -687,6 +703,80 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'gpt-5.2': 'gpt-5.2'
+    })
+  })
+
+  it('preserves OpenCode Zen account type and endpoints on submit', async () => {
+    const account = buildAccount()
+    account.platform = 'opencode_go'
+    account.credentials = {
+      api_key: 'sk-opencode',
+      account_mode: 'zen',
+      api_protocol: 'adaptive',
+      base_url: 'https://opencode.ai/zen/v1',
+      api_base_urls: {
+        chat_completions: 'https://opencode.ai/zen/v1',
+        anthropic: 'https://opencode.ai/zen',
+        responses: 'https://opencode.ai/zen/v1'
+      },
+      protocol_rules: [
+        { pattern: 'grok-*', protocol: 'responses' },
+        { pattern: 'gpt-*', protocol: 'responses' },
+        { pattern: 'muse-spark-*', protocol: 'responses' },
+        { pattern: 'claude-*', protocol: 'anthropic' },
+        { pattern: 'qwen*', protocol: 'anthropic' }
+      ]
+    }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    checkMixedChannelRiskMock.mockReset().mockResolvedValue({ has_risk: false })
+
+    const wrapper = mountModal(account)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).toMatchObject({
+      account_mode: 'zen',
+      api_protocol: 'adaptive',
+      base_url: 'https://opencode.ai/zen/v1',
+      api_base_urls: {
+        chat_completions: 'https://opencode.ai/zen/v1',
+        anthropic: 'https://opencode.ai/zen',
+        responses: 'https://opencode.ai/zen/v1'
+      },
+      protocol_rules: [
+        { pattern: 'grok-*', protocol: 'responses' },
+        { pattern: 'gpt-*', protocol: 'responses' },
+        { pattern: 'muse-spark-*', protocol: 'responses' },
+        { pattern: 'claude-*', protocol: 'anthropic' },
+        { pattern: 'qwen*', protocol: 'anthropic' }
+      ]
+    })
+  })
+
+  it('treats a legacy OpenCode account without account_mode as GO', async () => {
+    const account = buildAccount()
+    account.platform = 'opencode_go'
+    account.credentials = {
+      api_key: 'sk-opencode',
+      api_protocol: 'adaptive',
+      base_url: 'https://opencode.ai/zen/go/v1',
+      api_base_urls: {
+        chat_completions: 'https://opencode.ai/zen/go/v1',
+        anthropic: 'https://opencode.ai/zen/go',
+        responses: 'https://opencode.ai/zen/go/v1'
+      }
+    }
+    updateAccountMock.mockReset().mockResolvedValue(account)
+    checkMixedChannelRiskMock.mockReset().mockResolvedValue({ has_risk: false })
+
+    const wrapper = mountModal(account)
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).toMatchObject({
+      account_mode: 'go',
+      api_protocol: 'adaptive',
+      base_url: 'https://opencode.ai/zen/go/v1'
     })
   })
 
@@ -1887,5 +1977,97 @@ describe('EditAccountModal OpenAI 自动使用重置卡', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
     expect(updateAccountMock).not.toHaveBeenCalled()
     wrapper.unmount()
+  })
+})
+
+
+describe('EditAccountModal Adobe model mapping', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset().mockResolvedValue({ has_risk: false })
+  })
+
+  afterEach(() => vi.clearAllMocks())
+
+  // 存量账号那 17 条别名全是非恒等对，splitModelMappingObject 把它们归入映射，
+  // 于是弹窗自动开在映射模式并逐条列出——数据不变，只是多了个可切到白名单的按钮。
+  it('renders the stored mapping instead of the defaults', async () => {
+    const wrapper = mountModal(buildAdobeAccount({ 'gpt-image-2': 'firefly-gpt-image-2' }))
+    await flushPromises()
+
+    const froms = wrapper.findAll<HTMLInputElement>('[data-testid="oauth-model-mapping-from"]')
+    expect(froms).toHaveLength(1)
+    expect(froms[0].element.value).toBe('gpt-image-2')
+    expect(
+      wrapper.get<HTMLInputElement>('[data-testid="oauth-model-mapping-to"]').element.value
+    ).toBe('firefly-gpt-image-2')
+  })
+
+  // Step 10：不再预填 17 行默认映射。没配置就是没配置，交给后端回落到
+  // DefaultAdobeModelMapping——预填会让「我没改过」的账号被写死成当时那份快照。
+  it('leaves the restriction empty when the account has no mapping', async () => {
+    const wrapper = mountModal(buildAdobeAccount())
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="oauth-model-mapping-from"]')).toHaveLength(0)
+  })
+
+  // 白名单模式产出的恒等对会被 splitModelMappingObject 归入白名单侧，
+  // 而后端靠 adobe 包的 externalImageModelAliases 把它解析成 firefly-* 族 id。
+  it('shows identity pairs as a whitelist, not as mapping rows', async () => {
+    const wrapper = mountModal(buildAdobeAccount({ 'imagen-4': 'imagen-4', 'flux-pro': 'flux-pro' }))
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="oauth-model-mapping-from"]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe('imagen-4,flux-pro')
+  })
+
+  it('round-trips an unchanged whitelist account', async () => {
+    const account = buildAdobeAccount({ 'imagen-4': 'imagen-4', 'flux-pro': 'flux-pro' })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await flushPromises()
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'imagen-4': 'imagen-4',
+      'flux-pro': 'flux-pro'
+    })
+  })
+
+  it('drops model_mapping when every row is removed, keeping the cookie credentials', async () => {
+    const account = buildAdobeAccount({ 'gpt-image-2': 'firefly-gpt-image-2' })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-model-mapping-remove"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    const credentials = updateAccountMock.mock.calls[0]?.[1]?.credentials
+    // 删空 => 回落到后端 DefaultAdobeModelMapping，而不是写一个空表把账号锁死
+    expect(credentials).not.toHaveProperty('model_mapping')
+    // oauth 分支是 spread 现有 credentials，长期凭据不能被这次保存吞掉
+    expect(credentials?.cookie).toBe('aux_sid=abc; ims=def')
+    expect(credentials?.access_token).toBe('ims-token')
+  })
+
+  it('persists an edited mapping row', async () => {
+    const account = buildAdobeAccount({ 'gpt-image-2': 'firefly-gpt-image-2' })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    await flushPromises()
+    await wrapper.get('[data-testid="oauth-model-mapping-from"]').setValue('gpt-image-*')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'gpt-image-*': 'firefly-gpt-image-2'
+    })
   })
 })
