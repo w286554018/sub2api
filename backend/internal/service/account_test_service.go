@@ -3388,7 +3388,7 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 
 // sendErrorAndEnd sends an error event and ends the stream
 func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) error {
-	log.Printf("Account test error: %s", errorMsg)
+	log.Printf("Account test error: %s", redactIntelligentTestError(errorMsg))
 	s.sendEvent(c, TestEvent{Type: "error", Error: errorMsg})
 	return fmt.Errorf("%s", errorMsg)
 }
@@ -3396,13 +3396,17 @@ func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) er
 // RunTestBackground executes an account test in-memory (no real HTTP client),
 // capturing SSE output via httptest.NewRecorder, then parses the result.
 func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
+	return s.runTestBackground(ctx, accountID, modelID, "", AccountTestModeDefault)
+}
+
+func (s *AccountTestService) runTestBackground(ctx context.Context, accountID int64, modelID string, prompt string, mode string) (*ScheduledTestResult, error) {
 	startedAt := time.Now()
 
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 
-	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, "", AccountTestModeDefault)
+	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, prompt, mode)
 
 	finishedAt := time.Now()
 	body := w.Body.String()
@@ -3427,8 +3431,141 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 	}, nil
 }
 
+// RunIntelligentTest executes a durable intelligent-test job through the same
+// account testing path used by the admin panel. It swaps only the repository on
+// a shallow service copy so test probes cannot persist scheduling/account state.
+func (s *AccountTestService) RunIntelligentTest(ctx context.Context, record *IntelligentTestRecord) error {
+	if record == nil || record.ConfigSnapshot == nil {
+		return errors.New("missing intelligent test record")
+	}
+	modelID := record.ConfigSnapshot.Model
+	if record.Model != "" {
+		modelID = record.Model
+	}
+	probe := s.newIntelligentTestProbe()
+	startedAt := time.Now()
+	w := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(w)
+	ginCtx.Request = (&http.Request{}).WithContext(ctx)
+	record.Status = IntelligentTestStatusRunning
+	err := probe.TestAccountConnection(ginCtx, record.AccountID, modelID, record.ConfigSnapshot.Prompt, AccountTestModeDefault)
+	result, image, errMsg := parseIntelligentTestSSEOutput(w.Body.String())
+	record.DurationMS = time.Since(startedAt).Milliseconds()
+	record.Result = trimIntelligentText(result, 16000)
+	record.RawResponse = ""
+	record.ResultImage = trimIntelligentText(image, 128<<10)
+	record.RawTruncated = len([]rune(result)) > 16000 || len(image) > 128<<10
+	if errMsg != "" {
+		record.ErrorMessage = trimIntelligentText(redactIntelligentTestError(errMsg), 2000)
+	}
+	if err != nil {
+		return err
+	}
+	if errMsg != "" {
+		return errors.New(redactIntelligentTestError(errMsg))
+	}
+	return nil
+}
+
+func (s *AccountTestService) newIntelligentTestProbe() *AccountTestService {
+	probe := NewAccountTestService(
+		intelligentReadOnlyAccountRepo{AccountRepository: s.accountRepo},
+		s.geminiTokenProvider,
+		s.claudeTokenProvider,
+		s.kiroTokenProvider,
+		s.grokTokenProvider,
+		s.antigravityGatewayService,
+		s.httpUpstream,
+		s.cfg,
+		s.tlsFPProfileService,
+	)
+	probe.settingService = s.settingService
+	probe.pluginManager = s.pluginManager
+	probe.openaiGatewayService = s.openaiGatewayService
+	probe.agentIdentityWS = s.agentIdentityWS
+	probe.grokWSDialer = s.grokWSDialer
+	return probe
+}
+
+type intelligentReadOnlyAccountRepo struct {
+	AccountRepository
+}
+
+func (r intelligentReadOnlyAccountRepo) Update(context.Context, *Account) error {
+	return errors.New("intelligent tests cannot update accounts")
+}
+func (r intelligentReadOnlyAccountRepo) Create(context.Context, *Account) error {
+	return errors.New("intelligent tests cannot create accounts")
+}
+func (r intelligentReadOnlyAccountRepo) Delete(context.Context, int64) error {
+	return errors.New("intelligent tests cannot delete accounts")
+}
+func (r intelligentReadOnlyAccountRepo) UpdateLastUsed(context.Context, int64) error { return nil }
+func (r intelligentReadOnlyAccountRepo) BatchUpdateLastUsed(context.Context, map[int64]time.Time) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) SetError(context.Context, int64, string) error { return nil }
+func (r intelligentReadOnlyAccountRepo) ClearError(context.Context, int64) error       { return nil }
+func (r intelligentReadOnlyAccountRepo) SetSchedulable(context.Context, int64, bool) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) AutoPauseExpiredAccounts(context.Context, time.Time) (int64, error) {
+	return 0, nil
+}
+func (r intelligentReadOnlyAccountRepo) BindGroups(context.Context, int64, []int64) error {
+	return errors.New("intelligent tests cannot bind groups")
+}
+func (r intelligentReadOnlyAccountRepo) SetRateLimited(context.Context, int64, time.Time) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) SetOverloaded(context.Context, int64, time.Time) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) SetTempUnschedulable(context.Context, int64, time.Time, string) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) ClearTempUnschedulable(context.Context, int64) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) ClearRateLimit(context.Context, int64) error { return nil }
+func (r intelligentReadOnlyAccountRepo) ClearAntigravityQuotaScopes(context.Context, int64) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) ClearModelRateLimits(context.Context, int64) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) UpdateSessionWindow(context.Context, int64, *time.Time, *time.Time, string) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) UpdateSessionWindowEnd(context.Context, int64, time.Time) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) UpdateExtra(context.Context, int64, map[string]any) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) BulkUpdate(context.Context, []int64, AccountBulkUpdate) (int64, error) {
+	return 0, errors.New("intelligent tests cannot bulk update accounts")
+}
+func (r intelligentReadOnlyAccountRepo) IncrementQuotaUsed(context.Context, int64, float64) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) ResetQuotaUsedAndClearRateLimitCooldown(context.Context, int64) error {
+	return nil
+}
+func (r intelligentReadOnlyAccountRepo) RevertProxyFallback(context.Context, int64) error {
+	return errors.New("intelligent tests cannot change proxy fallback")
+}
+
 // parseTestSSEOutput extracts response text and error message from captured SSE output.
 func parseTestSSEOutput(body string) (responseText, errMsg string) {
+	responseText, _, errMsg = parseIntelligentTestSSEOutput(body)
+	return responseText, errMsg
+}
+
+func parseIntelligentTestSSEOutput(body string) (responseText, imageURL, errMsg string) {
 	var texts []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
@@ -3447,6 +3584,10 @@ func parseTestSSEOutput(body string) (responseText, errMsg string) {
 			}
 		case "error":
 			errMsg = event.Error
+		case "image":
+			if imageURL == "" {
+				imageURL = event.ImageURL
+			}
 		}
 	}
 	responseText = strings.Join(texts, "")

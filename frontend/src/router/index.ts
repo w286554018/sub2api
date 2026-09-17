@@ -561,6 +561,46 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/intelligent-tests',
+    name: 'AdminIntelligentTests',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'tests' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Intelligent Tests',
+      titleKey: 'admin.intelligentTests.title',
+      descriptionKey: 'admin.intelligentTests.modes.tests.description'
+    }
+  },
+  {
+    path: '/admin/intelligent-tests/history',
+    name: 'AdminIntelligentTestHistory',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'history' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Intelligent Test History',
+      titleKey: 'admin.intelligentTests.modes.history.title',
+      descriptionKey: 'admin.intelligentTests.modes.history.description'
+    }
+  },
+  {
+    path: '/admin/intelligent-tests/settings',
+    name: 'AdminIntelligentTestSettings',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'settings' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      requiresSuperAdmin: true,
+      title: 'Intelligent Test Settings',
+      titleKey: 'admin.intelligentTests.modes.settings.title',
+      descriptionKey: 'admin.intelligentTests.modes.settings.description'
+    }
+  },
+  {
     path: '/admin/plugins',
     name: 'AdminPlugins',
     component: () => import('@/views/admin/PluginsView.vue'),

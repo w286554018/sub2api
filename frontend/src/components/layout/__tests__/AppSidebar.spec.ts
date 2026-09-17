@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 import zhCommon from '@/i18n/locales/zh/common'
+import zhIntelligentTests from '@/i18n/locales/zh/admin/intelligentTests'
 
 const componentPath = resolve(dirname(fileURLToPath(import.meta.url)), '../AppSidebar.vue')
 const componentSource = readFileSync(componentPath, 'utf8')
@@ -13,6 +14,12 @@ const styleSource = readFileSync(stylePath, 'utf8')
 describe('AppSidebar navigation copy', () => {
   it('uses the concise prompt rules label', () => {
     expect(zhCommon.nav.promptRules).toBe('提示词')
+  })
+
+  it('links administrators to the intelligent test center', () => {
+    expect(zhIntelligentTests.intelligentTests.nav).toBe('智能测试')
+    expect(componentSource).toContain("path: '/admin/intelligent-tests'")
+    expect(componentSource).toContain("label: t('admin.intelligentTests.nav')")
   })
 })
 

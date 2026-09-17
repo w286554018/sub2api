@@ -38,6 +38,7 @@ import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import pluginsAPI from './plugins'
 import globalPricingAPI from './globalPricing'
+import intelligentTestsAPI from './intelligentTests'
 
 /**
  * Unified admin API object for convenient access
@@ -77,7 +78,8 @@ export const adminAPI = {
   compliance: adminComplianceAPI,
   audit: auditAPI,
   plugins: pluginsAPI,
-  globalPricing: globalPricingAPI
+  globalPricing: globalPricingAPI,
+  intelligentTests: intelligentTestsAPI
 }
 
 export {
@@ -115,7 +117,8 @@ export {
   adminComplianceAPI,
   auditAPI,
   pluginsAPI,
-  globalPricingAPI
+  globalPricingAPI,
+  intelligentTestsAPI
 }
 
 export default adminAPI
@@ -134,3 +137,10 @@ export type {
   PluginTestResult
 } from './plugins'
 export type { GlobalModelPrice, GlobalModelPriceInput, GlobalModelPricingListResponse } from './globalPricing'
+export type {
+  IntelligentTestAccount,
+  IntelligentTestConfig,
+  IntelligentTestRecord,
+  IntelligentTestSetting,
+  IntelligentTestStatus,
+} from './intelligentTests'

@@ -114,6 +114,9 @@ func RegisterAdminRoutes(
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
 
+		// 智能测试中心
+		registerIntelligentTestRoutes(admin, h)
+
 		// 渠道管理
 		registerGlobalPricingRoutes(admin, h)
 		registerChannelRoutes(admin, h)
@@ -776,6 +779,21 @@ func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 	// Nested under accounts
 	admin.GET("/accounts/:id/scheduled-test-plans", h.Admin.ScheduledTest.ListByAccount)
+}
+
+func registerIntelligentTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	tests := admin.Group("/intelligent-tests")
+	{
+		tests.GET("/accounts", h.Admin.IntelligentTest.Accounts)
+		tests.GET("/jobs", h.Admin.IntelligentTest.Jobs)
+		tests.POST("/jobs", h.Admin.IntelligentTest.Run)
+		tests.GET("/jobs/:id", h.Admin.IntelligentTest.GetJob)
+		tests.POST("/jobs/:id/cancel", h.Admin.IntelligentTest.Cancel)
+		tests.POST("/jobs/:id/reevaluate", h.Admin.IntelligentTest.Reevaluate)
+		tests.GET("/settings", h.Admin.IntelligentTest.Settings)
+		tests.PUT("/settings/:test_type", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.UpdateSetting)
+		tests.POST("/evaluate-preview", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.PreviewEvaluation)
+	}
 }
 
 func registerErrorPassthroughRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

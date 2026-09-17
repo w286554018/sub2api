@@ -40,7 +40,7 @@ vi.mock('@/composables/useRoutePrefetch', () => ({
 }))
 
 describe('super administrator routes', () => {
-  it.each(['AdminPlugins', 'AdminSettings'])('%s requires a super administrator', async (name) => {
+  it.each(['AdminPlugins', 'AdminSettings', 'AdminIntelligentTestSettings'])('%s requires a super administrator', async (name) => {
     const { default: router } = await import('@/router')
     const route = router.getRoutes().find((record) => record.name === name)
 

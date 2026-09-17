@@ -975,6 +975,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCleanupService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
+	ProvideIntelligentTestService,
 	NewGroupCapacityService,
 	NewChannelService,
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
@@ -1085,4 +1086,11 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	}
 	aggregator.Start()
 	return aggregator
+}
+
+// ProvideIntelligentTestService creates and starts the durable intelligent test worker.
+func ProvideIntelligentTestService(repo IntelligentTestRepository, runner *AccountTestService) *IntelligentTestService {
+	svc := NewIntelligentTestService(repo, runner)
+	svc.Start()
+	return svc
 }
