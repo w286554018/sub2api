@@ -101,6 +101,14 @@ func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *Batc
 	return &BatchImageModelPricingResolver{Resolver: resolver}
 }
 
+func ProvideOpenAIAccountRuntimeAccountReader(adminService AdminService) OpenAIAccountRuntimeAccountReader {
+	return adminService
+}
+
+func ProvideOpenAIAccountRuntimePluginRouter(pluginManager *PluginManager) OpenAIAccountRuntimePluginRouter {
+	return pluginManager
+}
+
 func ProvideGlobalModelPricingService(repo GlobalModelPricingRepository, cachePubSub GlobalModelPricingCachePubSub) *GlobalModelPricingService {
 	return NewGlobalModelPricingService(repo, cachePubSub)
 }
@@ -957,6 +965,10 @@ var ProviderSet = wire.NewSet(
 	NewPromptRuleService,
 	NewTLSFingerprintProfileService,
 	NewPluginManager,
+	NewOpenAIWSProtocolResolver,
+	ProvideOpenAIAccountRuntimeAccountReader,
+	ProvideOpenAIAccountRuntimePluginRouter,
+	NewOpenAIAccountRuntimeSnapshotService,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,

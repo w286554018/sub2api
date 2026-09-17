@@ -110,6 +110,19 @@ describe('AccountActionMenu viewport positioning', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('shows the runtime snapshot action for OpenAI accounts only', async () => {
+    const wrapper = await mountMenu(new DOMRect(500, 100, 32, 24))
+    const runtime = Array.from(getMenu().querySelectorAll('button'))
+      .find(button => button.textContent?.includes('admin.accounts.runtime.view'))!
+    expect(runtime).toBeTruthy()
+    runtime.click()
+    expect(wrapper.emitted('runtime')).toEqual([[account]])
+
+    await wrapper.setProps({ account: { ...account, platform: 'anthropic' } as Account })
+    await flushPromises()
+    expect(getMenu().textContent).not.toContain('admin.accounts.runtime.view')
+  })
+
   it('repositions when menu content grows', async () => {
     await mountMenu()
     menuHeight = 420

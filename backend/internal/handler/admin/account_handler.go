@@ -67,6 +67,7 @@ type AccountHandler struct {
 	grokImportProber        grokImportProber
 	upstreamBillingProbe    *service.UpstreamBillingProbeService
 	ollamaCloudUsage        *service.OllamaCloudUsageService
+	runtimeSnapshot         *service.OpenAIAccountRuntimeSnapshotService
 	cfg                     *config.Config
 }
 
@@ -77,6 +78,10 @@ func (h *AccountHandler) SetUpstreamBillingProbeService(probe *service.UpstreamB
 
 func (h *AccountHandler) SetOllamaCloudUsageService(usage *service.OllamaCloudUsageService) {
 	h.ollamaCloudUsage = usage
+}
+
+func (h *AccountHandler) SetOpenAIAccountRuntimeSnapshotService(snapshot *service.OpenAIAccountRuntimeSnapshotService) {
+	h.runtimeSnapshot = snapshot
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -936,7 +941,7 @@ func ifNoneMatchMatched(ifNoneMatch, etag string) bool {
 // GET /api/v1/admin/accounts/:id
 func (h *AccountHandler) GetByID(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || accountID < 1 {
 		response.BadRequest(c, "Invalid account ID")
 		return
 	}
@@ -954,6 +959,26 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	}
 
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+// GetRuntime handles getting a read-only OpenAI/Codex runtime snapshot.
+// GET /api/v1/admin/accounts/:id/runtime
+func (h *AccountHandler) GetRuntime(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || accountID < 1 {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	if h.runtimeSnapshot == nil {
+		response.ErrorFrom(c, infraerrors.New(500, "OPENAI_ACCOUNT_RUNTIME_UNAVAILABLE", "account runtime snapshot service is unavailable"))
+		return
+	}
+	snapshot, err := h.runtimeSnapshot.Get(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
 }
 
 // CheckMixedChannel handles checking mixed channel risk for account-group binding.

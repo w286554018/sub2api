@@ -1656,6 +1656,28 @@ export default {
       // Stats Modal
       viewStats: '查看统计',
       usageStatistics: '使用统计',
+      runtime: {
+        view: '运行态快照',
+        title: 'OpenAI/Codex 运行态快照',
+        source: '来源',
+        observed: '实测请求',
+        authType: '认证类型',
+        revision: '账号版本',
+        effective: '实际生效',
+        configured: '持久配置',
+        transport: '传输方式',
+        reason: '原因',
+        plugin: '插件接管',
+        fingerprint: '指纹模式',
+        convergence: '收敛',
+        proxy: '代理',
+        concurrency: '并发',
+        loadFactor: '负载因子',
+        wsMode: 'WS 模式',
+        passthrough: '透传',
+        forceHttp: '强制 HTTP',
+        loadFailed: '运行态快照加载失败'
+      },
       last30DaysUsage: '近30天使用统计（日均基于实际使用天数）',
       stats: {
         totalCost: '30天总费用',

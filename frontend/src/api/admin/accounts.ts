@@ -28,7 +28,8 @@ import type {
   OllamaCloudUsageSettings,
   OllamaCloudUsageState,
   GrokMediaEligibilityMode,
-  GrokMediaEligibilityState
+  GrokMediaEligibilityState,
+  OpenAIAccountRuntimeSnapshot
 } from '@/types'
 
 /**
@@ -172,6 +173,13 @@ export async function listWithEtag(
  */
 export async function getById(id: number): Promise<Account> {
   const { data } = await apiClient.get<Account>(`/admin/accounts/${id}`)
+  return data
+}
+
+export async function getRuntime(id: number, options?: { signal?: AbortSignal }): Promise<OpenAIAccountRuntimeSnapshot> {
+  const { data } = await apiClient.get<OpenAIAccountRuntimeSnapshot>(`/admin/accounts/${id}/runtime`, {
+    signal: options?.signal
+  })
   return data
 }
 
@@ -1078,6 +1086,7 @@ export const accountsAPI = {
   listWithEtag,
   getUpstreamBillingRatesWithEtag,
   getById,
+  getRuntime,
   create,
   duplicate,
   update,

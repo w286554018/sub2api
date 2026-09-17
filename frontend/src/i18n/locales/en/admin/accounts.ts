@@ -1593,6 +1593,28 @@ export default {
       // Stats Modal
       viewStats: 'View Stats',
       usageStatistics: 'Usage Statistics',
+      runtime: {
+        view: 'Runtime Snapshot',
+        title: 'OpenAI/Codex Runtime Snapshot',
+        source: 'Source',
+        observed: 'Observed request',
+        authType: 'Auth type',
+        revision: 'Account revision',
+        effective: 'Effective',
+        configured: 'Configured',
+        transport: 'Transport',
+        reason: 'Reason',
+        plugin: 'Plugin routed',
+        fingerprint: 'Fingerprint mode',
+        convergence: 'Convergence',
+        proxy: 'Proxy',
+        concurrency: 'Concurrency',
+        loadFactor: 'Load factor',
+        wsMode: 'WS mode',
+        passthrough: 'Passthrough',
+        forceHttp: 'Force HTTP',
+        loadFailed: 'Failed to load runtime snapshot'
+      },
       last30DaysUsage: 'Last 30 days usage statistics (based on actual usage days)',
       stats: {
         totalCost: '30-Day Total Cost',

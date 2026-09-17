@@ -1320,6 +1320,44 @@ kiro_credit_unit_price_usd?: number
   parent_chatgpt_account_id?: string
 }
 
+export interface OpenAIAccountRuntimeSnapshot {
+  source: 'computed' | string
+  observed: boolean
+  account_id: number
+  platform: AccountPlatform | string
+  type: AccountType | string
+  auth_type: string
+  account_revision: string
+  configured: OpenAIAccountRuntimeConfiguredSnapshot
+  effective: OpenAIAccountRuntimeEffectiveSnapshot
+}
+
+export interface OpenAIAccountRuntimeConfiguredSnapshot {
+  passthrough: boolean
+  websocket_mode: string
+  force_http: boolean
+  concurrency: number
+  load_factor?: number | null
+  proxy_id?: number | null
+}
+
+export interface OpenAIAccountRuntimeEffectiveSnapshot {
+  transport: string
+  transport_reason: string
+  core_transport: string
+  core_transport_reason: string
+  plugin_routed: boolean
+  plugin_mode: string
+  passthrough: boolean
+  fingerprint_mode: string
+  fingerprint_convergence: boolean
+  device_wire_profile: boolean
+  proxy_mode: string
+  proxy_id?: number | null
+  concurrency: number
+  load_factor: number
+}
+
 // The admin account list may return this compact shape when lite=1. Detail
 // operations still use Account from /admin/accounts/:id.
 export type AccountListItem = Omit<Account, 'groups'>
