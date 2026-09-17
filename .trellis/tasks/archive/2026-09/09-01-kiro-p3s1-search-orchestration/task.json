@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p3s1-search-orchestration",
+  "name": "kiro-p3s1-search-orchestration",
+  "title": "Step 1: Model-Driven Search Orchestration",
+  "description": "复用/整理现有 Kiro 多轮搜索循环; 统一非流式和流式 query 提取; 增加重复 query 检测、最大轮数、超时取消; MCP 失败降级. 4-7天.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-01-kiro-phase3-websearch-server-tools",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

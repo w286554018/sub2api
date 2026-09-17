@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p3s3-compatibility-rollout",
+  "name": "kiro-p3s3-compatibility-rollout",
+  "title": "Step 3: Compatibility and Rollout",
+  "description": "Golden fixture 测试; CCTest replay; 上游拒绝 server block 回退; 混合工具集成测试; 三层 Feature Flag 灰度和回滚. 2-4天.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-01-kiro-phase3-websearch-server-tools",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

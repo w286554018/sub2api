@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p3s2-server-tool-projection",
+  "name": "kiro-p3s2-server-tool-projection",
+  "title": "Step 2: Anthropic Server Tool Projection",
+  "description": "内部搜索结果转换为 server_tool_use/web_search_tool_result JSON/SSE blocks; 统一 tool_use_id 和 index; 与 Phase 1 SSE 状态机集成. 4-6天.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-01-kiro-phase3-websearch-server-tools",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

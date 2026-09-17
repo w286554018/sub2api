@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p1s2-structured-output",
+  "name": "kiro-p1s2-structured-output",
+  "title": "Step 2: Structured Output Validation Loop",
+  "description": "结构化输出 Schema 校验闭环: json_schema 请求 → 内部工具 → Schema 校验 → JSON text block → 失败重试. 参考 KIRO_PHASE1_DEV_SPEC.md §4, §10-§11. 预期 CCTest +8~10 分.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P0",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-08-31",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-31-kiro-phase1-protocol-improvement",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

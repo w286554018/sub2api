@@ -1,0 +1,6 @@
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Defines migration, repository, transaction, indexing, and production database conventions."}
+{"file":".trellis/spec/backend/architecture-overview.md","reason":"Defines backend layer boundaries and dependency direction for repository, service, handler, and route integration."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Defines the project component structure and accessibility expectations for the admin pricing view."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Defines frontend type ownership and validation expectations for the pricing API contract."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"The feature spans database, repository, service, API, router, state, and UI contracts."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Requires reuse of canonical billing modes and existing price conversion/formatting utilities."}
