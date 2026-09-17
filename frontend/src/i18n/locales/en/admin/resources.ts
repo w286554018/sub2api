@@ -508,6 +508,55 @@ export default {
       failedToLoadUsages: 'Failed to load usage records'
     },
 
+    globalPricing: {
+      title: 'Global Model Pricing',
+      description: 'Override billing prices for all groups and channels by exact model name or trailing wildcard pattern. Unmatched models continue through group, channel, LiteLLM, and fallback pricing.',
+      matchingHint: 'Matching order: exact global match first, then longest global prefix wildcard. If nothing matches, pricing falls back to group, channel, LiteLLM, and fallback values.',
+      addPricing: 'Add Pricing',
+      editPricing: 'Edit Pricing',
+      deletePricing: 'Delete Pricing',
+      deleteConfirm: 'Delete the global price for model pattern {pattern}? The old pricing chain will apply after deletion.',
+      noPricing: 'No global model pricing yet',
+      modelPattern: 'Model Pattern',
+      modelPatternPlaceholder: 'Example: gpt-5 or claude-sonnet-*',
+      modelPatternHint: 'Use an exact model name or one trailing * wildcard.',
+      billingMode: 'Billing Mode',
+      priceSummary: 'Price Summary',
+      enabled: 'Enabled',
+      inputPrice: 'Input Price',
+      outputPrice: 'Output Price',
+      cacheWritePrice: 'Cache Write Price',
+      cacheWrite1hPrice: '1h Cache Write Price',
+      cacheReadPrice: 'Cache Read Price',
+      perRequestPrice: 'Per Request Price',
+      tokenUnitHint: 'Unit: USD per million tokens. Input and output are required; cache prices can be left blank to inherit the old pricing chain.',
+      requestUnitHint: 'Unit: USD per request. Image, video, and per-request modes only submit the per-request price.',
+      patternRequired: 'Model pattern is required',
+      invalidPrice: 'Prices must be non-negative numbers',
+      tokenPriceRequired: 'Token mode requires input and output prices',
+      requestPriceRequired: 'Non-token modes require a per-request price',
+      loadFailed: 'Failed to load global pricing',
+      saveFailed: 'Failed to save global pricing',
+      createSuccess: 'Global pricing created',
+      updateSuccess: 'Global pricing updated',
+      deleteSuccess: 'Global pricing deleted',
+      deleteFailed: 'Failed to delete global pricing',
+      modes: {
+        token: 'Token',
+        perRequest: 'Per Request',
+        image: 'Image',
+        video: 'Video'
+      },
+      summary: {
+        input: 'Input {price}/MTok',
+        output: 'Output {price}/MTok',
+        cacheWrite: 'Cache write {price}/MTok',
+        cacheWrite1h: '1h write {price}/MTok',
+        cacheRead: 'Cache read {price}/MTok',
+        perRequest: '{price}/request'
+      }
+    },
+
     // Usage Records
     usage: {
       title: 'Usage Records',

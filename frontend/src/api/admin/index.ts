@@ -37,6 +37,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import pluginsAPI from './plugins'
+import globalPricingAPI from './globalPricing'
 
 /**
  * Unified admin API object for convenient access
@@ -75,7 +76,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  plugins: pluginsAPI
+  plugins: pluginsAPI,
+  globalPricing: globalPricingAPI
 }
 
 export {
@@ -112,7 +114,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  pluginsAPI
+  pluginsAPI,
+  globalPricingAPI
 }
 
 export default adminAPI
@@ -130,3 +133,4 @@ export type {
   PluginUISession,
   PluginTestResult
 } from './plugins'
+export type { GlobalModelPrice, GlobalModelPriceInput, GlobalModelPricingListResponse } from './globalPricing'

@@ -101,6 +101,14 @@ func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *Batc
 	return &BatchImageModelPricingResolver{Resolver: resolver}
 }
 
+func ProvideGlobalModelPricingService(repo GlobalModelPricingRepository, cachePubSub GlobalModelPricingCachePubSub) *GlobalModelPricingService {
+	return NewGlobalModelPricingService(repo, cachePubSub)
+}
+
+func ProvideModelPricingResolver(channelService *ChannelService, billingService *BillingService, globalPricing *GlobalModelPricingService) *ModelPricingResolver {
+	return NewModelPricingResolverWithGlobal(channelService, billingService, globalPricing)
+}
+
 func ProvideBatchImageCleanupService(repo BatchImageRepository, accountRepo AccountRepository, cfg *config.Config) *BatchImageCleanupService {
 	svc := NewBatchImageCleanupService(repo, accountRepo, cfg)
 	svc.Start()
@@ -958,7 +966,8 @@ var ProviderSet = wire.NewSet(
 	NewGroupCapacityService,
 	NewChannelService,
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
-	NewModelPricingResolver,
+	ProvideGlobalModelPricingService,
+	ProvideModelPricingResolver,
 	NewModelPlazaService,
 	NewContentModerationService,
 	NewAffiliateService,

@@ -505,6 +505,55 @@ export default {
       failedToLoadUsages: '加载使用记录失败'
     },
 
+    globalPricing: {
+      title: '全局模型价格',
+      description: '按模型精确名称或尾部通配模式覆盖所有分组和渠道的计费价格。未命中时继续使用分组、渠道、LiteLLM 与兜底价格。',
+      matchingHint: '匹配顺序：全局精确匹配优先，其次最长前缀通配；全局未命中后才进入分组、渠道、LiteLLM 与兜底价格。',
+      addPricing: '添加价格',
+      editPricing: '编辑价格',
+      deletePricing: '删除价格',
+      deleteConfirm: '确定要删除模型模式 {pattern} 的全局价格吗？删除后会恢复旧计价链路。',
+      noPricing: '暂无全局模型价格',
+      modelPattern: '模型模式',
+      modelPatternPlaceholder: '例如 gpt-5 或 claude-sonnet-*',
+      modelPatternHint: '支持精确模型名，或单个尾部 * 通配。',
+      billingMode: '计费模式',
+      priceSummary: '价格摘要',
+      enabled: '启用',
+      inputPrice: '输入价格',
+      outputPrice: '输出价格',
+      cacheWritePrice: '缓存写入价格',
+      cacheWrite1hPrice: '1 小时缓存写入价格',
+      cacheReadPrice: '缓存读取价格',
+      perRequestPrice: '每次价格',
+      tokenUnitHint: '单位：美元 / 百万 token。输入和输出价格必填，缓存价格可留空继承旧链路。',
+      requestUnitHint: '单位：美元 / 次。图片、视频和按次计费只提交每次价格。',
+      patternRequired: '请填写模型模式',
+      invalidPrice: '价格必须是非负数字',
+      tokenPriceRequired: 'Token 模式必须填写输入和输出价格',
+      requestPriceRequired: '非 Token 模式必须填写每次价格',
+      loadFailed: '加载全局价格失败',
+      saveFailed: '保存全局价格失败',
+      createSuccess: '全局价格已创建',
+      updateSuccess: '全局价格已更新',
+      deleteSuccess: '全局价格已删除',
+      deleteFailed: '删除全局价格失败',
+      modes: {
+        token: 'Token',
+        perRequest: '按次',
+        image: '图片',
+        video: '视频'
+      },
+      summary: {
+        input: '输入 {price}/MTok',
+        output: '输出 {price}/MTok',
+        cacheWrite: '缓存写入 {price}/MTok',
+        cacheWrite1h: '1h 写入 {price}/MTok',
+        cacheRead: '缓存读取 {price}/MTok',
+        perRequest: '{price}/次'
+      }
+    },
+
     // Usage Records
     usage: {
       title: '使用记录',

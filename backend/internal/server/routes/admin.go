@@ -115,6 +115,7 @@ func RegisterAdminRoutes(
 		registerScheduledTestRoutes(admin, h)
 
 		// 渠道管理
+		registerGlobalPricingRoutes(admin, h)
 		registerChannelRoutes(admin, h)
 
 		// 渠道监控
@@ -135,6 +136,17 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerGlobalPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/global-pricing")
+	{
+		pricing.GET("", h.Admin.GlobalPricing.List)
+		pricing.POST("", h.Admin.GlobalPricing.Create)
+		pricing.PUT("/:id", h.Admin.GlobalPricing.Update)
+		pricing.DELETE("/:id", h.Admin.GlobalPricing.Delete)
+		pricing.POST("/:id/enable", h.Admin.GlobalPricing.SetEnabled)
 	}
 }
 
