@@ -62,6 +62,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	)
 
 	payload := s.buildOpenAIWSCreatePayload(reqBody, account)
+	observeOpenAISemanticIntegrityMap(c, account, "ws_v2", reqBody, payload, openAISemanticIntegrityOptions{
+		AllowedFinalModel: mappedModel,
+	})
 	payloadStrategy, removedKeys := applyOpenAIWSRetryPayloadStrategy(payload, attempt)
 	turnState := ""
 	turnMetadata := ""

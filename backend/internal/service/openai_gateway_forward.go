@@ -1026,6 +1026,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				upstreamCtx, releaseUpstreamCtx, startTime.Add(firstOutputTimeout),
 			)
 		}
+		observeOpenAISemanticIntegrity(c, account, "http", originalBody, body, openAISemanticIntegrityOptions{
+			AllowedFinalModel:        upstreamModel,
+			AllowedInstructionSuffix: defaultCodexSynthInstructions(upstreamModel),
+		})
 		upstreamReq, err := s.buildUpstreamRequest(upstreamCtx, c, account, body, token, reqStream, promptCacheKey, isCodexCLI)
 		if headerGuard == nil {
 			releaseUpstreamCtx()
