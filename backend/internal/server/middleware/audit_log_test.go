@@ -154,6 +154,18 @@ func TestPromptAuditMutationAuditRoutesHaveStableActionsAndOmitBodies(t *testing
 	}
 }
 
+func TestAccountHealthMutationAuditRoutesHaveStableActions(t *testing.T) {
+	expected := map[string]string{
+		"PUT /api/v1/admin/account-health/settings":         "admin.account_health.settings.update",
+		"POST /api/v1/admin/account-health/:id/isolate":     "admin.account_health.manual_isolate",
+		"DELETE /api/v1/admin/account-health/:id/isolation": "admin.account_health.manual_recover",
+	}
+	for route, action := range expected {
+		require.Equal(t, action, auditActionOverrides[route])
+	}
+	require.Contains(t, auditBodyOmittedRoutes, "POST /api/v1/admin/account-health/:id/isolate")
+}
+
 func TestPasskeyLoginAuditUsesCanonicalLoginActionAndOmitsCredentialBody(t *testing.T) {
 	route := "POST /api/v1/auth/passkey/login/finish"
 	require.Equal(t, service.AuditActionLogin, auditActionOverrides[route])

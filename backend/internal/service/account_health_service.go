@@ -13,7 +13,10 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
-var ErrAccountHealthForbidden = infraerrors.Forbidden("ACCOUNT_HEALTH_FORBIDDEN", "administrator access required")
+var (
+	ErrAccountHealthForbidden         = infraerrors.Forbidden("ACCOUNT_HEALTH_FORBIDDEN", "administrator access required")
+	ErrAccountHealthIsolationConflict = infraerrors.Conflict("ACCOUNT_HEALTH_ISOLATION_CONFLICT", "account isolation is owned by another subsystem or changed concurrently")
+)
 
 func accountHealthBadRequest(message string) error {
 	return infraerrors.BadRequest("ACCOUNT_HEALTH_INVALID", message)
@@ -146,6 +149,51 @@ func (s *AccountHealthService) UpdateSettings(ctx context.Context, actorID int64
 		return AccountHealthSettings{}, fmt.Errorf("persist account health settings: %w", err)
 	}
 	return settings, nil
+}
+
+func (s *AccountHealthService) ManualIsolate(ctx context.Context, actorID, accountID int64, input AccountHealthManualIsolationInput) (*AccountHealthIsolationResult, error) {
+	if err := s.authorizeSuperAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+	if accountID <= 0 {
+		return nil, accountHealthBadRequest("account_id must be positive")
+	}
+	if input.DurationMinutes < 1 || input.DurationMinutes > 10080 {
+		return nil, accountHealthBadRequest("duration_minutes must be between 1 and 10080")
+	}
+	reason := strings.Join(strings.Fields(input.Reason), " ")
+	if reason == "" {
+		reason = "operator-request"
+	}
+	if len([]rune(reason)) > 200 {
+		return nil, accountHealthBadRequest("reason must not exceed 200 characters")
+	}
+	until := s.now().UTC().Add(time.Duration(input.DurationMinutes) * time.Minute)
+	applied, err := s.repo.SetManualIsolation(ctx, accountID, until, AccountHealthManualReasonPrefix+reason)
+	if err != nil {
+		return nil, fmt.Errorf("set manual account health isolation: %w", err)
+	}
+	if !applied {
+		return nil, ErrAccountHealthIsolationConflict
+	}
+	return &AccountHealthIsolationResult{AccountID: accountID, Applied: true, Until: &until}, nil
+}
+
+func (s *AccountHealthService) ManualRecover(ctx context.Context, actorID, accountID int64) (*AccountHealthIsolationResult, error) {
+	if err := s.authorizeSuperAdmin(ctx, actorID); err != nil {
+		return nil, err
+	}
+	if accountID <= 0 {
+		return nil, accountHealthBadRequest("account_id must be positive")
+	}
+	applied, err := s.repo.ClearHealthIsolation(ctx, accountID)
+	if err != nil {
+		return nil, fmt.Errorf("clear account health isolation: %w", err)
+	}
+	if !applied {
+		return nil, ErrAccountHealthIsolationConflict
+	}
+	return &AccountHealthIsolationResult{AccountID: accountID, Applied: true}, nil
 }
 
 func (s *AccountHealthService) Snapshot(ctx context.Context, actorID int64, filter AccountHealthFilter) (*AccountHealthPage, error) {

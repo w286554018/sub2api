@@ -977,6 +977,7 @@ var ProviderSet = wire.NewSet(
 	ProvideScheduledTestRunnerService,
 	ProvideIntelligentTestService,
 	NewAccountHealthService,
+	ProvideAccountHealthAutomationService,
 	NewGroupCapacityService,
 	NewChannelService,
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
@@ -1092,6 +1093,12 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 // ProvideIntelligentTestService creates and starts the durable intelligent test worker.
 func ProvideIntelligentTestService(repo IntelligentTestRepository, runner *AccountTestService) *IntelligentTestService {
 	svc := NewIntelligentTestService(repo, runner)
+	svc.Start()
+	return svc
+}
+
+func ProvideAccountHealthAutomationService(repo AccountHealthRepository, health *AccountHealthService) *AccountHealthAutomationService {
+	svc := NewAccountHealthAutomationService(repo, health)
 	svc.Start()
 	return svc
 }

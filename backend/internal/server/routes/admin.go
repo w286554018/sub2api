@@ -118,7 +118,7 @@ func RegisterAdminRoutes(
 		registerIntelligentTestRoutes(admin, h)
 
 		// 账号健康只读看板
-		registerAccountHealthRoutes(admin, h)
+		registerAccountHealthRoutes(admin, h, stepUpAuth)
 
 		// 渠道管理
 		registerGlobalPricingRoutes(admin, h)
@@ -799,12 +799,14 @@ func registerIntelligentTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 	}
 }
 
-func registerAccountHealthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerAccountHealthRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	health := admin.Group("/account-health")
 	{
 		health.GET("", h.Admin.AccountHealth.Snapshot)
 		health.GET("/settings", h.Admin.AccountHealth.Settings)
-		health.PUT("/settings", middleware.SuperAdminOnly(), h.Admin.AccountHealth.UpdateSettings)
+		health.PUT("/settings", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.UpdateSettings)
+		health.POST("/:id/isolate", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.ManualIsolate)
+		health.DELETE("/:id/isolation", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.ManualRecover)
 	}
 }
 

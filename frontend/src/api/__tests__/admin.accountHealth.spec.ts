@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const client = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn() }))
+const client = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() }))
 vi.mock('@/api/client', () => ({ apiClient: client }))
 
 import accountHealthAPI from '../admin/accountHealth'
@@ -31,5 +31,19 @@ describe('admin account health API', () => {
 
     await accountHealthAPI.updateSettings({ ...settings, enabled: false })
     expect(client.put).toHaveBeenCalledWith('/admin/account-health/settings', { ...settings, enabled: false })
+  })
+
+  it('isolates and resumes an account through ownership-aware routes', async () => {
+    client.post.mockResolvedValueOnce({ data: undefined })
+    client.delete.mockResolvedValueOnce({ data: undefined })
+
+    await accountHealthAPI.isolateAccount(12, { duration_minutes: 30, reason: 'investigation' })
+    expect(client.post).toHaveBeenCalledWith('/admin/account-health/12/isolate', {
+      duration_minutes: 30,
+      reason: 'investigation',
+    })
+
+    await accountHealthAPI.clearIsolation(12)
+    expect(client.delete).toHaveBeenCalledWith('/admin/account-health/12/isolation')
   })
 })

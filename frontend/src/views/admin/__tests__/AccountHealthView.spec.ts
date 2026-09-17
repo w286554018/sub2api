@@ -2,12 +2,15 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
-const { api, authState, appState } = vi.hoisted(() => ({
+const { api, stepUpRun, authState, appState } = vi.hoisted(() => ({
   api: {
     list: vi.fn(),
     getSettings: vi.fn(),
     updateSettings: vi.fn(),
+    isolateAccount: vi.fn(),
+    clearIsolation: vi.fn(),
   },
+  stepUpRun: vi.fn((fn: () => unknown) => fn()),
   authState: { isSuperAdmin: false },
   appState: { showSuccess: vi.fn(), showError: vi.fn() },
 }))
@@ -20,6 +23,13 @@ vi.mock('@/api/admin/accountHealth', () => ({
 vi.mock('@/stores', () => ({
   useAuthStore: () => authState,
   useAppStore: () => appState,
+}))
+
+vi.mock('@/composables/useStepUp', () => ({
+  useStepUp: () => ({ run: stepUpRun }),
+  isStepUpBlocked: () => false,
+  isStepUpCancelled: () => false,
+  stepUpBlockReason: () => '',
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -48,7 +58,7 @@ const settings = {
   interval_seconds: 30,
 }
 
-const response = (name = 'primary') => ({
+const response = (name = 'primary', itemOverrides: Record<string, unknown> = {}) => ({
   items: [{
     account_id: 1,
     name,
@@ -63,7 +73,10 @@ const response = (name = 'primary') => ({
     state: 'healthy',
     has_enough_samples: true,
     temporarily_unschedulable: false,
+    unschedulable_reason: null,
+    unschedulable_until: null,
     evaluated_at: '2026-09-18T00:00:00Z',
+    ...itemOverrides,
   }],
   total: 1,
   page: 1,
@@ -81,6 +94,7 @@ const mountView = () => mount(AccountHealthView, {
       Icon: true,
       Pagination: defineComponent({ props: ['total', 'page', 'pageSize'], emits: ['update:page', 'update:pageSize'], template: '<div data-test="pagination" />' }),
       Select: defineComponent({ props: ['modelValue', 'options'], emits: ['update:modelValue'], template: '<button type="button" data-test="select">select</button>' }),
+      TotpStepUpDialog: true,
     },
   },
 })
@@ -92,6 +106,9 @@ describe('AccountHealthView', () => {
     api.list.mockResolvedValue(response())
     api.getSettings.mockResolvedValue({ ...settings })
     api.updateSettings.mockResolvedValue({ ...settings, enabled: false })
+    api.isolateAccount.mockResolvedValue(undefined)
+    api.clearIsolation.mockResolvedValue(undefined)
+    stepUpRun.mockImplementation((fn: () => unknown) => fn())
   })
 
   it('lets ordinary administrators view health without loading settings', async () => {
@@ -100,6 +117,7 @@ describe('AccountHealthView', () => {
 
     expect(wrapper.text()).toContain('primary')
     expect(wrapper.find('[data-test="settings-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="isolate-account-button"]').exists()).toBe(false)
     expect(api.getSettings).not.toHaveBeenCalled()
     expect(api.list).toHaveBeenCalledWith({ page: 1, page_size: 20 }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     wrapper.unmount()
@@ -120,7 +138,74 @@ describe('AccountHealthView', () => {
     await flushPromises()
 
     expect(api.updateSettings).toHaveBeenCalledWith({ ...settings, enabled: false })
+    expect(stepUpRun).toHaveBeenCalled()
     expect(appState.showSuccess).toHaveBeenCalledWith('admin.accountHealth.messages.settingsSaved')
+    wrapper.unmount()
+  })
+
+  it('lets super administrators manually isolate an account with a health-owned reason', async () => {
+    authState.isSuperAdmin = true
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.find('[data-test="isolate-account-button"]').trigger('click')
+    await wrapper.find('textarea').setValue('investigate errors')
+    await wrapper.find('[data-test="isolation-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(api.isolateAccount).toHaveBeenCalledWith(1, {
+      duration_minutes: 60,
+      reason: 'investigate errors',
+    })
+    expect(appState.showSuccess).toHaveBeenCalledWith('admin.accountHealth.messages.isolated')
+    wrapper.unmount()
+  })
+
+  it('lets super administrators resume health-owned isolation only', async () => {
+    authState.isSuperAdmin = true
+    api.list.mockResolvedValue(response('isolated account', {
+      state: 'isolated',
+      temporarily_unschedulable: true,
+      unschedulable_reason: 'health:auto:error-rate',
+    }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-test="resume-isolation-button"]').trigger('click')
+    await flushPromises()
+
+    expect(api.clearIsolation).toHaveBeenCalledWith(1)
+    expect(appState.showSuccess).toHaveBeenCalledWith('admin.accountHealth.messages.resumed')
+    wrapper.unmount()
+  })
+
+  it('keeps foreign temporary unschedulable states read-only in the health view', async () => {
+    authState.isSuperAdmin = true
+    api.list.mockResolvedValue(response('foreign isolated account', {
+      temporarily_unschedulable: true,
+      unschedulable_reason: 'stream-timeout',
+    }))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="resume-isolation-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="isolate-account-button"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('lets super administrators clear stale health-owned isolation reasons', async () => {
+    authState.isSuperAdmin = true
+    api.list.mockResolvedValue(response('stale health isolation', {
+      temporarily_unschedulable: false,
+      unschedulable_reason: 'health:manual:expired maintenance',
+    }))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="resume-isolation-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="isolate-account-button"]').exists()).toBe(false)
     wrapper.unmount()
   })
 

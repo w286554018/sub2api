@@ -124,6 +124,7 @@ func provideCleanup(
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	intelligentTest *service.IntelligentTestService,
+	accountHealthAutomation *service.AccountHealthAutomationService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -354,6 +355,12 @@ func provideCleanup(
 			{"IntelligentTestService", func() error {
 				if intelligentTest != nil {
 					intelligentTest.Stop()
+				}
+				return nil
+			}},
+			{"AccountHealthAutomationService", func() error {
+				if accountHealthAutomation != nil {
+					accountHealthAutomation.Stop()
 				}
 				return nil
 			}},

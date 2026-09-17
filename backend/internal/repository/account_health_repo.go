@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -100,4 +101,110 @@ ORDER BY a.id`
 		stats = append(stats, stat)
 	}
 	return stats, rows.Err()
+}
+
+func (r *accountHealthRepository) SetAutoIsolation(ctx context.Context, accountID int64, until time.Time, reason string) (bool, error) {
+	if !strings.HasPrefix(reason, service.AccountHealthAutoReasonPrefix) {
+		return false, fmt.Errorf("account health auto isolation reason must start with %q", service.AccountHealthAutoReasonPrefix)
+	}
+	return r.execHealthIsolationMutation(ctx, `
+WITH updated AS (
+  UPDATE accounts AS a
+  SET temp_unschedulable_until = CASE
+        WHEN a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= NOW() THEN $2
+        ELSE GREATEST(a.temp_unschedulable_until, $2)
+      END,
+      temp_unschedulable_reason = $3,
+      updated_at = NOW()
+  WHERE a.id = $1
+    AND a.deleted_at IS NULL
+    AND a.status = 'active'
+    AND a.schedulable IS TRUE
+    AND $3 LIKE 'health:auto:%'
+    AND (
+      a.temp_unschedulable_until IS NULL
+      OR a.temp_unschedulable_until <= NOW()
+      OR a.temp_unschedulable_reason LIKE 'health:auto:%'
+    )
+  RETURNING a.id
+)
+INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+SELECT $4, updated.id, NULL, NULL FROM updated`, accountID, until, reason, service.SchedulerOutboxEventAccountChanged)
+}
+
+func (r *accountHealthRepository) ClearAutoIsolation(ctx context.Context, accountID int64) (bool, error) {
+	return r.execHealthIsolationMutation(ctx, `
+WITH updated AS (
+  UPDATE accounts AS a
+  SET temp_unschedulable_until = NULL,
+      temp_unschedulable_reason = NULL,
+      updated_at = NOW()
+  WHERE a.id = $1
+    AND a.deleted_at IS NULL
+    AND a.temp_unschedulable_reason LIKE 'health:auto:%'
+  RETURNING a.id
+)
+INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+SELECT $2, updated.id, NULL, NULL FROM updated`, accountID, service.SchedulerOutboxEventAccountChanged)
+}
+
+func (r *accountHealthRepository) SetManualIsolation(ctx context.Context, accountID int64, until time.Time, reason string) (bool, error) {
+	if !strings.HasPrefix(reason, service.AccountHealthManualReasonPrefix) {
+		return false, fmt.Errorf("account health manual isolation reason must start with %q", service.AccountHealthManualReasonPrefix)
+	}
+	return r.execHealthIsolationMutation(ctx, `
+WITH updated AS (
+  UPDATE accounts AS a
+  SET temp_unschedulable_until = $2,
+      temp_unschedulable_reason = $3,
+      updated_at = NOW()
+  WHERE a.id = $1
+    AND a.deleted_at IS NULL
+    AND a.status = 'active'
+    AND a.schedulable IS TRUE
+    AND $3 LIKE 'health:manual:%'
+    AND (
+      a.temp_unschedulable_until IS NULL
+      OR a.temp_unschedulable_until <= NOW()
+      OR a.temp_unschedulable_reason LIKE 'health:auto:%'
+      OR a.temp_unschedulable_reason LIKE 'health:manual:%'
+    )
+  RETURNING a.id
+)
+INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+SELECT $4, updated.id, NULL, NULL FROM updated`, accountID, until, reason, service.SchedulerOutboxEventAccountChanged)
+}
+
+func (r *accountHealthRepository) ClearHealthIsolation(ctx context.Context, accountID int64) (bool, error) {
+	return r.execHealthIsolationMutation(ctx, `
+WITH updated AS (
+  UPDATE accounts AS a
+  SET temp_unschedulable_until = NULL,
+      temp_unschedulable_reason = NULL,
+      updated_at = NOW()
+  WHERE a.id = $1
+    AND a.deleted_at IS NULL
+    AND (
+      a.temp_unschedulable_reason LIKE 'health:auto:%'
+      OR a.temp_unschedulable_reason LIKE 'health:manual:%'
+    )
+  RETURNING a.id
+)
+INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+SELECT $2, updated.id, NULL, NULL FROM updated`, accountID, service.SchedulerOutboxEventAccountChanged)
+}
+
+func (r *accountHealthRepository) execHealthIsolationMutation(ctx context.Context, query string, args ...any) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("account health repository database is unavailable")
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
 }

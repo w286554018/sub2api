@@ -34,6 +34,7 @@ export default {
       latency: '平均延迟',
       score: '分数',
       scheduling: '调度',
+      actions: '操作',
     },
     state: {
       healthy: '健康',
@@ -51,14 +52,31 @@ export default {
       cooldownMinutes: '冷却分钟数',
       intervalSeconds: '评估间隔秒数',
     },
+    isolation: {
+      title: '手动隔离账号',
+      target: '{name}（#{id}）',
+      durationMinutes: '隔离分钟数',
+      reason: '原因',
+      reasonPlaceholder: '例如：人工排查异常错误率',
+      defaultReason: '管理员手动隔离',
+    },
+    actions: {
+      isolate: '隔离',
+      resume: '恢复',
+    },
     messages: {
       settingsSaved: '账号健康设置已保存',
+      isolated: '账号已隔离',
+      resumed: '账号已恢复调度',
     },
     errors: {
       load: '加载账号健康失败',
       settingsLoad: '加载账号健康设置失败',
       settingsSave: '保存账号健康设置失败',
       settingsInvalid: '请检查账号健康设置范围及阈值顺序',
+      isolationInvalid: '请检查隔离时长',
+      isolate: '隔离账号失败',
+      resume: '恢复账号调度失败',
     },
   },
 }

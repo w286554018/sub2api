@@ -7,6 +7,8 @@ import (
 
 const (
 	SettingKeyAccountHealthSettings = "account_health_settings"
+	AccountHealthAutoReasonPrefix   = "health:auto:"
+	AccountHealthManualReasonPrefix = "health:manual:"
 
 	AccountHealthStateHealthy  = "healthy"
 	AccountHealthStateDegraded = "degraded"
@@ -96,8 +98,23 @@ type AccountHealthPage struct {
 	Overview      AccountHealthOverview   `json:"overview"`
 }
 
+type AccountHealthManualIsolationInput struct {
+	DurationMinutes int    `json:"duration_minutes"`
+	Reason          string `json:"reason"`
+}
+
+type AccountHealthIsolationResult struct {
+	AccountID int64      `json:"account_id"`
+	Applied   bool       `json:"applied"`
+	Until     *time.Time `json:"until,omitempty"`
+}
+
 type AccountHealthRepository interface {
 	IsAdmin(ctx context.Context, userID int64) (bool, error)
 	IsSuperAdmin(ctx context.Context, userID int64) (bool, error)
 	ListWindowStats(ctx context.Context, since time.Time, filter AccountHealthFilter) ([]AccountHealthWindowStat, error)
+	SetAutoIsolation(ctx context.Context, accountID int64, until time.Time, reason string) (bool, error)
+	ClearAutoIsolation(ctx context.Context, accountID int64) (bool, error)
+	SetManualIsolation(ctx context.Context, accountID int64, until time.Time, reason string) (bool, error)
+	ClearHealthIsolation(ctx context.Context, accountID int64) (bool, error)
 }

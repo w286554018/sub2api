@@ -89,16 +89,17 @@
                 <th class="px-4 py-3 text-right">{{ t('admin.accountHealth.columns.latency') }}</th>
                 <th class="px-4 py-3 text-right">{{ t('admin.accountHealth.columns.score') }}</th>
                 <th class="px-4 py-3">{{ t('admin.accountHealth.columns.scheduling') }}</th>
+                <th v-if="authStore.isSuperAdmin" class="px-4 py-3 text-right">{{ t('admin.accountHealth.columns.actions') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
               <tr v-if="loading">
-                <td colspan="9" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td :colspan="tableColumnCount" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {{ t('common.loading') }}
                 </td>
               </tr>
               <tr v-else-if="items.length === 0">
-                <td colspan="9" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td :colspan="tableColumnCount" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {{ t('common.noData') }}
                 </td>
               </tr>
@@ -135,6 +136,30 @@
                       <div v-if="item.unschedulable_until" class="text-gray-400">{{ formatDate(item.unschedulable_until) }}</div>
                     </div>
                     <span v-else class="text-xs text-gray-400">{{ t('admin.accountHealth.schedulable') }}</span>
+                  </td>
+                  <td v-if="authStore.isSuperAdmin" class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-2">
+                      <button
+                        v-if="canResumeIsolation(item)"
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        :disabled="isMutating(item.account_id)"
+                        data-test="resume-isolation-button"
+                        @click="resumeIsolation(item)"
+                      >
+                        {{ t('admin.accountHealth.actions.resume') }}
+                      </button>
+                      <button
+                        v-else-if="!item.temporarily_unschedulable"
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        :disabled="isMutating(item.account_id)"
+                        data-test="isolate-account-button"
+                        @click="openIsolationDialog(item)"
+                      >
+                        {{ t('admin.accountHealth.actions.isolate') }}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -195,6 +220,36 @@
         </button>
       </template>
     </BaseDialog>
+
+    <BaseDialog
+      :show="isolationVisible"
+      :title="t('admin.accountHealth.isolation.title')"
+      width="normal"
+      :close-on-click-outside="true"
+      @close="closeIsolationDialog"
+    >
+      <form class="space-y-4" data-test="isolation-form" @submit.prevent="submitIsolation">
+        <div v-if="isolationTarget" class="text-sm text-gray-600 dark:text-gray-300">
+          {{ t('admin.accountHealth.isolation.target', { name: isolationTarget.name || t('admin.accountHealth.unnamedAccount'), id: isolationTarget.account_id }) }}
+        </div>
+        <label class="block">
+          <span class="input-label">{{ t('admin.accountHealth.isolation.durationMinutes') }}</span>
+          <input v-model.number="isolationForm.duration_minutes" type="number" min="1" max="10080" step="1" class="input" />
+        </label>
+        <label class="block">
+          <span class="input-label">{{ t('admin.accountHealth.isolation.reason') }}</span>
+          <textarea v-model.trim="isolationForm.reason" rows="3" class="input" :placeholder="t('admin.accountHealth.isolation.reasonPlaceholder')" />
+        </label>
+      </form>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" @click="closeIsolationDialog">{{ t('common.cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="isolationSaving" @click="submitIsolation">
+          {{ isolationSaving ? t('common.saving') : t('admin.accountHealth.actions.isolate') }}
+        </button>
+      </template>
+    </BaseDialog>
+
+    <TotpStepUpDialog :controller="accountHealthStepUp" />
   </AppLayout>
 </template>
 
@@ -203,6 +258,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
@@ -214,11 +270,13 @@ import accountHealthAPI, {
   type AccountHealthState,
 } from '@/api/admin/accountHealth'
 import { useAppStore, useAuthStore } from '@/stores'
+import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const accountHealthStepUp = useStepUp()
 
 const emptyOverview: AccountHealthOverview = {
   healthy: 0,
@@ -247,6 +305,11 @@ const settingsVisible = ref(false)
 const settingsLoading = ref(false)
 const settingsSaving = ref(false)
 const settingsForm = ref<AccountHealthSettings | null>(null)
+const isolationVisible = ref(false)
+const isolationSaving = ref(false)
+const isolationTarget = ref<AccountHealthItem | null>(null)
+const isolationForm = reactive({ duration_minutes: 60, reason: '' })
+const mutatingAccountIds = ref<Set<number>>(new Set())
 
 let dataController: AbortController | null = null
 let dataVersion = 0
@@ -266,6 +329,8 @@ const overviewCards = computed(() => [
   { key: 'isolated', value: overview.value.isolated },
   { key: 'no_samples', value: overview.value.no_samples },
 ])
+
+const tableColumnCount = computed(() => authStore.isSuperAdmin ? 10 : 9)
 
 const numericSettingsFields = computed(() => [
   { key: 'window_minutes' as const, label: t('admin.accountHealth.settings.windowMinutes'), min: 1, max: 1440 },
@@ -361,15 +426,114 @@ async function saveSettings(): Promise<void> {
   }
   settingsSaving.value = true
   try {
-    settingsForm.value = await accountHealthAPI.updateSettings({ ...settingsForm.value })
+    settingsForm.value = await accountHealthStepUp.run(() => accountHealthAPI.updateSettings({ ...settingsForm.value! }))
     settingsVisible.value = false
     appStore.showSuccess(t('admin.accountHealth.messages.settingsSaved'))
     await loadData()
   } catch (err) {
+    if (isStepUpCancelled(err) || reportStepUpBlocked(err)) return
     appStore.showError(extractApiErrorMessage(err, t('admin.accountHealth.errors.settingsSave')))
   } finally {
     settingsSaving.value = false
   }
+}
+
+function openIsolationDialog(item: AccountHealthItem): void {
+  if (!authStore.isSuperAdmin || item.temporarily_unschedulable) return
+  isolationTarget.value = item
+  isolationForm.duration_minutes = Math.max(1, settingsForm.value?.cooldown_minutes ?? 60)
+  isolationForm.reason = ''
+  isolationVisible.value = true
+}
+
+function closeIsolationDialog(): void {
+  if (isolationSaving.value) return
+  isolationVisible.value = false
+  isolationTarget.value = null
+  isolationForm.reason = ''
+}
+
+async function submitIsolation(): Promise<void> {
+  const target = isolationTarget.value
+  if (!target || isolationSaving.value || !authStore.isSuperAdmin) return
+  if (!validIsolation()) {
+    appStore.showError(t('admin.accountHealth.errors.isolationInvalid'))
+    return
+  }
+  isolationSaving.value = true
+  setMutating(target.account_id, true)
+  try {
+    await accountHealthStepUp.run(() => accountHealthAPI.isolateAccount(target.account_id, {
+      duration_minutes: isolationForm.duration_minutes,
+      reason: manualReason(isolationForm.reason),
+    }))
+    appStore.showSuccess(t('admin.accountHealth.messages.isolated'))
+    isolationVisible.value = false
+    isolationTarget.value = null
+    await loadData()
+  } catch (err) {
+    if (!isStepUpCancelled(err) && !reportStepUpBlocked(err)) {
+      appStore.showError(extractApiErrorMessage(err, t('admin.accountHealth.errors.isolate')))
+    }
+  } finally {
+    setMutating(target.account_id, false)
+    isolationSaving.value = false
+  }
+}
+
+async function resumeIsolation(item: AccountHealthItem): Promise<void> {
+  if (!authStore.isSuperAdmin || !canResumeIsolation(item) || isMutating(item.account_id)) return
+  setMutating(item.account_id, true)
+  try {
+    await accountHealthStepUp.run(() => accountHealthAPI.clearIsolation(item.account_id))
+    appStore.showSuccess(t('admin.accountHealth.messages.resumed'))
+    await loadData()
+  } catch (err) {
+    if (!isStepUpCancelled(err) && !reportStepUpBlocked(err)) {
+      appStore.showError(extractApiErrorMessage(err, t('admin.accountHealth.errors.resume')))
+    }
+  } finally {
+    setMutating(item.account_id, false)
+  }
+}
+
+function reportStepUpBlocked(err: unknown): boolean {
+  if (!isStepUpBlocked(err)) return false
+  appStore.showError(
+    stepUpBlockReason(err) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+      ? t('stepUp.adminApiKeyForbidden')
+      : t('stepUp.notEnabled')
+  )
+  return true
+}
+
+function validIsolation(): boolean {
+  return Number.isFinite(isolationForm.duration_minutes)
+    && isolationForm.duration_minutes >= 1
+    && isolationForm.duration_minutes <= 10080
+}
+
+function manualReason(reason: string): string {
+  return reason.trim() || t('admin.accountHealth.isolation.defaultReason')
+}
+
+function canResumeIsolation(item: AccountHealthItem): boolean {
+  return isHealthIsolationReason(item.unschedulable_reason)
+}
+
+function isHealthIsolationReason(reason?: string | null): boolean {
+  return !!reason && (reason.startsWith('health:auto:') || reason.startsWith('health:manual:'))
+}
+
+function isMutating(accountId: number): boolean {
+  return mutatingAccountIds.value.has(accountId)
+}
+
+function setMutating(accountId: number, active: boolean): void {
+  const next = new Set(mutatingAccountIds.value)
+  if (active) next.add(accountId)
+  else next.delete(accountId)
+  mutatingAccountIds.value = next
 }
 
 function validSettings(settings: AccountHealthSettings): boolean {

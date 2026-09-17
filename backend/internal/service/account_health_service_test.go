@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,11 +11,26 @@ import (
 )
 
 type accountHealthRepositoryStub struct {
-	admin      bool
-	superAdmin bool
-	stats      []AccountHealthWindowStat
-	lastSince  time.Time
-	lastFilter AccountHealthFilter
+	admin               bool
+	superAdmin          bool
+	stats               []AccountHealthWindowStat
+	lastSince           time.Time
+	lastFilter          AccountHealthFilter
+	listCalls           int
+	autoIsolations      []accountHealthIsolationCall
+	autoRecoveries      []int64
+	manualIsolations    []accountHealthIsolationCall
+	manualRecoveries    []int64
+	rejectAutoIsolation bool
+	rejectAutoRecovery  bool
+	rejectManualSet     bool
+	rejectManualClear   bool
+}
+
+type accountHealthIsolationCall struct {
+	accountID int64
+	until     time.Time
+	reason    string
 }
 
 func (r *accountHealthRepositoryStub) IsAdmin(context.Context, int64) (bool, error) {
@@ -26,9 +42,30 @@ func (r *accountHealthRepositoryStub) IsSuperAdmin(context.Context, int64) (bool
 }
 
 func (r *accountHealthRepositoryStub) ListWindowStats(_ context.Context, since time.Time, filter AccountHealthFilter) ([]AccountHealthWindowStat, error) {
+	r.listCalls++
 	r.lastSince = since
 	r.lastFilter = filter
 	return append([]AccountHealthWindowStat(nil), r.stats...), nil
+}
+
+func (r *accountHealthRepositoryStub) SetAutoIsolation(_ context.Context, accountID int64, until time.Time, reason string) (bool, error) {
+	r.autoIsolations = append(r.autoIsolations, accountHealthIsolationCall{accountID: accountID, until: until, reason: reason})
+	return !r.rejectAutoIsolation, nil
+}
+
+func (r *accountHealthRepositoryStub) ClearAutoIsolation(_ context.Context, accountID int64) (bool, error) {
+	r.autoRecoveries = append(r.autoRecoveries, accountID)
+	return !r.rejectAutoRecovery, nil
+}
+
+func (r *accountHealthRepositoryStub) SetManualIsolation(_ context.Context, accountID int64, until time.Time, reason string) (bool, error) {
+	r.manualIsolations = append(r.manualIsolations, accountHealthIsolationCall{accountID: accountID, until: until, reason: reason})
+	return !r.rejectManualSet, nil
+}
+
+func (r *accountHealthRepositoryStub) ClearHealthIsolation(_ context.Context, accountID int64) (bool, error) {
+	r.manualRecoveries = append(r.manualRecoveries, accountID)
+	return !r.rejectManualClear, nil
 }
 
 type accountHealthSettingRepositoryStub struct {
@@ -204,4 +241,69 @@ func TestAccountHealthSettingsValidateAndPersistStrictThresholds(t *testing.T) {
 	var stored AccountHealthSettings
 	require.NoError(t, json.Unmarshal([]byte(settingsRepo.values[SettingKeyAccountHealthSettings]), &stored))
 	require.Equal(t, want, stored)
+}
+
+func TestAccountHealthManualIsolationRequiresSuperAdminAndPrefixesReason(t *testing.T) {
+	now := time.Date(2026, 9, 18, 10, 0, 0, 0, time.UTC)
+	settingsRepo := &accountHealthSettingRepositoryStub{values: map[string]string{}}
+	repo := &accountHealthRepositoryStub{admin: true}
+	svc := NewAccountHealthService(repo, settingsRepo)
+	svc.now = func() time.Time { return now }
+
+	_, err := svc.ManualIsolate(context.Background(), 7, 42, AccountHealthManualIsolationInput{
+		DurationMinutes: 45,
+		Reason:          "planned maintenance",
+	})
+	require.ErrorIs(t, err, ErrAccountHealthForbidden)
+	require.Empty(t, repo.manualIsolations)
+
+	repo.superAdmin = true
+	result, err := svc.ManualIsolate(context.Background(), 7, 42, AccountHealthManualIsolationInput{
+		DurationMinutes: 45,
+		Reason:          "  planned\nmaintenance  ",
+	})
+
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.Equal(t, int64(42), result.AccountID)
+	require.NotNil(t, result.Until)
+	require.Equal(t, now.Add(45*time.Minute), *result.Until)
+	require.Len(t, repo.manualIsolations, 1)
+	require.True(t, strings.HasPrefix(repo.manualIsolations[0].reason, AccountHealthManualReasonPrefix))
+	require.Equal(t, AccountHealthManualReasonPrefix+"planned maintenance", repo.manualIsolations[0].reason)
+}
+
+func TestAccountHealthManualIsolationRejectsInvalidInputAndOwnershipConflict(t *testing.T) {
+	repo := &accountHealthRepositoryStub{admin: true, superAdmin: true, rejectManualSet: true}
+	svc := NewAccountHealthService(repo, &accountHealthSettingRepositoryStub{values: map[string]string{}})
+
+	_, err := svc.ManualIsolate(context.Background(), 1, 0, AccountHealthManualIsolationInput{DurationMinutes: 30})
+	require.Error(t, err)
+	require.Empty(t, repo.manualIsolations)
+
+	_, err = svc.ManualIsolate(context.Background(), 1, 9, AccountHealthManualIsolationInput{DurationMinutes: 0})
+	require.Error(t, err)
+	require.Empty(t, repo.manualIsolations)
+
+	_, err = svc.ManualIsolate(context.Background(), 1, 9, AccountHealthManualIsolationInput{
+		DurationMinutes: 30,
+		Reason:          "operator request",
+	})
+	require.ErrorIs(t, err, ErrAccountHealthIsolationConflict)
+	require.Len(t, repo.manualIsolations, 1)
+}
+
+func TestAccountHealthManualRecoveryUsesHealthOwnedConditionalClear(t *testing.T) {
+	repo := &accountHealthRepositoryStub{admin: true, superAdmin: true}
+	svc := NewAccountHealthService(repo, &accountHealthSettingRepositoryStub{values: map[string]string{}})
+
+	result, err := svc.ManualRecover(context.Background(), 1, 9)
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.Equal(t, []int64{9}, repo.manualRecoveries)
+
+	repo.rejectManualClear = true
+	_, err = svc.ManualRecover(context.Background(), 1, 10)
+	require.ErrorIs(t, err, ErrAccountHealthIsolationConflict)
+	require.Equal(t, []int64{9, 10}, repo.manualRecoveries)
 }

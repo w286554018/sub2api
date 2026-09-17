@@ -34,6 +34,7 @@ export default {
       latency: 'Avg latency',
       score: 'Score',
       scheduling: 'Scheduling',
+      actions: 'Actions',
     },
     state: {
       healthy: 'Healthy',
@@ -51,14 +52,31 @@ export default {
       cooldownMinutes: 'Cooldown minutes',
       intervalSeconds: 'Interval seconds',
     },
+    isolation: {
+      title: 'Manually isolate account',
+      target: '{name} (#{id})',
+      durationMinutes: 'Isolation minutes',
+      reason: 'Reason',
+      reasonPlaceholder: 'Example: investigating abnormal error rate',
+      defaultReason: 'administrator manual isolation',
+    },
+    actions: {
+      isolate: 'Isolate',
+      resume: 'Resume',
+    },
     messages: {
       settingsSaved: 'Account health settings saved',
+      isolated: 'Account isolated',
+      resumed: 'Account resumed',
     },
     errors: {
       load: 'Failed to load account health',
       settingsLoad: 'Failed to load account health settings',
       settingsSave: 'Failed to save account health settings',
       settingsInvalid: 'Check the account health setting ranges and threshold order',
+      isolationInvalid: 'Check the isolation duration',
+      isolate: 'Failed to isolate account',
+      resume: 'Failed to resume account scheduling',
     },
   },
 }

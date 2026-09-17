@@ -59,6 +59,11 @@ export interface AccountHealthSettings {
 
 export type AccountHealthSettingsPayload = AccountHealthSettings
 
+export interface AccountHealthIsolationPayload {
+  duration_minutes: number
+  reason: string
+}
+
 const base = '/admin/account-health'
 
 export async function list(
@@ -84,10 +89,20 @@ export async function updateSettings(payload: AccountHealthSettingsPayload): Pro
   return data
 }
 
+export async function isolateAccount(accountId: number, payload: AccountHealthIsolationPayload): Promise<void> {
+  await apiClient.post(`${base}/${accountId}/isolate`, payload)
+}
+
+export async function clearIsolation(accountId: number): Promise<void> {
+  await apiClient.delete(`${base}/${accountId}/isolation`)
+}
+
 export const accountHealthAPI = {
   list,
   getSettings,
   updateSettings,
+  isolateAccount,
+  clearIsolation,
 }
 
 export default accountHealthAPI

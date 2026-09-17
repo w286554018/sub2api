@@ -62,3 +62,103 @@ func TestAccountHealthRepositoryAuthorizationQueriesActiveAdministratorRoles(t *
 	require.False(t, superAdmin)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestAccountHealthRepositorySetAutoIsolationUsesHealthOwnedAtomicMutation(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer db.Close()
+
+	until := time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
+	query := `(?s)WITH updated AS \(\s*UPDATE accounts AS a.*temp_unschedulable_until = CASE.*GREATEST\(a.temp_unschedulable_until, \$2\).*temp_unschedulable_reason = \$3.*a.id = \$1.*a.status = 'active'.*a.schedulable IS TRUE.*\$3 LIKE 'health:auto:%'.*temp_unschedulable_reason LIKE 'health:auto:%'.*RETURNING a.id\s*\)\s*INSERT INTO scheduler_outbox \(event_type, account_id, group_id, payload\).*SELECT \$4, updated.id, NULL, NULL FROM updated`
+	mock.ExpectExec(query).
+		WithArgs(int64(42), until, "health:auto:error-rate=0.90", service.SchedulerOutboxEventAccountChanged).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.SetAutoIsolation(context.Background(), 42, until, "health:auto:error-rate=0.90")
+
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountHealthRepositorySetAutoIsolationRejectsNonAutoReasonBeforeSQL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.SetAutoIsolation(context.Background(), 42, time.Now(), "health:manual:operator")
+
+	require.Error(t, err)
+	require.False(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountHealthRepositoryClearAutoIsolationOnlyClearsAutoOwnedState(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer db.Close()
+
+	query := `(?s)WITH updated AS \(\s*UPDATE accounts AS a.*temp_unschedulable_until = NULL.*temp_unschedulable_reason = NULL.*a.id = \$1.*temp_unschedulable_reason LIKE 'health:auto:%'.*RETURNING a.id\s*\)\s*INSERT INTO scheduler_outbox \(event_type, account_id, group_id, payload\).*SELECT \$2, updated.id, NULL, NULL FROM updated`
+	mock.ExpectExec(query).
+		WithArgs(int64(42), service.SchedulerOutboxEventAccountChanged).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.ClearAutoIsolation(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.False(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountHealthRepositorySetManualIsolationUsesHealthOwnedAtomicMutation(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer db.Close()
+
+	until := time.Date(2026, 9, 18, 10, 0, 0, 0, time.UTC)
+	query := `(?s)WITH updated AS \(\s*UPDATE accounts AS a.*temp_unschedulable_until = \$2.*temp_unschedulable_reason = \$3.*a.id = \$1.*a.status = 'active'.*a.schedulable IS TRUE.*\$3 LIKE 'health:manual:%'.*temp_unschedulable_reason LIKE 'health:auto:%'.*temp_unschedulable_reason LIKE 'health:manual:%'.*RETURNING a.id\s*\)\s*INSERT INTO scheduler_outbox \(event_type, account_id, group_id, payload\).*SELECT \$4, updated.id, NULL, NULL FROM updated`
+	mock.ExpectExec(query).
+		WithArgs(int64(77), until, "health:manual:operator", service.SchedulerOutboxEventAccountChanged).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.SetManualIsolation(context.Background(), 77, until, "health:manual:operator")
+
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountHealthRepositorySetManualIsolationRejectsNonManualReasonBeforeSQL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.SetManualIsolation(context.Background(), 77, time.Now(), "health:auto:error-rate=1")
+
+	require.Error(t, err)
+	require.False(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountHealthRepositoryClearHealthIsolationOnlyClearsHealthOwnedState(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer db.Close()
+
+	query := `(?s)WITH updated AS \(\s*UPDATE accounts AS a.*temp_unschedulable_until = NULL.*temp_unschedulable_reason = NULL.*a.id = \$1.*temp_unschedulable_reason LIKE 'health:auto:%'.*temp_unschedulable_reason LIKE 'health:manual:%'.*RETURNING a.id\s*\)\s*INSERT INTO scheduler_outbox \(event_type, account_id, group_id, payload\).*SELECT \$2, updated.id, NULL, NULL FROM updated`
+	mock.ExpectExec(query).
+		WithArgs(int64(77), service.SchedulerOutboxEventAccountChanged).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	repo := NewAccountHealthRepository(db).(*accountHealthRepository)
+	applied, err := repo.ClearHealthIsolation(context.Background(), 77)
+
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.NoError(t, mock.ExpectationsWereMet())
+}

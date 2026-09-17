@@ -50,6 +50,15 @@ func parseAccountHealthFilter(c *gin.Context) (service.AccountHealthFilter, bool
 	return filter, true
 }
 
+func parseAccountHealthAccountID(c *gin.Context) (int64, bool) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || accountID <= 0 {
+		response.BadRequest(c, "invalid account id")
+		return 0, false
+	}
+	return accountID, true
+}
+
 func (h *AccountHealthHandler) Snapshot(c *gin.Context) {
 	actorID, ok := accountHealthActor(c)
 	if !ok {
@@ -88,6 +97,60 @@ func (h *AccountHealthHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 	out, err := h.svc.UpdateSettings(c.Request.Context(), actorID, input)
+	middleware.SetAuditExtra(c, map[string]any{
+		"enabled":            input.Enabled,
+		"window_minutes":     input.WindowMinutes,
+		"min_samples":        input.MinSamples,
+		"isolate_error_rate": input.IsolateErrorRate,
+		"recover_error_rate": input.RecoverErrorRate,
+		"cooldown_minutes":   input.CooldownMinutes,
+		"interval_seconds":   input.IntervalSeconds,
+	})
+	if !response.ErrorFrom(c, err) {
+		response.Success(c, out)
+	}
+}
+
+func (h *AccountHealthHandler) ManualIsolate(c *gin.Context) {
+	actorID, ok := accountHealthActor(c)
+	if !ok {
+		return
+	}
+	accountID, ok := parseAccountHealthAccountID(c)
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 8<<10)
+	var input service.AccountHealthManualIsolationInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, "invalid account health isolation request")
+		return
+	}
+	out, err := h.svc.ManualIsolate(c.Request.Context(), actorID, accountID, input)
+	middleware.SetAuditExtra(c, map[string]any{
+		"account_id":       accountID,
+		"duration_minutes": input.DurationMinutes,
+		"applied":          err == nil && out != nil && out.Applied,
+	})
+	if !response.ErrorFrom(c, err) {
+		response.Success(c, out)
+	}
+}
+
+func (h *AccountHealthHandler) ManualRecover(c *gin.Context) {
+	actorID, ok := accountHealthActor(c)
+	if !ok {
+		return
+	}
+	accountID, ok := parseAccountHealthAccountID(c)
+	if !ok {
+		return
+	}
+	out, err := h.svc.ManualRecover(c.Request.Context(), actorID, accountID)
+	middleware.SetAuditExtra(c, map[string]any{
+		"account_id": accountID,
+		"applied":    err == nil && out != nil && out.Applied,
+	})
 	if !response.ErrorFrom(c, err) {
 		response.Success(c, out)
 	}
