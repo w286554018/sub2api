@@ -124,3 +124,32 @@ func TestAPIKeyAndSubscriptionFromContext(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, int64(2), gotSub.ID)
 }
+
+func TestSuperAdminOnlyRequiresSuperAdminRole(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, tc := range []struct {
+		name string
+		role string
+		want int
+	}{
+		{name: "plain admin rejected", role: service.RoleAdmin, want: http.StatusForbidden},
+		{name: "super admin allowed", role: service.RoleSuperAdmin, want: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				c.Set(string(ContextKeyUserRole), tc.role)
+				c.Next()
+			})
+			router.GET("/admin-only", SuperAdminOnly(), func(c *gin.Context) {
+				c.Status(http.StatusOK)
+			})
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/admin-only", nil)
+			router.ServeHTTP(w, req)
+			require.Equal(t, tc.want, w.Code)
+		})
+	}
+}

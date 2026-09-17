@@ -45,14 +45,14 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 
 	var resetKey *service.APIKey
 	if req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage {
-		resetKey, err = h.adminService.AdminResetAPIKeyRateLimitUsage(c.Request.Context(), keyID)
+		resetKey, err = h.adminService.AdminResetAPIKeyRateLimitUsage(c.Request.Context(), getAdminIDFromContext(c), keyID)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
 		}
 	}
 
-	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), keyID, req.GroupID)
+	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), getAdminIDFromContext(c), keyID, req.GroupID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

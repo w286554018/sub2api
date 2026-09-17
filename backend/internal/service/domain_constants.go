@@ -18,9 +18,18 @@ const (
 
 // Role constants
 const (
-	RoleAdmin = domain.RoleAdmin
-	RoleUser  = domain.RoleUser
+	RoleSuperAdmin = domain.RoleSuperAdmin
+	RoleAdmin      = domain.RoleAdmin
+	RoleUser       = domain.RoleUser
 )
+
+func IsAdminRole(role string) bool {
+	return role == RoleAdmin || role == RoleSuperAdmin
+}
+
+func IsSuperAdminRole(role string) bool {
+	return role == RoleSuperAdmin
+}
 
 // Affiliate rebate settings
 const (

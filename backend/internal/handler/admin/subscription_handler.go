@@ -29,13 +29,32 @@ func toResponsePagination(p *pagination.PaginationResult) *response.PaginationRe
 // SubscriptionHandler handles admin subscription management
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	adminService        service.AdminService
 }
 
 // NewSubscriptionHandler creates a new admin subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, adminService service.AdminService) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		adminService:        adminService,
 	}
+}
+
+func (h *SubscriptionHandler) authorizeOwnerMutation(c *gin.Context, subscriptionID int64, includeDeleted bool) bool {
+	var (
+		subscription *service.UserSubscription
+		err          error
+	)
+	if includeDeleted {
+		subscription, err = h.subscriptionService.GetByIDIncludeDeleted(c.Request.Context(), subscriptionID)
+	} else {
+		subscription, err = h.subscriptionService.GetByID(c.Request.Context(), subscriptionID)
+	}
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return false
+	}
+	return authorizeTargetUserMutation(c, h.adminService, subscription.UserID)
 }
 
 // AssignSubscriptionRequest represents assign subscription request
@@ -140,6 +159,9 @@ func (h *SubscriptionHandler) Assign(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, req.UserID) {
+		return
+	}
 
 	// Get admin user ID from context
 	adminID := getAdminIDFromContext(c)
@@ -167,6 +189,9 @@ func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, req.UserIDs...) {
+		return
+	}
 
 	// Get admin user ID from context
 	adminID := getAdminIDFromContext(c)
@@ -192,6 +217,9 @@ func (h *SubscriptionHandler) Extend(c *gin.Context) {
 	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	if !h.authorizeOwnerMutation(c, subscriptionID, false) {
 		return
 	}
 
@@ -232,6 +260,9 @@ func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 		response.BadRequest(c, "Invalid subscription ID")
 		return
 	}
+	if !h.authorizeOwnerMutation(c, subscriptionID, false) {
+		return
+	}
 	var req ResetSubscriptionQuotaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -258,6 +289,9 @@ func (h *SubscriptionHandler) Revoke(c *gin.Context) {
 		response.BadRequest(c, "Invalid subscription ID")
 		return
 	}
+	if !h.authorizeOwnerMutation(c, subscriptionID, false) {
+		return
+	}
 
 	err = h.subscriptionService.RevokeSubscription(c.Request.Context(), subscriptionID)
 	if err != nil {
@@ -274,6 +308,9 @@ func (h *SubscriptionHandler) Restore(c *gin.Context) {
 	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	if !h.authorizeOwnerMutation(c, subscriptionID, true) {
 		return
 	}
 
@@ -339,4 +376,12 @@ func getAdminIDFromContext(c *gin.Context) int64 {
 		return 0
 	}
 	return subject.UserID
+}
+
+func getAdminRoleFromContext(c *gin.Context) string {
+	role, ok := middleware2.GetUserRoleFromContext(c)
+	if !ok {
+		return ""
+	}
+	return role
 }

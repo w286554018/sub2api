@@ -17,8 +17,27 @@ func AdminOnly() gin.HandlerFunc {
 		}
 
 		// 检查是否为管理员
-		if role != service.RoleAdmin {
+		if !service.IsAdminRole(role) {
 			AbortWithError(c, 403, "FORBIDDEN", "Admin access required")
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// SuperAdminOnly requires the authenticated admin to be a super administrator.
+// It must run after admin authentication has populated the user role context.
+func SuperAdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, ok := GetUserRoleFromContext(c)
+		if !ok {
+			AbortWithError(c, 401, "UNAUTHORIZED", "User not found in context")
+			return
+		}
+
+		if !service.IsSuperAdminRole(role) {
+			AbortWithError(c, 403, "FORBIDDEN", "Super administrator access required")
 			return
 		}
 

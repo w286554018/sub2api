@@ -36,6 +36,8 @@ type stubAdminService struct {
 	updatedProxies                      []*service.UpdateProxyInput
 	testedProxyIDs                      []int64
 	getUserErr                          error
+	authorizeUserMutationErr            error
+	authorizeUserMutationCalls          [][]int64
 	createAccountErr                    error
 	createSparkShadowErr                error
 	updateAccountErr                    error
@@ -179,6 +181,14 @@ func (s *stubAdminService) GetUser(ctx context.Context, id int64) (*service.User
 
 func (s *stubAdminService) GetUserIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
 	return s.GetUser(ctx, id)
+}
+
+func (s *stubAdminService) AuthorizeUserMutation(_ context.Context, actorAdminID int64, targetUserIDs ...int64) error {
+	call := make([]int64, 0, len(targetUserIDs)+1)
+	call = append(call, actorAdminID)
+	call = append(call, targetUserIDs...)
+	s.authorizeUserMutationCalls = append(s.authorizeUserMutationCalls, call)
+	return s.authorizeUserMutationErr
 }
 
 func (s *stubAdminService) CreateUser(ctx context.Context, input *service.CreateUserInput) (*service.User, error) {
@@ -753,7 +763,7 @@ func (s *stubAdminService) UpdateGroupSortOrders(ctx context.Context, updates []
 	return nil
 }
 
-func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, _ int64, keyID int64, groupID *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	for i := range s.apiKeys {
 		if s.apiKeys[i].ID == keyID {
 			k := s.apiKeys[i]
@@ -771,7 +781,7 @@ func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	return nil, service.ErrAPIKeyNotFound
 }
 
-func (s *stubAdminService) AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*service.APIKey, error) {
+func (s *stubAdminService) AdminResetAPIKeyRateLimitUsage(ctx context.Context, _ int64, keyID int64) (*service.APIKey, error) {
 	for i := range s.apiKeys {
 		if s.apiKeys[i].ID == keyID {
 			s.apiKeys[i].Usage5h = 0

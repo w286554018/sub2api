@@ -28,6 +28,7 @@
                 v-model="filters.role"
                 :options="[
                   { value: '', label: t('admin.users.allRoles') },
+                  { value: 'super_admin', label: t('admin.users.superAdmin') },
                   { value: 'admin', label: t('admin.users.admin') },
                   { value: 'user', label: t('admin.users.user') }
                 ]"
@@ -326,7 +327,7 @@
           </template>
 
           <template #cell-role="{ value }">
-            <span :class="['badge', value === 'admin' ? 'badge-purple' : 'badge-gray']">
+            <span :class="['badge', roleBadgeClass(value)]">
               {{ t('admin.users.roles.' + value) }}
             </span>
           </template>
@@ -611,6 +612,7 @@
             <div class="flex items-center gap-1">
               <!-- Edit Button -->
               <button
+                v-if="canManageUser(row)"
                 @click="handleEdit(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
               >
@@ -620,7 +622,7 @@
 
               <!-- Toggle Status Button (not for admin) -->
               <button
-                v-if="row.role !== 'admin'"
+                v-if="canChangeUserStatus(row)"
                 @click="handleToggleStatus(row)"
                 :class="[
                   'flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors',
@@ -636,6 +638,7 @@
 
               <!-- More Actions Menu Trigger -->
               <button
+                v-if="canManageUser(row)"
                 @click="openActionMenu(row, $event)"
                 class="action-menu-trigger flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
                 :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeMenuId === row.id }"
@@ -742,7 +745,7 @@
 
               <!-- Delete (not for admin) -->
               <button
-                v-if="user.role !== 'admin'"
+                v-if="user.role === 'user'"
                 @click="handleDelete(user); closeActionMenu()"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
               >
@@ -783,6 +786,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { formatDateTime } from '@/utils/format'
@@ -820,6 +824,17 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+const authStore = useAuthStore()
+
+const canManageUser = (user: AdminUser): boolean => authStore.isSuperAdmin || user.role === 'user'
+const canChangeUserStatus = (user: AdminUser): boolean => (
+  user.role === 'user' || (authStore.isSuperAdmin && user.id !== authStore.user?.id)
+)
+const roleBadgeClass = (role: AdminUser['role']): string => {
+  if (role === 'super_admin') return 'badge-danger'
+  if (role === 'admin') return 'badge-purple'
+  return 'badge-gray'
+}
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>

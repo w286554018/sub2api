@@ -16,6 +16,7 @@ type AdminService interface {
 	ListUsers(ctx context.Context, page, pageSize int, filters UserListFilters, sortBy, sortOrder string) ([]User, int64, error)
 	GetUser(ctx context.Context, id int64) (*User, error)
 	GetUserIncludeDeleted(ctx context.Context, id int64) (*User, error)
+	AuthorizeUserMutation(ctx context.Context, actorAdminID int64, targetUserIDs ...int64) error
 	CreateUser(ctx context.Context, input *CreateUserInput) (*User, error)
 	UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error
@@ -65,8 +66,8 @@ type AdminService interface {
 	UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
 
 	// API Key management (admin)
-	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
-	AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error)
+	AdminUpdateAPIKeyGroupID(ctx context.Context, actorAdminID, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
+	AdminResetAPIKeyRateLimitUsage(ctx context.Context, actorAdminID, keyID int64) (*APIKey, error)
 
 	// ReplaceUserGroup 替换用户的专属分组：授予新分组权限、迁移 Key、移除旧分组权限
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
@@ -167,7 +168,7 @@ type CreateUserInput struct {
 	Password             string
 	Username             string
 	Notes                string
-	Role                 string // 空字符串表示使用默认角色(user);合法值 admin/user
+	Role                 string // 空字符串表示使用默认角色(user);合法值 super_admin/admin/user
 	Balance              *float64
 	Concurrency          int
 	RPMLimit             int
@@ -182,7 +183,7 @@ type UpdateUserInput struct {
 	Password      string
 	Username      *string
 	Notes         *string
-	Role          string   // 空字符串表示"未提供"(不修改);合法值 admin/user
+	Role          string   // 空字符串表示"未提供"(不修改);合法值 super_admin/admin/user
 	Balance       *float64 // 使用指针区分"未提供"和"设置为0"
 	Concurrency   *int     // 使用指针区分"未提供"和"设置为0"
 	RPMLimit      *int     // 使用指针区分"未提供"和"设置为0"

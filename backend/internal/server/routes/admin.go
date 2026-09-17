@@ -601,49 +601,50 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	adminSettings := admin.Group("/settings")
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
-		adminSettings.PUT("", h.Admin.Setting.UpdateSettings)
-		adminSettings.POST("/test-smtp", h.Admin.Setting.TestSMTPConnection)
-		adminSettings.POST("/send-test-email", h.Admin.Setting.SendTestEmail)
+		adminSettings.PUT("", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateSettings)
+		adminSettings.POST("/test-smtp", middleware.SuperAdminOnly(), h.Admin.Setting.TestSMTPConnection)
+		adminSettings.POST("/send-test-email", middleware.SuperAdminOnly(), h.Admin.Setting.SendTestEmail)
 		adminSettings.GET("/email-templates", h.Admin.Setting.ListEmailTemplates)
 		adminSettings.POST("/email-template-preview", h.Admin.Setting.PreviewEmailTemplate)
 		adminSettings.GET("/email-templates/:event/:locale", h.Admin.Setting.GetEmailTemplate)
-		adminSettings.PUT("/email-templates/:event/:locale", h.Admin.Setting.UpdateEmailTemplate)
-		adminSettings.POST("/email-templates/:event/:locale/restore-official", h.Admin.Setting.RestoreOfficialEmailTemplate)
+		adminSettings.PUT("/email-templates/:event/:locale", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateEmailTemplate)
+		adminSettings.POST("/email-templates/:event/:locale/restore-official", middleware.SuperAdminOnly(), h.Admin.Setting.RestoreOfficialEmailTemplate)
 		// Admin API Key 管理
-		adminSettings.GET("/admin-api-key", h.Admin.Setting.GetAdminAPIKey)
-		adminSettings.POST("/admin-api-key/regenerate", h.Admin.Setting.RegenerateAdminAPIKey)
-		adminSettings.DELETE("/admin-api-key", h.Admin.Setting.DeleteAdminAPIKey)
+		adminSettings.GET("/admin-api-key", middleware.SuperAdminOnly(), h.Admin.Setting.GetAdminAPIKey)
+		adminSettings.POST("/admin-api-key/regenerate", middleware.SuperAdminOnly(), h.Admin.Setting.RegenerateAdminAPIKey)
+		adminSettings.DELETE("/admin-api-key", middleware.SuperAdminOnly(), h.Admin.Setting.DeleteAdminAPIKey)
 		// 529过载冷却配置
 		adminSettings.GET("/overload-cooldown", h.Admin.Setting.GetOverloadCooldownSettings)
-		adminSettings.PUT("/overload-cooldown", h.Admin.Setting.UpdateOverloadCooldownSettings)
+		adminSettings.PUT("/overload-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateOverloadCooldownSettings)
 		// 429默认回避配置
 		adminSettings.GET("/rate-limit-429-cooldown", h.Admin.Setting.GetRateLimit429CooldownSettings)
-		adminSettings.PUT("/rate-limit-429-cooldown", h.Admin.Setting.UpdateRateLimit429CooldownSettings)
+		adminSettings.PUT("/rate-limit-429-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateRateLimit429CooldownSettings)
 		// OpenAI OAuth image-tool unavailable cooldown configuration
 		adminSettings.GET("/openai-images-oauth-unavailable-cooldown", h.Admin.Setting.GetOpenAIImagesOAuthUnavailableCooldownSettings)
-		adminSettings.PUT("/openai-images-oauth-unavailable-cooldown", h.Admin.Setting.UpdateOpenAIImagesOAuthUnavailableCooldownSettings)
+		adminSettings.PUT("/openai-images-oauth-unavailable-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateOpenAIImagesOAuthUnavailableCooldownSettings)
 		// 面板 API 限流配置
 		adminSettings.GET("/panel-rate-limit", h.Admin.Setting.GetPanelRateLimitSettings)
-		adminSettings.PUT("/panel-rate-limit", h.Admin.Setting.UpdatePanelRateLimitSettings)
+		adminSettings.PUT("/panel-rate-limit", middleware.SuperAdminOnly(), h.Admin.Setting.UpdatePanelRateLimitSettings)
 		// 流超时处理配置
 		adminSettings.GET("/stream-timeout", h.Admin.Setting.GetStreamTimeoutSettings)
-		adminSettings.PUT("/stream-timeout", h.Admin.Setting.UpdateStreamTimeoutSettings)
+		adminSettings.PUT("/stream-timeout", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateStreamTimeoutSettings)
 		// 请求整流器配置
 		adminSettings.GET("/rectifier", h.Admin.Setting.GetRectifierSettings)
-		adminSettings.PUT("/rectifier", h.Admin.Setting.UpdateRectifierSettings)
+		adminSettings.PUT("/rectifier", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateRectifierSettings)
 		// Beta 策略配置
 		adminSettings.GET("/beta-policy", h.Admin.Setting.GetBetaPolicySettings)
-		adminSettings.PUT("/beta-policy", h.Admin.Setting.UpdateBetaPolicySettings)
+		adminSettings.PUT("/beta-policy", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateBetaPolicySettings)
 		// Web Search 模拟配置
 		adminSettings.GET("/web-search-emulation", h.Admin.Setting.GetWebSearchEmulationConfig)
-		adminSettings.PUT("/web-search-emulation", h.Admin.Setting.UpdateWebSearchEmulationConfig)
-		adminSettings.POST("/web-search-emulation/test", h.Admin.Setting.TestWebSearchEmulation)
-		adminSettings.POST("/web-search-emulation/reset-usage", h.Admin.Setting.ResetWebSearchUsage)
+		adminSettings.PUT("/web-search-emulation", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateWebSearchEmulationConfig)
+		adminSettings.POST("/web-search-emulation/test", middleware.SuperAdminOnly(), h.Admin.Setting.TestWebSearchEmulation)
+		adminSettings.POST("/web-search-emulation/reset-usage", middleware.SuperAdminOnly(), h.Admin.Setting.ResetWebSearchUsage)
 	}
 }
 
 func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	dataManagement := admin.Group("/data-management")
+	dataManagement.Use(middleware.SuperAdminOnly())
 	{
 		dataManagement.GET("/agent/health", h.Admin.DataManagement.GetAgentHealth)
 		dataManagement.GET("/config", h.Admin.DataManagement.GetConfig)
@@ -668,6 +669,7 @@ func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 
 func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	backup := admin.Group("/backups")
+	backup.Use(middleware.SuperAdminOnly())
 	{
 		// S3 存储配置
 		backup.GET("/s3-config", h.Admin.Backup.GetS3Config)
@@ -700,6 +702,7 @@ func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 
 func registerSystemRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	system := admin.Group("/system")
+	system.Use(middleware.SuperAdminOnly())
 	{
 		system.GET("/version", h.Admin.System.GetVersion)
 		system.GET("/check-updates", h.Admin.System.CheckUpdates)
@@ -799,6 +802,7 @@ func registerTLSFingerprintProfileRoutes(admin *gin.RouterGroup, h *handler.Hand
 
 func registerPluginRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	plugins := admin.Group("/plugins")
+	plugins.Use(middleware.SuperAdminOnly())
 	{
 		plugins.GET("", h.Admin.Plugin.List)
 		plugins.GET("/:id", h.Admin.Plugin.Get)

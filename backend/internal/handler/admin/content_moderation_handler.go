@@ -12,11 +12,15 @@ import (
 )
 
 type ContentModerationHandler struct {
-	service *service.ContentModerationService
+	service      *service.ContentModerationService
+	adminService service.AdminService
 }
 
-func NewContentModerationHandler(svc *service.ContentModerationService) *ContentModerationHandler {
-	return &ContentModerationHandler{service: svc}
+func NewContentModerationHandler(svc *service.ContentModerationService, adminService service.AdminService) *ContentModerationHandler {
+	return &ContentModerationHandler{
+		service:      svc,
+		adminService: adminService,
+	}
 }
 
 type contentModerationConfigRequest struct {
@@ -209,6 +213,9 @@ func (h *ContentModerationHandler) UnbanUser(c *gin.Context) {
 	userID, err := strconv.ParseInt(strings.TrimSpace(c.Param("user_id")), 10, 64)
 	if err != nil || userID <= 0 {
 		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
 		return
 	}
 	result, err := h.service.UnbanUser(c.Request.Context(), userID)

@@ -13,12 +13,13 @@ import (
 
 // UserAttributeHandler handles user attribute management
 type UserAttributeHandler struct {
-	attrService *service.UserAttributeService
+	attrService  *service.UserAttributeService
+	adminService service.AdminService
 }
 
 // NewUserAttributeHandler creates a new handler
-func NewUserAttributeHandler(attrService *service.UserAttributeService) *UserAttributeHandler {
-	return &UserAttributeHandler{attrService: attrService}
+func NewUserAttributeHandler(attrService *service.UserAttributeService, adminService service.AdminService) *UserAttributeHandler {
+	return &UserAttributeHandler{attrService: attrService, adminService: adminService}
 }
 
 // --- Request/Response DTOs ---
@@ -285,6 +286,9 @@ func (h *UserAttributeHandler) UpdateUserAttributes(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
 		return
 	}
 

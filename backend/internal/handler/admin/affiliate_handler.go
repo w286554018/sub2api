@@ -64,6 +64,9 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 		response.BadRequest(c, "Invalid user_id")
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
+		return
+	}
 
 	var req UpdateAffiliateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -106,6 +109,9 @@ func (h *AffiliateHandler) ClearUserSettings(c *gin.Context) {
 		response.BadRequest(c, "Invalid user_id")
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
+		return
+	}
 	if err := h.affiliateService.AdminSetUserRebateRate(c.Request.Context(), userID, nil); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -140,6 +146,9 @@ func (h *AffiliateHandler) BatchSetRate(c *gin.Context) {
 	}
 	if len(req.UserIDs) == 0 {
 		response.BadRequest(c, "user_ids cannot be empty")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, req.UserIDs...) {
 		return
 	}
 	if !req.Clear && req.AffRebateRatePercent == nil {

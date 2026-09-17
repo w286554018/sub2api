@@ -16,6 +16,18 @@ describe('AppSidebar navigation copy', () => {
   })
 })
 
+describe('AppSidebar super administrator visibility', () => {
+  it('marks plugin management as super-admin-only', () => {
+    expect(componentSource).toContain("path: '/admin/plugins'")
+    expect(componentSource).toContain('superAdminOnly: true')
+  })
+
+  it('only appends system settings for super administrators', () => {
+    expect(componentSource).toContain('if (authStore.isSuperAdmin)')
+    expect(componentSource).toContain("path: '/admin/settings'")
+  })
+})
+
 describe('AppSidebar custom SVG styles', () => {
   it('does not override uploaded SVG fill or stroke colors', () => {
     expect(componentSource).toContain('.sidebar-svg-icon {')

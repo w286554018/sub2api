@@ -36,6 +36,14 @@ type UserHandler struct {
 	settingService        *service.SettingService // step-up 功能开关
 }
 
+func authorizeTargetUserMutation(c *gin.Context, adminService service.AdminService, targetUserIDs ...int64) bool {
+	if err := adminService.AuthorizeUserMutation(c.Request.Context(), getAdminIDFromContext(c), targetUserIDs...); err != nil {
+		response.ErrorFrom(c, err)
+		return false
+	}
+	return true
+}
+
 // NewUserHandler creates a new admin user handler
 func NewUserHandler(
 	adminService service.AdminService,
@@ -63,7 +71,7 @@ type CreateUserRequest struct {
 	Password             string   `json:"password" binding:"required,min=6"`
 	Username             string   `json:"username"`
 	Notes                string   `json:"notes"`
-	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
+	Role                 string   `json:"role" binding:"omitempty,oneof=super_admin admin user"`
 	Balance              *float64 `json:"balance"`
 	Concurrency          int      `json:"concurrency"`
 	RPMLimit             int      `json:"rpm_limit"`
@@ -78,7 +86,7 @@ type UpdateUserRequest struct {
 	Password             string   `json:"password" binding:"omitempty,min=6"`
 	Username             *string  `json:"username"`
 	Notes                *string  `json:"notes"`
-	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
+	Role                 string   `json:"role" binding:"omitempty,oneof=super_admin admin user"`
 	Balance              *float64 `json:"balance"`
 	Concurrency          *int     `json:"concurrency"`
 	RPMLimit             *int     `json:"rpm_limit"`
@@ -238,6 +246,9 @@ func (h *UserHandler) BindAuthIdentity(c *gin.Context) {
 		response.BadRequest(c, "Invalid user ID")
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
+		return
+	}
 
 	var req BindUserAuthIdentityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -279,7 +290,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 	}
 
 	// 创建管理员账号属权限敏感操作：需最近完成 step-up 2FA 验证。
-	if req.Role == service.RoleAdmin {
+	if service.IsAdminRole(req.Role) {
 		if !middleware.EnforceStepUp(c, h.totpService, h.userService, h.settingService) {
 			return
 		}
@@ -327,16 +338,20 @@ func (h *UserHandler) Update(c *gin.Context) {
 		response.BadRequest(c, "cannot demote yourself from admin")
 		return
 	}
+	if req.Role == service.RoleAdmin && userID == getAdminIDFromContext(c) && getAdminRoleFromContext(c) == service.RoleSuperAdmin {
+		response.BadRequest(c, "cannot demote yourself from super admin")
+		return
+	}
 
 	// 把普通用户提升为管理员属权限敏感操作：需最近完成 step-up 2FA 验证。
 	// 目标已是管理员时（前端编辑表单总是携带 role）不触发，避免日常编辑被打断。
-	if req.Role == service.RoleAdmin {
+	if service.IsAdminRole(req.Role) {
 		target, err := h.adminService.GetUser(c.Request.Context(), userID)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
 		}
-		if target.Role != service.RoleAdmin {
+		if target.Role != req.Role {
 			if !middleware.EnforceStepUp(c, h.totpService, h.userService, h.settingService) {
 				return
 			}
@@ -391,6 +406,9 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
 		return
 	}
 
@@ -517,6 +535,9 @@ func (h *UserHandler) ReplaceGroup(c *gin.Context) {
 		response.BadRequest(c, "Invalid user ID")
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
+		return
+	}
 
 	var req ReplaceGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -604,6 +625,9 @@ func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
 		response.Success(c, gin.H{"affected": 0})
 		return
 	}
+	if !authorizeTargetUserMutation(c, h.adminService, userIDs...) {
+		return
+	}
 
 	affected, err := h.adminService.BatchUpdateConcurrency(c.Request.Context(), userIDs, req.Concurrency, req.Mode)
 	if err != nil {
@@ -664,6 +688,9 @@ func (h *UserHandler) BatchUpdateLimits(c *gin.Context) {
 
 	if len(userIDs) == 0 {
 		response.Success(c, gin.H{"affected": 0})
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userIDs...) {
 		return
 	}
 
@@ -737,6 +764,9 @@ func (h *UserHandler) UpdateUserPlatformQuotas(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
 		return
 	}
 
@@ -914,6 +944,9 @@ func (h *UserHandler) ResetUserPlatformQuotaWindow(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if !authorizeTargetUserMutation(c, h.adminService, userID) {
 		return
 	}
 

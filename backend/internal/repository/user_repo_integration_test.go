@@ -690,6 +690,23 @@ func (s *UserRepoSuite) TestGetFirstAdmin_DisabledAdminIgnored() {
 	s.Require().Equal(activeAdmin.ID, got.ID, "should return only active admin")
 }
 
+func (s *UserRepoSuite) TestGetFirstAdmin_PrefersSuperAdminOverEarlierAdmin() {
+	s.mustCreateUser(&service.User{
+		Email:  "earlier-admin@example.com",
+		Role:   service.RoleAdmin,
+		Status: service.StatusActive,
+	})
+	superAdmin := s.mustCreateUser(&service.User{
+		Email:  "later-super-admin@example.com",
+		Role:   service.RoleSuperAdmin,
+		Status: service.StatusActive,
+	})
+
+	got, err := s.repo.GetFirstAdmin(s.ctx)
+	s.Require().NoError(err, "GetFirstAdmin")
+	s.Require().Equal(superAdmin.ID, got.ID, "Admin API key identity must prefer an active super admin")
+}
+
 // --- Combined ---
 
 func (s *UserRepoSuite) TestCRUD_And_Filters_And_AtomicUpdates() {

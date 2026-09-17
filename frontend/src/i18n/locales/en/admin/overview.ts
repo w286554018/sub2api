@@ -480,6 +480,7 @@ export default {
       statusFilter: 'Status Filter',
       allStatuses: 'All Status',
       admin: 'Admin',
+      superAdmin: 'Super Admin',
       user: 'User',
       disabled: 'Disabled',
       email: 'Email',
@@ -676,6 +677,7 @@ export default {
       createdAt: 'Created',
       totalRecharged: 'Total Recharged',
       roles: {
+        super_admin: 'Super Admin',
         admin: 'Admin',
         user: 'User'
       },

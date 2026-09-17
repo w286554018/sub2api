@@ -70,6 +70,7 @@
 import { reactive, ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -79,13 +80,22 @@ import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits(['close', 'success']); const { t } = useI18n()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 
-const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin', balance: '', concurrency: 1, rpm_limit: 0 })
+const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin' | 'super_admin', balance: '', concurrency: 1, rpm_limit: 0 })
 
-const roleOptions = computed<SelectOption[]>(() => [
-  { value: 'user', label: t('admin.users.roles.user') },
-  { value: 'admin', label: t('admin.users.roles.admin') },
-])
+const roleOptions = computed<SelectOption[]>(() => {
+  const options: SelectOption[] = [
+    { value: 'user', label: t('admin.users.roles.user') },
+  ]
+  if (authStore.isSuperAdmin) {
+    options.push(
+      { value: 'admin', label: t('admin.users.roles.admin') },
+      { value: 'super_admin', label: t('admin.users.roles.super_admin') },
+    )
+  }
+  return options
+})
 
 const stepUp = useStepUp()
 const loading = ref(false)

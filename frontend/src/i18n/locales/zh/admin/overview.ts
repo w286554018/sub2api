@@ -480,6 +480,7 @@ export default {
       statusFilter: '状态筛选',
       allStatuses: '全部状态',
       admin: '管理员',
+      superAdmin: '超级管理员',
       user: '用户',
       disabled: '禁用',
       email: '邮箱',
@@ -562,6 +563,7 @@ export default {
       failedToLoadApiKeys: '加载用户 API 密钥失败',
       deleteConfirm: "确定要删除用户 '{email}' 吗？此操作无法撤销。",
       roles: {
+        super_admin: '超级管理员',
         admin: '管理员',
         user: '用户'
       },

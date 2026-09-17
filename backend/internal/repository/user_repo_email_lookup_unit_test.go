@@ -225,3 +225,30 @@ func TestUserRepositoryCreateSerializesNormalizedEmailConflictsUnderConcurrency(
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 }
+
+func TestUserRepositoryGetFirstAdminPrefersSuperAdmin(t *testing.T) {
+	repo, _ := newUserEntRepo(t)
+	ctx := context.Background()
+
+	earlierAdmin := &service.User{
+		Email:        "earlier-admin@example.com",
+		Username:     "earlier-admin",
+		PasswordHash: "hash",
+		Role:         service.RoleAdmin,
+		Status:       service.StatusActive,
+	}
+	require.NoError(t, repo.Create(ctx, earlierAdmin))
+
+	laterSuperAdmin := &service.User{
+		Email:        "later-super-admin@example.com",
+		Username:     "later-super-admin",
+		PasswordHash: "hash",
+		Role:         service.RoleSuperAdmin,
+		Status:       service.StatusActive,
+	}
+	require.NoError(t, repo.Create(ctx, laterSuperAdmin))
+
+	got, err := repo.GetFirstAdmin(ctx)
+	require.NoError(t, err)
+	require.Equal(t, laterSuperAdmin.ID, got.ID)
+}

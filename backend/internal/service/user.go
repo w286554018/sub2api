@@ -69,7 +69,11 @@ type User struct {
 }
 
 func (u *User) IsAdmin() bool {
-	return u.Role == RoleAdmin
+	return IsAdminRole(u.Role)
+}
+
+func (u *User) IsSuperAdmin() bool {
+	return IsSuperAdminRole(u.Role)
 }
 
 func (u *User) IsActive() bool {
