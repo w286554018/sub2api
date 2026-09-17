@@ -241,6 +241,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/billing',
+    name: 'Billing',
+    component: () => import('@/views/user/BillingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Billing Statement',
+      titleKey: 'billing.title',
+      descriptionKey: 'billing.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

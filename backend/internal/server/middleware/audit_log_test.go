@@ -33,6 +33,14 @@ func TestDeriveAuditAction(t *testing.T) {
 	}
 }
 
+func TestAdminBillingExportUsesSensitiveReadAuditAction(t *testing.T) {
+	require.Equal(
+		t,
+		"admin.billing.export",
+		auditSensitiveReads["GET /api/v1/admin/billing/users/:userId/export"],
+	)
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog

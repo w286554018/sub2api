@@ -460,6 +460,31 @@ export default {
     },
   },
 
+  billing: {
+    title: '账单',
+    description: '按月查看模型消费汇总，并导出限定日期范围内的明细。',
+    statementMonth: '账单月份',
+    requests: '请求数',
+    totalTokens: '总 Token',
+    totalCost: '总费用',
+    model: '模型',
+    inputTokens: '输入 Token',
+    outputTokens: '输出 Token',
+    cacheTokens: '缓存 Token',
+    cost: '费用',
+    noData: '所选月份暂无账单数据。',
+    loadFailed: '加载账单失败',
+    exportTitle: '导出账单明细',
+    exportHint: '日期范围包含开始和结束日期，最长 31 天，最多导出 10,000 条记录。',
+    startDate: '开始日期',
+    endDate: '结束日期',
+    exportCSV: '导出 CSV',
+    exporting: '导出中...',
+    invalidRange: '请选择有效的日期范围。',
+    rangeTooLong: '导出范围不能超过 31 天。',
+    exportFailed: '导出账单失败',
+  },
+
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
     status: {

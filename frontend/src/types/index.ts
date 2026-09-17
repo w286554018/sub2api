@@ -1772,6 +1772,26 @@ export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2' | 'cyber'
 export type ImageSizeSource = 'output' | 'input' | 'default' | 'legacy'
 export type ImageSizeBreakdown = Record<string, number>
 
+export interface BillingStatementRow {
+  model: string
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  cache_tokens: number
+  total_tokens: number
+  cost: number
+}
+
+export interface BillingStatement {
+  user_id: number
+  year: number
+  month: number
+  rows: BillingStatementRow[]
+  requests: number
+  total_tokens: number
+  cost: number
+}
+
 export interface UsageLog {
   id: number
   user_id: number

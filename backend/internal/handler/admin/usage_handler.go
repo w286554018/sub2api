@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/handler/billingparams"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -40,6 +41,47 @@ func NewUsageHandler(
 		adminService:   adminService,
 		cleanupService: cleanupService,
 	}
+}
+
+func (h *UsageHandler) BillingStatement(c *gin.Context) {
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.Param("userId")), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	year, month, loc, err := billingparams.Period(c)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	statement, err := h.usageService.GetBillingStatement(c.Request.Context(), userID, year, month, loc)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, statement)
+}
+
+func (h *UsageHandler) ExportBillingCSV(c *gin.Context) {
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.Param("userId")), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	start, end, err := billingparams.DateRange(c)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	export, err := h.usageService.ExportBillingCSV(c.Request.Context(), userID, start, end)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Content-Disposition", "attachment; filename="+export.Filename)
+	c.Header("X-Export-Row-Limit", strconv.Itoa(service.BillingExportMaxRows))
+	c.Header("X-Export-Row-Count", strconv.Itoa(export.Rows))
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", export.Data)
 }
 
 // CreateUsageCleanupTaskRequest represents cleanup task creation request

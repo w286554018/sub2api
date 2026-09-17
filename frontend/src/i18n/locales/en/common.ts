@@ -168,6 +168,7 @@ export default {
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
     usage: 'Usage',
+    billing: 'Billing',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
     affiliateManagement: 'Affiliate Rebates',
