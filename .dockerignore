@@ -84,3 +84,11 @@ deploy/redis_data/
 .claude/
 issues/
 CLAUDE.md
+
+# Local agent and workspace metadata (never needed in the production image)
+.agents/
+.omc/
+.omx/
+.pi/
+.trellis/
+article.txt

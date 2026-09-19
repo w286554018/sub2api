@@ -24,6 +24,7 @@ type OpenAIWSProtocolDecision struct {
 // OpenAIWSProtocolResolver 定义 OpenAI 上游协议决策。
 type OpenAIWSProtocolResolver interface {
 	Resolve(account *Account) OpenAIWSProtocolDecision
+	ConfiguredMode(account *Account) string
 }
 
 type defaultOpenAIWSProtocolResolver struct {
@@ -33,6 +34,19 @@ type defaultOpenAIWSProtocolResolver struct {
 // NewOpenAIWSProtocolResolver 创建默认协议决策器。
 func NewOpenAIWSProtocolResolver(cfg *config.Config) OpenAIWSProtocolResolver {
 	return &defaultOpenAIWSProtocolResolver{cfg: cfg}
+}
+
+// ConfiguredMode resolves the account mode with the same global default used
+// by Resolve so diagnostics cannot drift from the actual transport decision.
+func (r *defaultOpenAIWSProtocolResolver) ConfiguredMode(account *Account) string {
+	if account == nil {
+		return OpenAIWSIngressModeOff
+	}
+	defaultMode := ""
+	if r != nil && r.cfg != nil {
+		defaultMode = r.cfg.Gateway.OpenAIWS.IngressModeDefault
+	}
+	return account.ResolveOpenAIResponsesWebSocketV2Mode(defaultMode)
 }
 
 func (r *defaultOpenAIWSProtocolResolver) Resolve(account *Account) OpenAIWSProtocolDecision {
@@ -68,7 +82,7 @@ func (r *defaultOpenAIWSProtocolResolver) Resolve(account *Account) OpenAIWSProt
 		return openAIWSHTTPDecision("unknown_auth_type")
 	}
 	if wsCfg.ModeRouterV2Enabled {
-		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(wsCfg.IngressModeDefault)
+		mode := r.ConfiguredMode(account)
 		switch mode {
 		case OpenAIWSIngressModeOff:
 			return openAIWSHTTPDecision("account_mode_off")

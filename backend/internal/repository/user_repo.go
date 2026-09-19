@@ -1421,13 +1421,20 @@ func (r *userRepository) RemoveGroupFromUserAllowedGroups(ctx context.Context, u
 }
 
 func (r *userRepository) GetFirstAdmin(ctx context.Context) (*service.User, error) {
-	m, err := r.client.User.Query().
-		Where(
-			dbuser.RoleEQ(service.RoleAdmin),
-			dbuser.StatusEQ(service.StatusActive),
-		).
-		Order(dbent.Asc(dbuser.FieldID)).
-		First(ctx)
+	queryFirstActiveByRole := func(role string) (*dbent.User, error) {
+		return r.client.User.Query().
+			Where(
+				dbuser.RoleEQ(role),
+				dbuser.StatusEQ(service.StatusActive),
+			).
+			Order(dbent.Asc(dbuser.FieldID)).
+			First(ctx)
+	}
+
+	m, err := queryFirstActiveByRole(service.RoleSuperAdmin)
+	if dbent.IsNotFound(err) {
+		m, err = queryFirstActiveByRole(service.RoleAdmin)
+	}
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}

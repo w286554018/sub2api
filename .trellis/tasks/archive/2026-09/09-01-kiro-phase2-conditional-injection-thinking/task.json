@@ -1,0 +1,28 @@
+{
+  "id": "kiro-phase2-conditional-injection-thinking",
+  "name": "kiro-phase2-conditional-injection-thinking",
+  "title": "Kiro Phase 2: Conditional Injection + Thinking",
+  "description": "Phase 2: 条件化 System Prompt 注入 + Thinking 内容传递改进. 参考 KIRO_PHASE1_DEV_SPEC.md 和讨论记录. 预期 CCTest +3~5 分.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-31-kiro-phase1-protocol-improvement",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

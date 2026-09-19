@@ -1,0 +1,4 @@
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000002","name":"__structured_output__","input":"{\"title\":\"AI Safety Overview\",\"summary\":\"AI safety is a field focused on ensuring artificial intelligence systems behave as intended and do not cause unintended harm.\",\"tags\":[\"ai\",\"safety\",\"alignment\"]}"}},"seq":1}
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000002","name":"__structured_output__","stop":true}},"seq":2}
+{"eventType":"messageMetadataEvent","event":{"messageMetadataEvent":{"usage":{"inputTokens":80,"outputTokens":40},"stopReason":"tool_use"}},"seq":3}
+{"eventType":"messageStopEvent","event":{},"seq":4}

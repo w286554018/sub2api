@@ -37,6 +37,9 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import pluginsAPI from './plugins'
+import globalPricingAPI from './globalPricing'
+import intelligentTestsAPI from './intelligentTests'
+import accountHealthAPI from './accountHealth'
 
 /**
  * Unified admin API object for convenient access
@@ -75,7 +78,10 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  plugins: pluginsAPI
+  plugins: pluginsAPI,
+  globalPricing: globalPricingAPI,
+  intelligentTests: intelligentTestsAPI,
+  accountHealth: accountHealthAPI
 }
 
 export {
@@ -112,7 +118,10 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  pluginsAPI
+  pluginsAPI,
+  globalPricingAPI,
+  intelligentTestsAPI,
+  accountHealthAPI
 }
 
 export default adminAPI
@@ -130,3 +139,19 @@ export type {
   PluginUISession,
   PluginTestResult
 } from './plugins'
+export type { GlobalModelPrice, GlobalModelPriceInput, GlobalModelPricingListResponse } from './globalPricing'
+export type {
+  IntelligentTestAccount,
+  IntelligentTestConfig,
+  IntelligentTestRecord,
+  IntelligentTestSetting,
+  IntelligentTestStatus,
+} from './intelligentTests'
+export type {
+  AccountHealthItem,
+  AccountHealthListParams,
+  AccountHealthListResponse,
+  AccountHealthOverview,
+  AccountHealthSettings,
+  AccountHealthState,
+} from './accountHealth'

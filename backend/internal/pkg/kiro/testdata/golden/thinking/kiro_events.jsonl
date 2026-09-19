@@ -1,0 +1,5 @@
+{"eventType":"reasoningContentEvent","event":{"reasoningContentEvent":{"text":"Let me think about this step by step. The user is asking about the capital of France."}},"seq":1}
+{"eventType":"reasoningContentEvent","event":{"reasoningContentEvent":{"text":" Paris is the capital and most populous city of France."}},"seq":2}
+{"eventType":"assistantResponseEvent","event":{"assistantResponseEvent":{"content":"The capital of France is Paris."}},"seq":3}
+{"eventType":"messageMetadataEvent","event":{"messageMetadataEvent":{"usage":{"inputTokens":30,"outputTokens":45}}},"seq":4}
+{"eventType":"messageStopEvent","event":{},"seq":5}

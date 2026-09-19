@@ -2,22 +2,34 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type adminBasicGroupStatsRepo struct {
+	service.UsageLogRepository
+}
+
+func (r *adminBasicGroupStatsRepo) GetGroupDetailStats(ctx context.Context, id int64, from, to *time.Time) (*service.GroupDetailStats, error) {
+	return &service.GroupDetailStats{GroupID: id, GroupName: "group", TotalAPIKeys: 2, ActiveAPIKeys: 1, GeneratedAt: time.Now().UTC()}, nil
+}
 
 func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	adminSvc := newStubAdminService()
+	dashboardSvc := service.NewDashboardService(&adminBasicGroupStatsRepo{}, nil, nil, nil)
 
 	userHandler := NewUserHandler(adminSvc, nil, nil, nil, nil, nil, nil)
-	groupHandler := NewGroupHandler(adminSvc, nil, nil)
+	groupHandler := NewGroupHandler(adminSvc, dashboardSvc, nil)
 	proxyHandler := NewProxyHandler(adminSvc)
 	redeemHandler := NewRedeemHandler(adminSvc, nil)
 

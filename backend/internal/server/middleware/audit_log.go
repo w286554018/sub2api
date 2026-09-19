@@ -58,6 +58,9 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"http_status": {}, "latency_ms": {}, "token_applied": {}, "retryable": {},
 	"event_id": {}, "requested_count": {}, "deleted_events": {}, "deleted_jobs": {},
 	"matched_count": {}, "snapshot_max_id": {}, "filter_hash": {}, "confirm": {},
+	"account_id": {}, "duration_minutes": {}, "applied": {},
+	"window_minutes": {}, "min_samples": {}, "isolate_error_rate": {}, "recover_error_rate": {},
+	"cooldown_minutes": {}, "interval_seconds": {},
 }
 
 // SetAuditExtra adds allowlisted, scalar details to the current audit entry.
@@ -109,15 +112,16 @@ func truncateAuditExtraString(value string, limit int) string {
 
 // auditSensitiveReads 需要审计的敏感 GET 读取（method+FullPath → 动作名）。
 var auditSensitiveReads = map[string]string{
-	"GET /api/v1/admin/accounts/data":             "admin.accounts.export",
-	"GET /api/v1/admin/proxies/data":              "admin.proxies.export",
-	"GET /api/v1/admin/redeem-codes/export":       "admin.redeem_codes.export",
-	"GET /api/v1/admin/backups/:id/download-url":  "admin.backups.download",
-	"GET /api/v1/admin/settings/admin-api-key":    "admin.admin_api_key.read",
-	"GET /api/v1/admin/users/:id/api-keys":        "admin.users.api_keys.read",
-	"GET /api/v1/admin/groups/:id/api-keys":       "admin.groups.api_keys.read",
-	"GET /api/v1/admin/backups/s3-config":         "admin.backups.s3_config.read",
-	"GET /api/v1/admin/data-management/s3/config": "admin.data_management.s3_config.read",
+	"GET /api/v1/admin/accounts/data":                "admin.accounts.export",
+	"GET /api/v1/admin/proxies/data":                 "admin.proxies.export",
+	"GET /api/v1/admin/redeem-codes/export":          "admin.redeem_codes.export",
+	"GET /api/v1/admin/backups/:id/download-url":     "admin.backups.download",
+	"GET /api/v1/admin/settings/admin-api-key":       "admin.admin_api_key.read",
+	"GET /api/v1/admin/users/:id/api-keys":           "admin.users.api_keys.read",
+	"GET /api/v1/admin/groups/:id/api-keys":          "admin.groups.api_keys.read",
+	"GET /api/v1/admin/backups/s3-config":            "admin.backups.s3_config.read",
+	"GET /api/v1/admin/data-management/s3/config":    "admin.data_management.s3_config.read",
+	"GET /api/v1/admin/billing/users/:userId/export": "admin.billing.export",
 }
 
 // auditActionOverrides 变更类请求的动作名精确映射（未命中时自动推导）。
@@ -142,6 +146,9 @@ var auditActionOverrides = map[string]string{
 	"POST /api/v1/admin/prompt-audit/events/batch-delete":     "admin.prompt_audit.events.batch_delete",
 	"POST /api/v1/admin/prompt-audit/events/delete-preview":   "admin.prompt_audit.events.delete_preview",
 	"POST /api/v1/admin/prompt-audit/events/delete-by-filter": "admin.prompt_audit.events.filter_delete",
+	"PUT /api/v1/admin/account-health/settings":               "admin.account_health.settings.update",
+	"POST /api/v1/admin/account-health/:id/isolate":           "admin.account_health.manual_isolate",
+	"DELETE /api/v1/admin/account-health/:id/isolation":       "admin.account_health.manual_recover",
 }
 
 // auditBodyOmittedRoutes 请求体几乎整体由凭证构成的路由（如整块粘贴 auth JSON 的导入接口）。
@@ -157,6 +164,7 @@ var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/prompt-audit/events/batch-delete":       {},
 	"POST /api/v1/admin/prompt-audit/events/delete-preview":     {},
 	"POST /api/v1/admin/prompt-audit/events/delete-by-filter":   {},
+	"POST /api/v1/admin/account-health/:id/isolate":             {},
 }
 
 // NewAuditLogMiddleware 创建审计中间件。

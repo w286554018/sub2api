@@ -105,16 +105,58 @@ func (s *adminServiceImpl) GetUserIncludeDeleted(ctx context.Context, id int64) 
 	return s.userRepo.GetByIDIncludeDeleted(ctx, id)
 }
 
+// AuthorizeUserMutation prevents plain administrators from changing privileged users through
+// side-channel endpoints that do not otherwise update the user's role or core profile.
+func (s *adminServiceImpl) AuthorizeUserMutation(ctx context.Context, actorAdminID int64, targetUserIDs ...int64) error {
+	seen := make(map[int64]struct{}, len(targetUserIDs))
+	for _, targetUserID := range targetUserIDs {
+		if targetUserID <= 0 {
+			continue
+		}
+		if _, ok := seen[targetUserID]; ok {
+			continue
+		}
+		seen[targetUserID] = struct{}{}
+
+		target, err := s.userRepo.GetByID(ctx, targetUserID)
+		if err != nil {
+			return err
+		}
+		if !IsAdminRole(target.Role) {
+			continue
+		}
+		return s.requireSuperAdminActorForAdminRole(ctx, actorAdminID, target.Role, target.Role)
+	}
+	return nil
+}
+
 // normalizeUserRole 校验并归一化角色输入。
 // 空字符串返回 fallback(未提供时的默认角色);非法值返回错误。
 func normalizeUserRole(role, fallback string) (string, error) {
 	if role == "" {
 		return fallback, nil
 	}
-	if role != RoleAdmin && role != RoleUser {
-		return "", fmt.Errorf("invalid role: %q (must be %s or %s)", role, RoleAdmin, RoleUser)
+	if role != RoleSuperAdmin && role != RoleAdmin && role != RoleUser {
+		return "", fmt.Errorf("invalid role: %q (must be %s, %s or %s)", role, RoleSuperAdmin, RoleAdmin, RoleUser)
 	}
 	return role, nil
+}
+
+func (s *adminServiceImpl) requireSuperAdminActorForAdminRole(ctx context.Context, actorAdminID int64, currentRole, nextRole string) error {
+	if !IsAdminRole(currentRole) && !IsAdminRole(nextRole) {
+		return nil
+	}
+	if actorAdminID <= 0 {
+		return ErrInsufficientPerms
+	}
+	actor, err := s.userRepo.GetByID(ctx, actorAdminID)
+	if err != nil {
+		return err
+	}
+	if !actor.IsActive() || !actor.IsSuperAdmin() {
+		return ErrInsufficientPerms
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
@@ -128,6 +170,9 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	// 角色可由管理员在创建时指定(admin/user);未提供时默认 user。
 	role, err := normalizeUserRole(input.Role, RoleUser)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.requireSuperAdminActorForAdminRole(ctx, input.ActorAdminID, "", role); err != nil {
 		return nil, err
 	}
 
@@ -151,7 +196,7 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 		return nil, err
 	}
 	// 创建管理员属权限敏感操作，落审计日志（含操作者），便于事后追溯。
-	if user.Role == RoleAdmin {
+	if IsAdminRole(user.Role) {
 		logger.LegacyPrintf("service.admin", "audit: admin user created actor_admin_id=%d target_user_id=%d",
 			input.ActorAdminID, user.ID)
 	}
@@ -164,15 +209,44 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 // 的兜底保护足够，彻底防护需依赖数据库层约束。
 func (s *adminServiceImpl) ensureNotLastAdmin(ctx context.Context) error {
 	noSubs := false
-	_, result, err := s.userRepo.ListWithFilters(ctx,
+	_, adminResult, err := s.userRepo.ListWithFilters(ctx,
 		pagination.PaginationParams{Page: 1, PageSize: 1},
-		UserListFilters{Role: RoleAdmin, IncludeSubscriptions: &noSubs},
+		UserListFilters{Status: StatusActive, Role: RoleAdmin, IncludeSubscriptions: &noSubs},
 	)
 	if err != nil {
 		return fmt.Errorf("count admin users: %w", err)
 	}
-	if result == nil || result.Total <= 1 {
+	_, superResult, err := s.userRepo.ListWithFilters(ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 1},
+		UserListFilters{Status: StatusActive, Role: RoleSuperAdmin, IncludeSubscriptions: &noSubs},
+	)
+	if err != nil {
+		return fmt.Errorf("count super admin users: %w", err)
+	}
+	adminTotal := int64(0)
+	if adminResult != nil {
+		adminTotal += adminResult.Total
+	}
+	if superResult != nil {
+		adminTotal += superResult.Total
+	}
+	if adminTotal <= 1 {
 		return errors.New("cannot demote the last admin user")
+	}
+	return nil
+}
+
+func (s *adminServiceImpl) ensureNotLastSuperAdmin(ctx context.Context) error {
+	noSubs := false
+	_, result, err := s.userRepo.ListWithFilters(ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 1},
+		UserListFilters{Status: StatusActive, Role: RoleSuperAdmin, IncludeSubscriptions: &noSubs},
+	)
+	if err != nil {
+		return fmt.Errorf("count super admin users: %w", err)
+	}
+	if result == nil || result.Total <= 1 {
+		return errors.New("cannot demote the last super admin user")
 	}
 	return nil
 }
@@ -210,8 +284,11 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	// Protect admin users: cannot disable admin accounts
-	if user.Role == "admin" && input.Status == "disabled" {
+	if IsAdminRole(user.Role) && input.Status == "disabled" {
 		return nil, errors.New("cannot disable admin user")
+	}
+	if err := s.requireSuperAdminActorForAdminRole(ctx, input.ActorAdminID, user.Role, input.Role); err != nil {
+		return nil, err
 	}
 
 	oldConcurrency := user.Concurrency
@@ -257,8 +334,13 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 		// 防锁死保护：不允许降级系统中最后一个管理员（自我降级已在 handler 层拦截，
 		// 此处兜底覆盖跨管理员互降导致零 admin 的场景）。
-		if user.Role == RoleAdmin && role == RoleUser {
+		if IsAdminRole(user.Role) && role == RoleUser {
 			if err := s.ensureNotLastAdmin(ctx); err != nil {
+				return nil, err
+			}
+		}
+		if user.Role == RoleSuperAdmin && role != RoleSuperAdmin {
+			if err := s.ensureNotLastSuperAdmin(ctx); err != nil {
 				return nil, err
 			}
 		}
@@ -362,7 +444,7 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	if user.Role == "admin" {
+	if IsAdminRole(user.Role) {
 		return errors.New("cannot delete admin user")
 	}
 

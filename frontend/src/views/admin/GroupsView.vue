@@ -372,6 +372,15 @@
               </button>
               <button
                 v-if="!authStore.isSimpleMode"
+                data-testid="group-statistics"
+                @click="handleStatistics(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-emerald-600 dark:hover:bg-dark-700 dark:hover:text-emerald-400"
+              >
+                <Icon name="chart" size="sm" />
+                <span class="text-xs">{{ t("admin.groups.stats.action") }}</span>
+              </button>
+              <button
+                v-if="!authStore.isSimpleMode"
                 data-testid="group-duplicate"
                 :title="
                   duplicatingGroupIds.has(row.id)
@@ -4418,6 +4427,12 @@
       @close="showRPMOverridesModal = false"
       @success="loadGroups"
     />
+
+    <GroupStatisticsDialog
+      :show="showStatisticsModal"
+      :group="statisticsGroup"
+      @close="showStatisticsModal = false"
+    />
   </AppLayout>
 </template>
 
@@ -4457,6 +4472,7 @@ import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
+import GroupStatisticsDialog from "@/components/admin/group/GroupStatisticsDialog.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import KiroCacheRatioField from "@/components/admin/group/KiroCacheRatioField.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
@@ -5016,6 +5032,8 @@ const showRateMultipliersModal = ref(false);
 const rateMultipliersGroup = ref<AdminGroup | null>(null);
 const showRPMOverridesModal = ref(false);
 const rpmOverridesGroup = ref<AdminGroup | null>(null);
+const showStatisticsModal = ref(false);
+const statisticsGroup = ref<AdminGroup | null>(null);
 const sortableGroups = ref<AdminGroup[]>([]);
 type ConcreteGroupPlatform = Exclude<GroupPlatform, "composite">;
 type CompositeRouteFormState = {
@@ -6677,6 +6695,11 @@ const handleRateMultipliers = (group: AdminGroup) => {
 const handleRPMOverrides = (group: AdminGroup) => {
   rpmOverridesGroup.value = group;
   showRPMOverridesModal.value = true;
+};
+
+const handleStatistics = (group: AdminGroup) => {
+  statisticsGroup.value = group;
+  showStatisticsModal.value = true;
 };
 
 const handleDuplicate = async (group: AdminGroup) => {

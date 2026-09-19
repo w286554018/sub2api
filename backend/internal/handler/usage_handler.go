@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/handler/billingparams"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -65,6 +66,47 @@ func NewUsageHandler(
 		opsService:     opsService,
 		settingService: settingService,
 	}
+}
+
+func (h *UsageHandler) BillingStatement(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	year, month, loc, err := billingparams.Period(c)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	statement, err := h.usageService.GetBillingStatement(c.Request.Context(), subject.UserID, year, month, loc)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, statement)
+}
+
+func (h *UsageHandler) ExportBillingCSV(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	start, end, err := billingparams.DateRange(c)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	export, err := h.usageService.ExportBillingCSV(c.Request.Context(), subject.UserID, start, end)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Content-Disposition", "attachment; filename="+export.Filename)
+	c.Header("X-Export-Row-Limit", strconv.Itoa(service.BillingExportMaxRows))
+	c.Header("X-Export-Row-Count", strconv.Itoa(export.Rows))
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", export.Data)
 }
 
 func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) (*userUsageFilters, bool) {

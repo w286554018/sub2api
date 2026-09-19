@@ -101,6 +101,22 @@ func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *Batc
 	return &BatchImageModelPricingResolver{Resolver: resolver}
 }
 
+func ProvideOpenAIAccountRuntimeAccountReader(adminService AdminService) OpenAIAccountRuntimeAccountReader {
+	return adminService
+}
+
+func ProvideOpenAIAccountRuntimePluginRouter(pluginManager *PluginManager) OpenAIAccountRuntimePluginRouter {
+	return pluginManager
+}
+
+func ProvideGlobalModelPricingService(repo GlobalModelPricingRepository, cachePubSub GlobalModelPricingCachePubSub) *GlobalModelPricingService {
+	return NewGlobalModelPricingService(repo, cachePubSub)
+}
+
+func ProvideModelPricingResolver(channelService *ChannelService, billingService *BillingService, globalPricing *GlobalModelPricingService) *ModelPricingResolver {
+	return NewModelPricingResolverWithGlobal(channelService, billingService, globalPricing)
+}
+
 func ProvideBatchImageCleanupService(repo BatchImageRepository, accountRepo AccountRepository, cfg *config.Config) *BatchImageCleanupService {
 	svc := NewBatchImageCleanupService(repo, accountRepo, cfg)
 	svc.Start()
@@ -971,16 +987,24 @@ var ProviderSet = wire.NewSet(
 	NewPromptRuleService,
 	NewTLSFingerprintProfileService,
 	NewPluginManager,
+	NewOpenAIWSProtocolResolver,
+	ProvideOpenAIAccountRuntimeAccountReader,
+	ProvideOpenAIAccountRuntimePluginRouter,
+	NewOpenAIAccountRuntimeSnapshotService,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,
 	ProvideIdempotencyCleanupService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
+	ProvideIntelligentTestService,
+	NewAccountHealthService,
+	ProvideAccountHealthAutomationService,
 	NewGroupCapacityService,
 	NewChannelService,
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
-	NewModelPricingResolver,
+	ProvideGlobalModelPricingService,
+	ProvideModelPricingResolver,
 	NewModelPlazaService,
 	NewContentModerationService,
 	NewAffiliateService,
@@ -1086,4 +1110,17 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	}
 	aggregator.Start()
 	return aggregator
+}
+
+// ProvideIntelligentTestService creates and starts the durable intelligent test worker.
+func ProvideIntelligentTestService(repo IntelligentTestRepository, runner *AccountTestService) *IntelligentTestService {
+	svc := NewIntelligentTestService(repo, runner)
+	svc.Start()
+	return svc
+}
+
+func ProvideAccountHealthAutomationService(repo AccountHealthRepository, health *AccountHealthService) *AccountHealthAutomationService {
+	svc := NewAccountHealthAutomationService(repo, health)
+	svc.Start()
+	return svc
 }

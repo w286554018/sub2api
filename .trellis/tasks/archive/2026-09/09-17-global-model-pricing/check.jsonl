@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Review backend tests, generated wiring, error mapping, and regression risk."}
+{"file":".trellis/spec/backend/error-handling-guidelines.md","reason":"Review domain errors and HTTP status mapping for invalid, duplicate, and missing pricing entries."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Review UI tests, async states, lint, typecheck, and mode-specific behavior."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Review server-state reloads and pending mutation state in the management page."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Verify round-trip price units and compatibility across every billing path."}

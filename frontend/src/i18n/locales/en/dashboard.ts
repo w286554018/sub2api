@@ -483,6 +483,31 @@ export default {
     },
   },
 
+  billing: {
+    title: 'Billing',
+    description: 'Review monthly model charges and export details for a bounded date range.',
+    statementMonth: 'Statement month',
+    requests: 'Requests',
+    totalTokens: 'Total tokens',
+    totalCost: 'Total cost',
+    model: 'Model',
+    inputTokens: 'Input tokens',
+    outputTokens: 'Output tokens',
+    cacheTokens: 'Cache tokens',
+    cost: 'Cost',
+    noData: 'No billing data for the selected month.',
+    loadFailed: 'Failed to load billing statement',
+    exportTitle: 'Export billing details',
+    exportHint: 'The range includes both dates, is limited to 31 days, and exports at most 10,000 rows.',
+    startDate: 'Start date',
+    endDate: 'End date',
+    exportCSV: 'Export CSV',
+    exporting: 'Exporting...',
+    invalidRange: 'Select a valid date range.',
+    rangeTooLong: 'The export range cannot exceed 31 days.',
+    exportFailed: 'Failed to export billing details',
+  },
+
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
     status: {
@@ -802,6 +827,7 @@ export default {
     days: ' days',
     codeRedeemSuccess: 'Code redeemed successfully!',
     failedToRedeem: 'Failed to redeem code. Please check the code and try again.',
+    historyLoadFailed: 'Failed to load activity. Please try again.',
     userRefreshFailed: 'Redeemed successfully, but failed to refresh account information.',
     subscriptionRefreshFailed: 'Redeemed successfully, but failed to refresh subscription status.',
     pleaseEnterCode: 'Please enter a redeem code'
@@ -825,6 +851,7 @@ export default {
     securityTitle: 'Security Settings',
     securityDescription: 'Password, two-factor authentication, and alerts live in the right rail.',
     administrator: 'Administrator',
+    superAdministrator: 'Super Administrator',
     user: 'User',
     username: 'Username',
     email: 'Email',

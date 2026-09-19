@@ -1,0 +1,14 @@
+{
+  "id": "msg_test_ws_empty",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5",
+  "content": [
+    {"type": "server_tool_use", "id": "srvtoolu_test_0", "name": "web_search", "input": {"query": "nonexistent topic xyz123"}},
+    {"type": "web_search_tool_result", "tool_use_id": "srvtoolu_test_0", "content": []},
+    {"type": "text", "text": "I wasn't able to find any results for that topic."}
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {"input_tokens": 40, "output_tokens": 20}
+}

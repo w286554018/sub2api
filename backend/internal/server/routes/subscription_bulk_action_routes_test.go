@@ -15,7 +15,7 @@ import (
 func TestSubscriptionBulkActionRoutesRequireAdminAuthentication(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handlers := &handler.Handlers{Admin: &handler.AdminHandlers{Subscription: adminhandler.NewSubscriptionHandler(nil)}}
+	handlers := &handler.Handlers{Admin: &handler.AdminHandlers{Subscription: adminhandler.NewSubscriptionHandler(nil, nil)}}
 	adminAuth := servermiddleware.AdminAuthMiddleware(func(c *gin.Context) {
 		if c.GetHeader("Authorization") == "" {
 			servermiddleware.AbortWithError(c, http.StatusUnauthorized, "UNAUTHORIZED", "Authorization required")

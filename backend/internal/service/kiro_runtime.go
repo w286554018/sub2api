@@ -314,6 +314,48 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 		}, inputTokens, nil
 	}
 
+		// Check web search mode from headers
+		webSearchMode := getKiroWebSearchMode(headers)
+		RecordSearchMode(webSearchMode)
+		var preSearchRounds []kiropkg.SearchRound
+		switch webSearchMode {
+		case "single":
+			// Single-round pre-search: extract query from user message, inject into system prompt
+			query := extractSearchQueryFromBody(anthropicBody)
+			if query != "" {
+				searchRound, nextToken, execErr := s.executeKiroMCPWebSearch(upstreamCtx, account, token, query)
+				if execErr == nil && searchRound != nil {
+					anthropicBody = injectSearchContextIntoBody(anthropicBody, *searchRound)
+					inputTokens = estimateKiroInputTokens(ctx, anthropicBody)
+					token = nextToken
+				}
+			}
+		case "orchestrated":
+			// Multi-round orchestrated search: use SearchOrchestrator for model-driven loop
+			if KiroWebSearchModelLoopEnabled() {
+				orchestrator := newKiroSearchOrchestrator(s)
+				rounds, finalBody, orchErr := orchestrator.runNonStreaming(
+					upstreamCtx, account, group, anthropicBody,
+					mappedModel, requestModel, token, headers,
+				)
+				if orchErr == nil && len(rounds) > 0 {
+					preSearchRounds = rounds
+					anthropicBody = finalBody
+					inputTokens = estimateKiroInputTokens(ctx, anthropicBody)
+				}
+			} else {
+				// Fallback: single-round search when model loop flag is off
+				query := extractSearchQueryFromBody(anthropicBody)
+				if query != "" {
+					searchRound, nextToken, execErr := s.executeKiroMCPWebSearch(upstreamCtx, account, token, query)
+					if execErr == nil && searchRound != nil {
+						preSearchRounds = []kiropkg.SearchRound{*searchRound}
+						token = nextToken
+					}
+				}
+			}
+		}
+
 	resp, requestCtx, err := s.executeKiroUpstreamWithParsed(upstreamCtx, account, parsed, anthropicBody, mappedModel, requestModel, token, headers)
 	if err != nil {
 		var failoverErr *UpstreamFailoverError
@@ -342,11 +384,24 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 
 	go func() {
 		defer func() { _ = resp.Body.Close() }()
-		_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx)
-		if streamErr != nil {
-			_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
-			_ = pw.CloseWithError(streamErr)
-			return
+
+		// If orchestrated search was executed, wrap the stream to inject search blocks
+		if len(preSearchRounds) > 0 {
+			streamErr := s.streamKiroWithSearchInjection(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx, preSearchRounds)
+			if streamErr != nil {
+				RecordStreamInjection(false)
+				_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
+				_ = pw.CloseWithError(streamErr)
+				return
+			}
+			RecordStreamInjection(true)
+		} else {
+			_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx)
+			if streamErr != nil {
+				_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
+				_ = pw.CloseWithError(streamErr)
+				return
+			}
 		}
 		_ = pw.Close()
 	}()
@@ -1017,4 +1072,202 @@ func coalesceKiroErrorMessage(statusCode int, upstreamMsg string) string {
 	default:
 		return "Upstream request failed"
 	}
+}
+
+// executeKiroMCPWebSearch calls the Kiro MCP web_search tool and converts the result to a SearchRound.
+// Results go through FromWebSearchResults for mandatory sanitization.
+func (s *GatewayService) executeKiroMCPWebSearch(ctx context.Context, account *Account, token, query string) (*kiropkg.SearchRound, string, error) {
+	start := time.Now()
+	results, nextToken, err := s.callKiroWebSearchMCP(ctx, account, token, query)
+	RecordSearchLatency(time.Since(start))
+	if err != nil {
+		RecordMCPCall(false)
+		return nil, nextToken, fmt.Errorf("kiro web search failed: %w", err)
+	}
+	if results == nil || len(results.Results) == 0 {
+		RecordMCPCall(true)
+		return nil, nextToken, fmt.Errorf("kiro web search returned no results")
+	}
+	RecordMCPCall(true)
+
+	// Use FromWebSearchResults for mandatory sanitization (URL, snippet, prompt injection)
+	items := kiropkg.FromWebSearchResults(results)
+	items = kiropkg.TruncateResults(items, 10, 8192) // enforce limits
+
+	round := &kiropkg.SearchRound{
+		Query:     query,
+		ToolUseID: kiropkg.GenerateToolUseID(),
+		Results:   items,
+		Source:    kiropkg.SearchSourceMCP,
+		Duration:  time.Since(start),
+		Outcome:   kiropkg.SearchOutcomeDone,
+	}
+
+	return round, nextToken, nil
+}
+
+// streamKiroWithSearchInjection wraps a Kiro stream and injects search blocks at the beginning.
+// It parses the upstream SSE events, injects server_tool_use and web_search_tool_result blocks
+// after message_start, then relays the rest with adjusted block indices.
+// Supports multiple search rounds (multi-round orchestrated search).
+func (s *GatewayService) streamKiroWithSearchInjection(
+	ctx context.Context,
+	upstreamBody io.ReadCloser,
+	downstream io.Writer,
+	model string,
+	inputTokens int,
+	requestCtx kiropkg.KiroRequestContext,
+	searchRounds []kiropkg.SearchRound,
+) error {
+	scanner := kiropkg.NewSSEScanner(upstreamBody)
+	allocator := kiropkg.NewSearchToolIDAllocator()
+
+	var searchBlocksInjected bool
+	var blockIndexOffset int // How many blocks we injected (to adjust upstream indices)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		event := scanner.Event()
+		data := scanner.Data()
+
+		// After message_start, inject search blocks for all rounds
+		if event == "message_start" && !searchBlocksInjected {
+			// First, write the message_start event
+			formatted := kiropkg.FormatSSE(event, data)
+			if _, err := downstream.Write(formatted); err != nil {
+				return fmt.Errorf("write message_start: %w", err)
+			}
+
+			// Now inject search blocks for each round using SSEWriter and SearchProjector
+			requestID := "req_search"
+			if len(searchRounds) > 0 && searchRounds[0].ToolUseID != "" {
+				requestID = fmt.Sprintf("req_%s", searchRounds[0].ToolUseID)
+			}
+			writer := kiropkg.NewAnthropicSSEWriter(ctx, downstream, model, requestID)
+
+			// Skip message_start since we already wrote it above
+			if err := writer.SkipMessageStart(); err != nil {
+				return fmt.Errorf("skip message_start: %w", err)
+			}
+
+			projector := kiropkg.NewSearchProjector(writer, allocator)
+
+			// Project all search rounds — only include rounds with actual results
+			for _, round := range searchRounds {
+				if round.Outcome == kiropkg.SearchOutcomeError ||
+					round.Outcome == kiropkg.SearchOutcomeDuplicateQuery ||
+					round.Outcome == kiropkg.SearchOutcomeTimeout {
+					continue // skip failed/duplicate/timeout rounds
+				}
+				if _, err := projector.ProjectSearchRound(round); err != nil {
+					return fmt.Errorf("inject search blocks round %d: %w", round.RoundNumber, err)
+				}
+			}
+
+			// Use actual writer block index to calculate offset (not assumed 2 per round)
+			blockIndexOffset = writer.BlockIndex() + 1
+			searchBlocksInjected = true
+			continue
+		}
+
+		// Adjust block indices in content_block_start, content_block_delta, and content_block_stop
+		if searchBlocksInjected && blockIndexOffset > 0 &&
+			(event == "content_block_start" || event == "content_block_stop" || event == "content_block_delta") {
+			adjustedData, err := adjustBlockIndex(data, blockIndexOffset)
+			if err != nil {
+				adjustedData = data
+			}
+			formatted := kiropkg.FormatSSE(event, adjustedData)
+			if _, err := downstream.Write(formatted); err != nil {
+				return fmt.Errorf("write adjusted %s: %w", event, err)
+			}
+			continue
+		}
+
+		// For all other events, relay as-is
+		formatted := kiropkg.FormatSSE(event, data)
+		if _, err := downstream.Write(formatted); err != nil {
+			return fmt.Errorf("write %s: %w", event, err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("scan upstream: %w", err)
+	}
+
+	return nil
+}
+
+// adjustBlockIndex adjusts the "index" field in a content_block_start or content_block_stop event.
+// It adds the given offset to the index value.
+func adjustBlockIndex(data []byte, offset int) ([]byte, error) {
+	var event map[string]any
+	if err := json.Unmarshal(data, &event); err != nil {
+		return nil, err
+	}
+
+	// Get the current index
+	indexFloat, ok := event["index"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("index field not found or not a number")
+	}
+
+	// Add offset
+	event["index"] = int(indexFloat) + offset
+
+	// Re-marshal
+	adjusted, err := json.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+
+	return adjusted, nil
+}
+func injectSearchContextIntoBody(body []byte, round kiropkg.SearchRound) []byte {
+	var req map[string]any
+	if err := json.Unmarshal(body, &req); err != nil {
+		return body
+	}
+	if len(round.Results) == 0 {
+		return body
+	}
+	// Build search context text
+	var sb strings.Builder
+	sb.WriteString("\n\n<search_results>\n")
+	sb.WriteString(fmt.Sprintf("Query: %s\n\n", round.Query))
+	for i, item := range round.Results {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, item.Title))
+		if item.URL != "" {
+			sb.WriteString(fmt.Sprintf("   URL: %s\n", item.URL))
+		}
+		if item.Snippet != "" {
+			sb.WriteString(fmt.Sprintf("   %s\n", item.Snippet))
+		}
+		sb.WriteString("\n")
+	}
+	sb.WriteString("</search_results>")
+	searchContext := sb.String()
+
+	// Append to system prompt
+	system := req["system"]
+	switch s := system.(type) {
+	case string:
+		req["system"] = s + searchContext
+	case []any:
+		// Multi-part system, append as text block
+		req["system"] = append(s, map[string]any{
+			"type": "text",
+			"text": searchContext,
+		})
+	case nil:
+		req["system"] = searchContext
+	}
+
+	modified, _ := json.Marshal(req)
+	return modified
 }

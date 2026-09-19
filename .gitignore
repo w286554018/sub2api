@@ -137,6 +137,7 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/ANTIGRAVITY_ATTRIBUTION_429.md
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
@@ -145,6 +146,7 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
+!docs/KIRO_ANTHROPIC_COMPATIBILITY_PLAN.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/
@@ -152,6 +154,10 @@ docs/screenshots/*
 !docs/screenshots/mobile-account-actions-menu.png
 .serena/
 .codex/
+.zcode/
+.zcodeignore
+.zcloud/
+.zcloudignore
 frontend/coverage/
 aicodex
 output/

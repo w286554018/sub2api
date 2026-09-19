@@ -108,8 +108,7 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	"224_user_platform_quotas_add_cn_providers.sql": newMigrationChecksumCompatibilityRule("5227db3c1a6a1e2e422a9f9ba9d1f490c708b6c6dd91ce89f3c48115421a3e55", "4de3bf301cd838bbaf85613ce37dd47643165c0e3f36a1075341ff71aa37fae1"),
 	// 157/237/238 是官方迁移，本 fork 就地在平台白名单里补了 kiro/adobe。
 	// 从官方镜像切到本 fork 的库记录的是官方 checksum，需要放行；
-	// 157 的另一 checksum 也已在既有生产库中观察到。兼容范围严格限制为这些
-	// 已知 checksum，两版约束的差异由 239_fork_platform_constraints_superset 统一收敛。
+	// 两版约束的差异由 239_fork_platform_constraints_superset 统一收敛。
 	"157_user_platform_quotas_add_grok.sql": newMigrationChecksumCompatibilityRule("a918734da39c2e5a82e4a5e9511bac1f4cf7e310ceadd647df52692320633c1b", "5cace8fa32c6174a72721cd9b01f28f4545de1fd7bcd9ca196a4225056ec4fb8"),
 	"237_add_minimax_platform.sql":          newMigrationChecksumCompatibilityRule("c754b29e15c10ef2a72887c4e2dd04a73a37c6c06218d1b2725836884450c03a", "f4c73d2dbce114ca7ade1aac51998c3465490f4f3c9b3e868e53590f3fa8601b"),
 	"238_opencode_go_platform.sql":          newMigrationChecksumCompatibilityRule("d310f134e119bd0b01c36e048841d04e1adc04a117c5c516ccdbbc8800742414", "6f987e251519bd3759e60da44620a5d777494cceb333b6ce394aa0ea536ef5a2"),

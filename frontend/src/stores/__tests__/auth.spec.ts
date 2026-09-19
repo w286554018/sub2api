@@ -43,6 +43,14 @@ const fakeAdminUser = {
   role: 'admin' as const,
 }
 
+const fakeSuperAdminUser = {
+  ...fakeUser,
+  id: 3,
+  username: 'super-admin',
+  email: 'super-admin@example.com',
+  role: 'super_admin' as const,
+}
+
 const fakeAuthResponse = {
   access_token: 'test-token-123',
   refresh_token: 'refresh-token-456',
@@ -327,6 +335,15 @@ describe('useAuthStore', () => {
       expect(store.isAdmin).toBe(true)
     })
 
+    it('超级管理员用户也返回 true', async () => {
+      mockLogin.mockResolvedValue({ ...fakeAuthResponse, user: { ...fakeSuperAdminUser } })
+      const store = useAuthStore()
+
+      await store.login({ email: 'super-admin@example.com', password: '123456' })
+
+      expect(store.isAdmin).toBe(true)
+    })
+
     it('普通用户返回 false', async () => {
       mockLogin.mockResolvedValue(fakeAuthResponse)
       const store = useAuthStore()
@@ -339,6 +356,26 @@ describe('useAuthStore', () => {
     it('未登录时返回 false', () => {
       const store = useAuthStore()
       expect(store.isAdmin).toBe(false)
+    })
+  })
+
+  describe('isSuperAdmin', () => {
+    it('仅超级管理员返回 true', async () => {
+      mockLogin.mockResolvedValue({ ...fakeAuthResponse, user: { ...fakeSuperAdminUser } })
+      const store = useAuthStore()
+
+      await store.login({ email: 'super-admin@example.com', password: '123456' })
+
+      expect(store.isSuperAdmin).toBe(true)
+    })
+
+    it('普通管理员返回 false', async () => {
+      mockLogin.mockResolvedValue({ ...fakeAuthResponse, user: { ...fakeAdminUser } })
+      const store = useAuthStore()
+
+      await store.login({ email: 'admin@example.com', password: '123456' })
+
+      expect(store.isSuperAdmin).toBe(false)
     })
   })
 

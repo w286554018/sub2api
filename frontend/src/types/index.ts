@@ -63,6 +63,8 @@ export interface UserProfileSourceContext {
   provider_label?: string | null
 }
 
+export type UserRole = 'super_admin' | 'admin' | 'user'
+
 export interface User {
   id: number
   username: string
@@ -84,7 +86,7 @@ export interface User {
   linuxdo_bound?: boolean
   oidc_bound?: boolean
   wechat_bound?: boolean
-  role: 'admin' | 'user' // User role for authorization
+  role: UserRole // User role for authorization
   balance: number // User balance for API usage
   frozen_balance?: number // Balance currently held by async batch jobs
   concurrency: number // Allowed concurrent requests
@@ -1192,6 +1194,14 @@ export interface Account {
   credentials?: Record<string, unknown>
   credentials_status?: Record<string, boolean>
   ollama_cloud_usage?: OllamaCloudUsageState
+  codex_turn_tickets?: Array<{
+    model: string
+    length?: number
+    ready: boolean
+    remaining_seconds: number
+    blocked: boolean
+    expires_at?: string
+  }>
   // Extra fields including Codex usage, OpenAI compact capability, and model-level rate limits.
   extra?: (CodexUsageSnapshot & OpenAICompactState & {
     model_rate_limits?: Record<string, { rate_limited_at: string; rate_limit_reset_at: string }>
@@ -1323,6 +1333,44 @@ kiro_credit_unit_price_usd?: number
   parent_privacy_mode?: string
   parent_subscription_expires_at?: string
   parent_chatgpt_account_id?: string
+}
+
+export interface OpenAIAccountRuntimeSnapshot {
+  source: 'computed' | string
+  observed: boolean
+  account_id: number
+  platform: AccountPlatform | string
+  type: AccountType | string
+  auth_type: string
+  account_revision: string
+  configured: OpenAIAccountRuntimeConfiguredSnapshot
+  effective: OpenAIAccountRuntimeEffectiveSnapshot
+}
+
+export interface OpenAIAccountRuntimeConfiguredSnapshot {
+  passthrough: boolean
+  websocket_mode: string
+  force_http: boolean
+  concurrency: number
+  load_factor?: number | null
+  proxy_id?: number | null
+}
+
+export interface OpenAIAccountRuntimeEffectiveSnapshot {
+  transport: string
+  transport_reason: string
+  core_transport: string
+  core_transport_reason: string
+  plugin_routed: boolean
+  plugin_mode: string
+  passthrough: boolean
+  fingerprint_mode: string
+  fingerprint_convergence: boolean
+  device_wire_profile: boolean
+  proxy_mode: string
+  proxy_id?: number | null
+  concurrency: number
+  load_factor: number
 }
 
 // The admin account list may return this compact shape when lite=1. Detail
@@ -1526,7 +1574,7 @@ export interface CodexUsageSnapshot {
 
 export type OpenAICompactMode = 'auto' | 'force_on' | 'force_off'
 export type OpenAIResponsesMode = 'auto' | 'force_responses' | 'force_chat_completions'
-export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings'
+export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance'
 
 export interface OpenAICompactState {
   openai_compact_mode?: OpenAICompactMode
@@ -1758,6 +1806,26 @@ export type RedeemCodeType = 'balance' | 'concurrency' | 'subscription' | 'invit
 export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2' | 'cyber' | 'live'
 export type ImageSizeSource = 'output' | 'input' | 'default' | 'legacy'
 export type ImageSizeBreakdown = Record<string, number>
+
+export interface BillingStatementRow {
+  model: string
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  cache_tokens: number
+  total_tokens: number
+  cost: number
+}
+
+export interface BillingStatement {
+  user_id: number
+  year: number
+  month: number
+  rows: BillingStatementRow[]
+  requests: number
+  total_tokens: number
+  cost: number
+}
 
 export interface UsageLog {
   id: number
@@ -2099,7 +2167,7 @@ export interface UpdateUserRequest {
   password?: string
   username?: string
   notes?: string
-  role?: 'admin' | 'user'
+  role?: UserRole
   balance?: number
   concurrency?: number
   rpm_limit?: number

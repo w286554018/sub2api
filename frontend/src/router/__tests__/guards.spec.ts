@@ -51,6 +51,7 @@ vi.mock('@/api/auth', () => ({
 interface MockAuthState {
   isAuthenticated: boolean
   isAdmin: boolean
+  isSuperAdmin?: boolean
   isSimpleMode: boolean
   backendModeEnabled: boolean
   hasPendingAuthSession: boolean
@@ -67,6 +68,7 @@ function simulateGuard(
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
+  const requiresSuperAdmin = toMeta.requiresSuperAdmin === true
 
   if (toPath === '/setup' && authState.setupNeedsSetup === false) {
     return resolveCompletedSetupRedirectPath(authState.isAuthenticated, authState.isAdmin)
@@ -112,6 +114,10 @@ function simulateGuard(
   // 需要管理员但不是管理员
   if (requiresAdmin && !authState.isAdmin) {
     return '/dashboard'
+  }
+
+  if (requiresSuperAdmin && !authState.isSuperAdmin) {
+    return '/admin/dashboard'
   }
 
   // 简易模式限制
@@ -250,6 +256,35 @@ describe('路由守卫逻辑', () => {
 
     it('访问用户页面允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('访问超级管理员页面被重定向到管理仪表盘', () => {
+      const redirect = simulateGuard(
+        '/admin/settings',
+        { requiresAdmin: true, requiresSuperAdmin: true },
+        authState
+      )
+      expect(redirect).toBe('/admin/dashboard')
+    })
+  })
+
+  describe('已认证超级管理员', () => {
+    const authState: MockAuthState = {
+      isAuthenticated: true,
+      isAdmin: true,
+      isSuperAdmin: true,
+      isSimpleMode: false,
+      backendModeEnabled: false,
+      hasPendingAuthSession: false,
+    }
+
+    it('访问超级管理员页面允许通过', () => {
+      const redirect = simulateGuard(
+        '/admin/settings',
+        { requiresAdmin: true, requiresSuperAdmin: true },
+        authState
+      )
       expect(redirect).toBeNull()
     })
   })

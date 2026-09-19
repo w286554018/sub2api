@@ -3,11 +3,15 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import UserEditModal from '../UserEditModal.vue'
 
-const { update, updateUserAttributeValues, showSuccess, showError } = vi.hoisted(() => ({
+const { update, updateUserAttributeValues, showSuccess, showError, authState } = vi.hoisted(() => ({
   update: vi.fn(),
   updateUserAttributeValues: vi.fn(),
   showSuccess: vi.fn(),
-  showError: vi.fn()
+  showError: vi.fn(),
+  authState: {
+    isSuperAdmin: false,
+    user: { id: 99, role: 'admin' },
+  },
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -19,6 +23,10 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({ showSuccess, showError })
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState,
 }))
 
 vi.mock('@/composables/useClipboard', () => ({
@@ -34,10 +42,10 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   })
 }))
 
-const mountModal = (concurrency: number) => mount(UserEditModal, {
+const mountModal = (concurrency: number, user: Record<string, unknown> = {}) => mount(UserEditModal, {
   props: {
     show: true,
-    user: { id: 7, email: 'user@example.test', username: 'user', notes: '', role: 'user', concurrency, rpm_limit: 0 } as never
+    user: { id: 7, email: 'user@example.test', username: 'user', notes: '', role: 'user', concurrency, rpm_limit: 0, ...user } as never
   },
   global: {
     stubs: {
@@ -60,6 +68,8 @@ describe('UserEditModal concurrency', () => {
     showSuccess.mockReset()
     showError.mockReset()
     update.mockResolvedValue({})
+    authState.isSuperAdmin = false
+    authState.user = { id: 99, role: 'admin' }
   })
 
   // Regression coverage for issue #5977: the gateway treats concurrency <= 0 as
@@ -86,5 +96,28 @@ describe('UserEditModal concurrency', () => {
 
     expect(showError).toHaveBeenCalledWith('admin.users.concurrencyNonNegative')
     expect(update).not.toHaveBeenCalled()
+  })
+
+  it('ordinary administrators cannot edit privileged users', () => {
+    const wrapper = mountModal(3, { id: 8, role: 'admin' })
+
+    expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('ordinary administrators cannot submit role changes for normal users', async () => {
+    const wrapper = mountModal(3)
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(update).toHaveBeenCalledWith(7, expect.not.objectContaining({ role: expect.anything() }))
+  })
+
+  it('super administrators can edit privileged users', () => {
+    authState.isSuperAdmin = true
+
+    const wrapper = mountModal(3, { id: 8, role: 'admin' })
+
+    expect(wrapper.find('form').exists()).toBe(true)
   })
 })

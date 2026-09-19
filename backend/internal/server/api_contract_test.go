@@ -961,6 +961,9 @@ func TestAPIContracts(t *testing.T) {
 					"openai_codex_client_version":       "",
 					"openai_codex_client_version_synced": "",
 					"openai_codex_version_auto_sync_enabled": true,
+					"openai_codex_ticket_enabled": false,
+					"openai_codex_ticket_harvest_proxy_url": "",
+					"openai_codex_ticket_harvest_proxy_configured": false,
 					"openai_fast_policy_settings": {
 						"rules": []
 					},
@@ -1278,6 +1281,9 @@ func TestAPIContracts(t *testing.T) {
 					"openai_codex_client_version":       "",
 					"openai_codex_client_version_synced": "",
 					"openai_codex_version_auto_sync_enabled": true,
+					"openai_codex_ticket_enabled": false,
+					"openai_codex_ticket_harvest_proxy_url": "",
+					"openai_codex_ticket_harvest_proxy_configured": false,
 					"openai_fast_policy_settings": {
 						"rules": []
 					},
@@ -1608,10 +1614,12 @@ func (r *stubUserRepo) GetByEmail(ctx context.Context, email string) (*service.U
 }
 
 func (r *stubUserRepo) GetFirstAdmin(ctx context.Context) (*service.User, error) {
-	for _, user := range r.users {
-		if user.Role == service.RoleAdmin && user.Status == service.StatusActive {
-			clone := *user
-			return &clone, nil
+	for _, role := range []string{service.RoleSuperAdmin, service.RoleAdmin} {
+		for _, user := range r.users {
+			if user.Role == role && user.Status == service.StatusActive {
+				clone := *user
+				return &clone, nil
+			}
 		}
 	}
 	return nil, service.ErrUserNotFound

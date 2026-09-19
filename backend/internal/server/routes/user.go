@@ -112,6 +112,13 @@ func RegisterUserRoutes(
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
 		}
 
+		billing := authenticated.Group("/billing")
+		billing.Use(panelRateLimiter.Heavy())
+		{
+			billing.GET("/statement", h.Usage.BillingStatement)
+			billing.GET("/export", h.Usage.ExportBillingCSV)
+		}
+
 		// 公告（用户可见）
 		announcements := authenticated.Group("/announcements")
 		{

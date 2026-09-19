@@ -1,0 +1,32 @@
+{
+  "id": "kiro-phase1-protocol-improvement",
+  "name": "kiro-phase1-protocol-improvement",
+  "title": "Kiro Phase 1: Protocol Improvement",
+  "description": "基于 KIRO_PHASE1_DEV_SPEC.md 实施 Phase 1: Step 1 流式状态机+协议指纹修复, Step 2 结构化输出 Schema 校验闭环. 目标 CCTest 50->68.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P0",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-08-31",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-31-kiro-p1s1-sse-state-machine",
+    "08-31-kiro-p1s2-structured-output",
+    "09-01-kiro-phase2-conditional-injection-thinking"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

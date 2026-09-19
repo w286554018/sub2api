@@ -964,20 +964,30 @@ func (h *GroupHandler) GetStats(c *gin.Context) {
 	if h.rejectUnsupportedSimpleModeOperation(c, "stats") {
 		return
 	}
+	c.Header("Cache-Control", "no-store")
 	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || groupID < 1 {
 		response.BadRequest(c, "Invalid group ID")
 		return
 	}
 
-	// Return mock data for now
-	response.Success(c, gin.H{
-		"total_api_keys":  0,
-		"active_api_keys": 0,
-		"total_requests":  0,
-		"total_cost":      0.0,
-	})
-	_ = groupID // TODO: implement actual stats
+	var from, to *time.Time
+	for key, target := range map[string]**time.Time{"from": &from, "to": &to} {
+		if raw := strings.TrimSpace(c.Query(key)); raw != "" {
+			value, parseErr := time.Parse(time.RFC3339, raw)
+			if parseErr != nil {
+				response.BadRequest(c, "time range must use RFC3339 format")
+				return
+			}
+			*target = &value
+		}
+	}
+
+	stats, err := h.dashboardService.GetGroupDetailStats(c.Request.Context(), groupID, from, to)
+	if response.ErrorFrom(c, err) {
+		return
+	}
+	response.Success(c, stats)
 }
 
 // GetUsageSummary returns today's, yesterday's, and cumulative cost for all groups.

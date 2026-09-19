@@ -116,14 +116,14 @@ func TestAuditImagesDeviceWire(t *testing.T) {
 	c.Set("api_key", &APIKey{ID: 9921})
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusOK,
-		Header:     http.Header{"Content-Type": {"text/event-stream"}},
+		Header:     http.Header{"Content-Type": {"application/json"}},
 		Body: io.NopCloser(strings.NewReader(
-			"data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":1},\"output\":[{\"type\":\"image_generation_call\",\"result\":\"aW1hZ2U=\",\"output_format\":\"png\"}]}}\n\n")),
+			`{"data":[{"b64_json":"aW1hZ2U=","output_format":"png"}],"model":"gpt-image-2"}`)),
 	}}
 	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
-	_, err = svc.ForwardImages(withOpenAIImagesForceResponses(context.Background()), c, codexIdentityAccount(), body, parsed, "")
+	_, err = svc.ForwardImages(context.Background(), c, codexIdentityAccount(), body, parsed, "")
 	require.NoError(t, err)
 	wire := auditDecodeWire(t, upstream)
 	require.NotEmpty(t, gjson.GetBytes(wire, "client_metadata.x-codex-installation-id").String())

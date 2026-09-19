@@ -170,6 +170,14 @@ func codexWSIntegrationContext(headers http.Header, body []byte) (*gin.Context, 
 	return c, recorder
 }
 
+func codexWSIntegrationStateKey(svc *OpenAIGatewayService, c *gin.Context, body []byte) string {
+	key := svc.GenerateSessionHash(c, body)
+	if scope, _ := resolveOpenAIWSExecutionScope(c, body, getAPIKeyIDFromContext(c)); scope != "" {
+		key = scope
+	}
+	return key
+}
+
 func forwardCodexWSIntegration(t *testing.T, svc *OpenAIGatewayService, account *Account, headers http.Header, frame []byte) (*gin.Context, *httptest.ResponseRecorder, *OpenAIForwardResult) {
 	t.Helper()
 	body, err := sjson.DeleteBytes(frame, "type")
@@ -759,10 +767,7 @@ func TestCodexWSIntegrationHandshakeStateNeverEntersFreshFrame(t *testing.T) {
 					}
 					c, _ := codexWSIntegrationContext(headers, first)
 					store := svc.getOpenAIWSStateStore()
-					sessionHash, _ := resolveOpenAIWSExecutionScope(c, first, getAPIKeyIDFromContext(c))
-					if sessionHash == "" {
-						sessionHash = svc.GenerateSessionHash(c, first)
-					}
+					sessionHash := codexWSIntegrationStateKey(svc, c, first)
 					saved, ok := store.GetSessionTurnState(0, sessionHash)
 					require.True(t, ok, "must populate the exact session cache used by the next entrypoint")
 					require.Equal(t, blob, saved)
@@ -843,11 +848,7 @@ func TestCodexWSIntegrationShadowMetadataUsesParentCredential(t *testing.T) {
 				headers := codexWSIntegrationHeaders()
 				if mode != OpenAIWSIngressModePassthrough {
 					c, _ := codexWSIntegrationContext(headers, nil)
-					sessionHash, _ := resolveOpenAIWSExecutionScope(c, nil, getAPIKeyIDFromContext(c))
-					if sessionHash == "" {
-						sessionHash = svc.GenerateSessionHash(c, nil)
-					}
-					connID, ok := svc.getOpenAIWSStateStore().GetSessionConn(0, sessionHash)
+					connID, ok := svc.getOpenAIWSStateStore().GetSessionConn(0, codexWSIntegrationStateKey(svc, c, nil))
 					require.True(t, ok)
 					svc.getOpenAIWSConnPool().evictConn(shadow.ID, connID)
 				}

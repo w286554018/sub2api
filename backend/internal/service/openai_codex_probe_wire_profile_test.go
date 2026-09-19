@@ -17,7 +17,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/gin-gonic/gin"
+	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 type codexModelsProbeServer struct {
@@ -134,7 +136,7 @@ func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {
 						require.NoError(t, err)
 					}
 					c, rec := newCodexProbeAdminContext()
-					err := svc.testOpenAIAccountConnection(c, account, model, "offline", testMode)
+					err := svc.testOpenAIAccountConnection(c, account, model, "", testMode)
 					requests, bodies := models.captured()
 					if enabled && mode == "device" {
 						require.NoError(t, err)
@@ -161,6 +163,35 @@ func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestCodexDeviceWireProfileConfiguredPromptUsesInferenceRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	models := newCodexModelsProbeServer(t)
+	account := codexProbeTestAccount(true)
+	up := &httpUpstreamRecorder{err: errors.New("offline-inference-captured")}
+	gateway := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: up}
+	svc := &AccountTestService{cfg: &config.Config{}, httpUpstream: up, openaiGatewayService: gateway}
+	c, _ := newCodexProbeAdminContext()
+
+	err := svc.testOpenAIAccountConnection(c, account, "gpt-5.5", intelligentPromptRegressionText, AccountTestModeDefault)
+
+	require.ErrorContains(t, err, "offline-inference-captured")
+	requests, _ := models.captured()
+	require.Empty(t, requests)
+	require.Len(t, up.requests, 1)
+	require.Equal(t, http.MethodPost, up.lastReq.Method)
+	require.Equal(t, "zstd", up.lastReq.Header.Get("Content-Encoding"))
+	require.NotEmpty(t, up.lastReq.Header.Get("Version"))
+	require.NotEmpty(t, up.lastReq.Header.Get("Originator"))
+	decoder, decodeErr := zstd.NewReader(nil)
+	require.NoError(t, decodeErr)
+	t.Cleanup(decoder.Close)
+	plain, decodeErr := decoder.DecodeAll(up.lastBody, nil)
+	require.NoError(t, decodeErr)
+	require.Equal(t, intelligentPromptRegressionText, gjson.GetBytes(plain, "input.0.content.0.text").String())
+	require.NotEmpty(t, gjson.GetBytes(plain, "client_metadata.x-codex-installation-id").String())
+	require.False(t, c.GetBool(accountTestCredentialsOnlyKey))
 }
 
 func TestCodexModelsSetupTokenOnlyUnderDeviceWireProfile(t *testing.T) {

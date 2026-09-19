@@ -12,7 +12,8 @@ const {
   getAllGroups,
   getBatchUsersUsage,
   listEnabledDefinitions,
-  getBatchUserAttributes
+  getBatchUserAttributes,
+  authState
 } = vi.hoisted(() => ({
   listUsers: vi.fn(),
   deleteUser: vi.fn(),
@@ -21,7 +22,11 @@ const {
   getAllGroups: vi.fn(),
   getBatchUsersUsage: vi.fn(),
   listEnabledDefinitions: vi.fn(),
-  getBatchUserAttributes: vi.fn()
+  getBatchUserAttributes: vi.fn(),
+  authState: {
+    isSuperAdmin: false,
+    user: { id: 100, role: 'admin' }
+  }
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -49,6 +54,10 @@ vi.mock('@/stores/app', () => ({
     showError,
     showSuccess
   })
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -104,7 +113,9 @@ const DataTableStub = {
         <slot :name="'header-' + col.key" :column="col" />
       </template>
       <div v-for="row in data" :key="row.id">
+        <slot name="cell-role" :value="row.role" :row="row" />
         <slot name="cell-last_used_at" :value="row.last_used_at" :row="row" />
+        <slot name="cell-actions" :row="row" />
       </div>
     </div>
   `
@@ -188,6 +199,8 @@ describe('admin UsersView', () => {
     getBatchUsersUsage.mockReset()
     listEnabledDefinitions.mockReset()
     getBatchUserAttributes.mockReset()
+    authState.isSuperAdmin = false
+    authState.user = { id: 100, role: 'admin' }
 
     listUsers.mockResolvedValue({
       items: [createAdminUser()],
@@ -434,5 +447,39 @@ describe('admin UsersView', () => {
     expect(wrapper.get('[data-test="row-order"]').text()).toBe('refreshed-page-two@example.com')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  it('hides privileged user actions from ordinary administrators', async () => {
+    listUsers.mockResolvedValue({
+      items: [createAdminUser({ role: 'admin' })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+
+    const wrapper = mountUsersView()
+    await flushPromises()
+
+    expect(wrapper.find('.action-menu-trigger').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('common.edit')
+  })
+
+  it('lets super administrators manage privileged users', async () => {
+    authState.isSuperAdmin = true
+    authState.user = { id: 100, role: 'super_admin' }
+    listUsers.mockResolvedValue({
+      items: [createAdminUser({ role: 'admin' })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+
+    const wrapper = mountUsersView()
+    await flushPromises()
+
+    expect(wrapper.find('.action-menu-trigger').exists()).toBe(true)
+    expect(wrapper.text()).toContain('common.edit')
   })
 })

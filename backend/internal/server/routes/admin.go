@@ -94,7 +94,7 @@ func RegisterAdminRoutes(
 		registerSubscriptionRoutes(admin, h)
 
 		// 使用记录管理
-		registerUsageRoutes(admin, h)
+		registerUsageRoutes(admin, h, stepUpAuth)
 
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
@@ -114,7 +114,14 @@ func RegisterAdminRoutes(
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
 
+		// 智能测试中心
+		registerIntelligentTestRoutes(admin, h)
+
+		// 账号健康只读看板
+		registerAccountHealthRoutes(admin, h, stepUpAuth)
+
 		// 渠道管理
+		registerGlobalPricingRoutes(admin, h)
 		registerChannelRoutes(admin, h)
 
 		// 渠道监控
@@ -135,6 +142,17 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerGlobalPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/global-pricing")
+	{
+		pricing.GET("", h.Admin.GlobalPricing.List)
+		pricing.POST("", h.Admin.GlobalPricing.Create)
+		pricing.PUT("/:id", h.Admin.GlobalPricing.Update)
+		pricing.DELETE("/:id", h.Admin.GlobalPricing.Delete)
+		pricing.POST("/:id/enable", h.Admin.GlobalPricing.SetEnabled)
 	}
 }
 
@@ -382,6 +400,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/upstream-billing-probe/batch", h.Admin.Account.ProbeUpstreamBillingBatch)
 		accounts.GET("/ollama-cloud-usage/settings", h.Admin.Account.GetOllamaCloudUsageSettings)
 		accounts.PUT("/ollama-cloud-usage/settings", h.Admin.Account.UpdateOllamaCloudUsageSettings)
+		accounts.GET("/:id/runtime", h.Admin.Account.GetRuntime)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/:id/duplicate", h.Admin.Account.Duplicate)
@@ -589,49 +608,50 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	adminSettings := admin.Group("/settings")
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
-		adminSettings.PUT("", h.Admin.Setting.UpdateSettings)
-		adminSettings.POST("/test-smtp", h.Admin.Setting.TestSMTPConnection)
-		adminSettings.POST("/send-test-email", h.Admin.Setting.SendTestEmail)
+		adminSettings.PUT("", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateSettings)
+		adminSettings.POST("/test-smtp", middleware.SuperAdminOnly(), h.Admin.Setting.TestSMTPConnection)
+		adminSettings.POST("/send-test-email", middleware.SuperAdminOnly(), h.Admin.Setting.SendTestEmail)
 		adminSettings.GET("/email-templates", h.Admin.Setting.ListEmailTemplates)
 		adminSettings.POST("/email-template-preview", h.Admin.Setting.PreviewEmailTemplate)
 		adminSettings.GET("/email-templates/:event/:locale", h.Admin.Setting.GetEmailTemplate)
-		adminSettings.PUT("/email-templates/:event/:locale", h.Admin.Setting.UpdateEmailTemplate)
-		adminSettings.POST("/email-templates/:event/:locale/restore-official", h.Admin.Setting.RestoreOfficialEmailTemplate)
+		adminSettings.PUT("/email-templates/:event/:locale", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateEmailTemplate)
+		adminSettings.POST("/email-templates/:event/:locale/restore-official", middleware.SuperAdminOnly(), h.Admin.Setting.RestoreOfficialEmailTemplate)
 		// Admin API Key 管理
-		adminSettings.GET("/admin-api-key", h.Admin.Setting.GetAdminAPIKey)
-		adminSettings.POST("/admin-api-key/regenerate", h.Admin.Setting.RegenerateAdminAPIKey)
-		adminSettings.DELETE("/admin-api-key", h.Admin.Setting.DeleteAdminAPIKey)
+		adminSettings.GET("/admin-api-key", middleware.SuperAdminOnly(), h.Admin.Setting.GetAdminAPIKey)
+		adminSettings.POST("/admin-api-key/regenerate", middleware.SuperAdminOnly(), h.Admin.Setting.RegenerateAdminAPIKey)
+		adminSettings.DELETE("/admin-api-key", middleware.SuperAdminOnly(), h.Admin.Setting.DeleteAdminAPIKey)
 		// 529过载冷却配置
 		adminSettings.GET("/overload-cooldown", h.Admin.Setting.GetOverloadCooldownSettings)
-		adminSettings.PUT("/overload-cooldown", h.Admin.Setting.UpdateOverloadCooldownSettings)
+		adminSettings.PUT("/overload-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateOverloadCooldownSettings)
 		// 429默认回避配置
 		adminSettings.GET("/rate-limit-429-cooldown", h.Admin.Setting.GetRateLimit429CooldownSettings)
-		adminSettings.PUT("/rate-limit-429-cooldown", h.Admin.Setting.UpdateRateLimit429CooldownSettings)
+		adminSettings.PUT("/rate-limit-429-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateRateLimit429CooldownSettings)
 		// OpenAI OAuth image-tool unavailable cooldown configuration
 		adminSettings.GET("/openai-images-oauth-unavailable-cooldown", h.Admin.Setting.GetOpenAIImagesOAuthUnavailableCooldownSettings)
-		adminSettings.PUT("/openai-images-oauth-unavailable-cooldown", h.Admin.Setting.UpdateOpenAIImagesOAuthUnavailableCooldownSettings)
+		adminSettings.PUT("/openai-images-oauth-unavailable-cooldown", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateOpenAIImagesOAuthUnavailableCooldownSettings)
 		// 面板 API 限流配置
 		adminSettings.GET("/panel-rate-limit", h.Admin.Setting.GetPanelRateLimitSettings)
-		adminSettings.PUT("/panel-rate-limit", h.Admin.Setting.UpdatePanelRateLimitSettings)
+		adminSettings.PUT("/panel-rate-limit", middleware.SuperAdminOnly(), h.Admin.Setting.UpdatePanelRateLimitSettings)
 		// 流超时处理配置
 		adminSettings.GET("/stream-timeout", h.Admin.Setting.GetStreamTimeoutSettings)
-		adminSettings.PUT("/stream-timeout", h.Admin.Setting.UpdateStreamTimeoutSettings)
+		adminSettings.PUT("/stream-timeout", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateStreamTimeoutSettings)
 		// 请求整流器配置
 		adminSettings.GET("/rectifier", h.Admin.Setting.GetRectifierSettings)
-		adminSettings.PUT("/rectifier", h.Admin.Setting.UpdateRectifierSettings)
+		adminSettings.PUT("/rectifier", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateRectifierSettings)
 		// Beta 策略配置
 		adminSettings.GET("/beta-policy", h.Admin.Setting.GetBetaPolicySettings)
-		adminSettings.PUT("/beta-policy", h.Admin.Setting.UpdateBetaPolicySettings)
+		adminSettings.PUT("/beta-policy", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateBetaPolicySettings)
 		// Web Search 模拟配置
 		adminSettings.GET("/web-search-emulation", h.Admin.Setting.GetWebSearchEmulationConfig)
-		adminSettings.PUT("/web-search-emulation", h.Admin.Setting.UpdateWebSearchEmulationConfig)
-		adminSettings.POST("/web-search-emulation/test", h.Admin.Setting.TestWebSearchEmulation)
-		adminSettings.POST("/web-search-emulation/reset-usage", h.Admin.Setting.ResetWebSearchUsage)
+		adminSettings.PUT("/web-search-emulation", middleware.SuperAdminOnly(), h.Admin.Setting.UpdateWebSearchEmulationConfig)
+		adminSettings.POST("/web-search-emulation/test", middleware.SuperAdminOnly(), h.Admin.Setting.TestWebSearchEmulation)
+		adminSettings.POST("/web-search-emulation/reset-usage", middleware.SuperAdminOnly(), h.Admin.Setting.ResetWebSearchUsage)
 	}
 }
 
 func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	dataManagement := admin.Group("/data-management")
+	dataManagement.Use(middleware.SuperAdminOnly())
 	{
 		dataManagement.GET("/agent/health", h.Admin.DataManagement.GetAgentHealth)
 		dataManagement.GET("/config", h.Admin.DataManagement.GetConfig)
@@ -656,6 +676,7 @@ func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 
 func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	backup := admin.Group("/backups")
+	backup.Use(middleware.SuperAdminOnly())
 	{
 		// S3 存储配置
 		backup.GET("/s3-config", h.Admin.Backup.GetS3Config)
@@ -688,6 +709,7 @@ func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 
 func registerSystemRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	system := admin.Group("/system")
+	system.Use(middleware.SuperAdminOnly())
 	{
 		system.GET("/version", h.Admin.System.GetVersion)
 		system.GET("/check-updates", h.Admin.System.CheckUpdates)
@@ -721,7 +743,7 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	admin.GET("/users/:id/subscriptions", h.Admin.Subscription.ListByUser)
 }
 
-func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	usage := admin.Group("/usage")
 	{
 		usage.GET("", h.Admin.Usage.List)
@@ -731,6 +753,12 @@ func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		usage.GET("/cleanup-tasks", h.Admin.Usage.ListCleanupTasks)
 		usage.POST("/cleanup-tasks", h.Admin.Usage.CreateCleanupTask)
 		usage.POST("/cleanup-tasks/:id/cancel", h.Admin.Usage.CancelCleanupTask)
+	}
+
+	billing := admin.Group("/billing/users/:userId")
+	{
+		billing.GET("/statement", h.Admin.Usage.BillingStatement)
+		billing.GET("/export", gin.HandlerFunc(stepUpAuth), h.Admin.Usage.ExportBillingCSV)
 	}
 }
 
@@ -758,6 +786,32 @@ func registerScheduledTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	admin.GET("/accounts/:id/scheduled-test-plans", h.Admin.ScheduledTest.ListByAccount)
 }
 
+func registerIntelligentTestRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	tests := admin.Group("/intelligent-tests")
+	{
+		tests.GET("/accounts", h.Admin.IntelligentTest.Accounts)
+		tests.GET("/jobs", h.Admin.IntelligentTest.Jobs)
+		tests.POST("/jobs", h.Admin.IntelligentTest.Run)
+		tests.GET("/jobs/:id", h.Admin.IntelligentTest.GetJob)
+		tests.POST("/jobs/:id/cancel", h.Admin.IntelligentTest.Cancel)
+		tests.POST("/jobs/:id/reevaluate", h.Admin.IntelligentTest.Reevaluate)
+		tests.GET("/settings", h.Admin.IntelligentTest.Settings)
+		tests.PUT("/settings/:test_type", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.UpdateSetting)
+		tests.POST("/evaluate-preview", middleware.SuperAdminOnly(), h.Admin.IntelligentTest.PreviewEvaluation)
+	}
+}
+
+func registerAccountHealthRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	health := admin.Group("/account-health")
+	{
+		health.GET("", h.Admin.AccountHealth.Snapshot)
+		health.GET("/settings", h.Admin.AccountHealth.Settings)
+		health.PUT("/settings", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.UpdateSettings)
+		health.POST("/:id/isolate", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.ManualIsolate)
+		health.DELETE("/:id/isolation", middleware.SuperAdminOnly(), gin.HandlerFunc(stepUpAuth), h.Admin.AccountHealth.ManualRecover)
+	}
+}
+
 func registerErrorPassthroughRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	rules := admin.Group("/error-passthrough-rules")
 	{
@@ -782,6 +836,7 @@ func registerTLSFingerprintProfileRoutes(admin *gin.RouterGroup, h *handler.Hand
 
 func registerPluginRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	plugins := admin.Group("/plugins")
+	plugins.Use(middleware.SuperAdminOnly())
 	{
 		plugins.GET("", h.Admin.Plugin.List)
 		plugins.GET("/:id", h.Admin.Plugin.Get)
@@ -790,6 +845,7 @@ func registerPluginRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 		plugins.POST("/:id/disable", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Disable)
 		plugins.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Delete)
 		plugins.GET("/:id/config", h.Admin.Plugin.GetConfig)
+		plugins.GET("/:id/status", h.Admin.Plugin.Status)
 		plugins.PUT("/:id/config", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.SaveConfig)
 		plugins.POST("/:id/test", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Test)
 		plugins.POST("/:id/ui-session", h.Admin.Plugin.CreateUISession)

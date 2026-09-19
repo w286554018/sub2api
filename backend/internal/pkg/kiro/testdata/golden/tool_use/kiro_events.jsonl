@@ -1,0 +1,5 @@
+{"eventType":"assistantResponseEvent","event":{"assistantResponseEvent":{"content":"Let me check the weather for you."}},"seq":1}
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000001","name":"get_weather","input":"{\"location\":\"Paris\"}"}},"seq":2}
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000001","name":"get_weather","stop":true}},"seq":3}
+{"eventType":"messageMetadataEvent","event":{"messageMetadataEvent":{"usage":{"inputTokens":50,"outputTokens":35},"stopReason":"tool_use"}},"seq":4}
+{"eventType":"messageStopEvent","event":{},"seq":5}

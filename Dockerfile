@@ -25,6 +25,7 @@ ARG NPM_CONFIG_REGISTRY
 ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
 
 WORKDIR /app/frontend
+ENV NODE_OPTIONS=--max-old-space-size=2048
 
 # Install pnpm (pinned to v9 to match CI and keep builds reproducible)
 RUN npm install -g pnpm@9 --registry="${NPM_CONFIG_REGISTRY}"
@@ -111,7 +112,9 @@ FROM ${ALPINE_IMAGE}
 # Labels
 LABEL maintainer="Wei-Shaw <github.com/Wei-Shaw>"
 LABEL description="Sub2API - AI API Gateway Platform"
-LABEL org.opencontainers.image.source="https://github.com/Wei-Shaw/sub2api"
+LABEL org.opencontainers.image.source="https://github.com/nianzs/sub2api"
+
+ENV UPDATE_GITHUB_REPO=nianzs/sub2api
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -143,8 +146,8 @@ WORKDIR /app
 COPY --from=backend-builder --chown=sub2api:sub2api /app/sub2api /app/sub2api
 COPY --from=backend-builder --chown=sub2api:sub2api /app/backend/resources /app/resources
 
-# Create data directory
-RUN mkdir -p /app/data && chown sub2api:sub2api /app/data
+# Create data directory and allow the non-root process to stage binary updates
+RUN mkdir -p /app/data && chown -R sub2api:sub2api /app
 
 # Copy entrypoint script (fixes volume permissions then drops to sub2api)
 COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh

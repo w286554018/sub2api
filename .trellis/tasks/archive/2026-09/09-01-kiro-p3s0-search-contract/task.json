@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p3s0-search-contract",
+  "name": "kiro-p3s0-search-contract",
+  "title": "Step 0: Search Contract and Baseline",
+  "description": "盘点 Kiro MCP 和 gateway emulation 两条搜索路径; 定义 SearchRound 内部模型、tool ID/index 分配规则; 建立现有行为回归 fixture. 1-2天.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-01-kiro-phase3-websearch-server-tools",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

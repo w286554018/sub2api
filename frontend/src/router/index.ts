@@ -241,6 +241,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/billing',
+    name: 'Billing',
+    component: () => import('@/views/user/BillingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Billing Statement',
+      titleKey: 'billing.title',
+      descriptionKey: 'billing.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),
@@ -479,6 +491,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/channels/global-pricing',
+    name: 'AdminGlobalPricing',
+    component: () => import('@/views/admin/GlobalPricingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Global Model Pricing',
+      titleKey: 'admin.globalPricing.title',
+      descriptionKey: 'admin.globalPricing.description'
+    }
+  },
+  {
     path: '/admin/channels/monitor',
     name: 'AdminChannelMonitor',
     component: () => import('@/views/admin/ChannelMonitorView.vue'),
@@ -538,12 +562,65 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/account-health',
+    name: 'AdminAccountHealth',
+    component: () => import('@/views/admin/AccountHealthView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Account Health',
+      titleKey: 'admin.accountHealth.title',
+      descriptionKey: 'admin.accountHealth.routeDescription'
+    }
+  },
+  {
+    path: '/admin/intelligent-tests',
+    name: 'AdminIntelligentTests',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'tests' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Intelligent Tests',
+      titleKey: 'admin.intelligentTests.title',
+      descriptionKey: 'admin.intelligentTests.modes.tests.description'
+    }
+  },
+  {
+    path: '/admin/intelligent-tests/history',
+    name: 'AdminIntelligentTestHistory',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'history' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Intelligent Test History',
+      titleKey: 'admin.intelligentTests.modes.history.title',
+      descriptionKey: 'admin.intelligentTests.modes.history.description'
+    }
+  },
+  {
+    path: '/admin/intelligent-tests/settings',
+    name: 'AdminIntelligentTestSettings',
+    component: () => import('@/views/admin/IntelligentTestsView.vue'),
+    props: { mode: 'settings' },
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      requiresSuperAdmin: true,
+      title: 'Intelligent Test Settings',
+      titleKey: 'admin.intelligentTests.modes.settings.title',
+      descriptionKey: 'admin.intelligentTests.modes.settings.description'
+    }
+  },
+  {
     path: '/admin/plugins',
     name: 'AdminPlugins',
     component: () => import('@/views/admin/PluginsView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
+      requiresSuperAdmin: true,
       title: 'Plugin Management',
       titleKey: 'admin.plugins.title',
       descriptionKey: 'admin.plugins.description'
@@ -604,6 +681,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
+      requiresSuperAdmin: true,
       title: 'System Settings',
       titleKey: 'admin.settings.title',
       descriptionKey: 'admin.settings.description'
@@ -815,6 +893,7 @@ router.beforeEach(async (to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
+  const requiresSuperAdmin = to.meta.requiresSuperAdmin === true
 
   if (to.path === '/setup') {
     try {
@@ -899,6 +978,11 @@ router.beforeEach(async (to, _from, next) => {
   if (requiresAdmin && !authStore.isAdmin) {
     // User is authenticated but not admin, redirect to user dashboard
     next('/dashboard')
+    return
+  }
+
+  if (requiresSuperAdmin && !authStore.isSuperAdmin) {
+    next('/admin/dashboard')
     return
   }
 

@@ -1,0 +1,28 @@
+{
+  "id": "kiro-p1s1-sse-state-machine",
+  "name": "kiro-p1s1-sse-state-machine",
+  "title": "Step 1: SSE State Machine + Protocol Fingerprint",
+  "description": "抽取 AnthropicSSEWriter 序列化层, 引入流式状态机, 修复协议指纹. 参考 KIRO_PHASE1_DEV_SPEC.md §1-§3, §12-§13. 预期 CCTest +5~8 分.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P0",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-08-31",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-31-kiro-phase1-protocol-improvement",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

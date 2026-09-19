@@ -1,0 +1,21 @@
+{
+  "model": "claude-opus-5",
+  "max_tokens": 16000,
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "name": "article_analysis",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "summary": {"type": "string"},
+          "tags": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["title", "summary"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "messages": [{"role": "user", "content": "Analyze the topic of AI safety."}]
+}

@@ -33,6 +33,14 @@ func TestDeriveAuditAction(t *testing.T) {
 	}
 }
 
+func TestAdminBillingExportUsesSensitiveReadAuditAction(t *testing.T) {
+	require.Equal(
+		t,
+		"admin.billing.export",
+		auditSensitiveReads["GET /api/v1/admin/billing/users/:userId/export"],
+	)
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog
@@ -144,6 +152,18 @@ func TestPromptAuditMutationAuditRoutesHaveStableActionsAndOmitBodies(t *testing
 		_, omitted := auditBodyOmittedRoutes[route]
 		require.Truef(t, omitted, "%s must not persist its credential or confirmation-bearing body", route)
 	}
+}
+
+func TestAccountHealthMutationAuditRoutesHaveStableActions(t *testing.T) {
+	expected := map[string]string{
+		"PUT /api/v1/admin/account-health/settings":         "admin.account_health.settings.update",
+		"POST /api/v1/admin/account-health/:id/isolate":     "admin.account_health.manual_isolate",
+		"DELETE /api/v1/admin/account-health/:id/isolation": "admin.account_health.manual_recover",
+	}
+	for route, action := range expected {
+		require.Equal(t, action, auditActionOverrides[route])
+	}
+	require.Contains(t, auditBodyOmittedRoutes, "POST /api/v1/admin/account-health/:id/isolate")
 }
 
 func TestPasskeyLoginAuditUsesCanonicalLoginActionAndOmitsCredentialBody(t *testing.T) {

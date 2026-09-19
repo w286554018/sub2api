@@ -1,0 +1,28 @@
+{
+  "id": "upgrade-sub2api-image",
+  "name": "upgrade-sub2api-image",
+  "title": "Upgrade Sub2API image and restore update support",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-08-14",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

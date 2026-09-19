@@ -123,6 +123,8 @@ func provideCleanup(
 	grokOAuth *service.GrokOAuthService,
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
+	intelligentTest *service.IntelligentTestService,
+	accountHealthAutomation *service.AccountHealthAutomationService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -344,9 +346,27 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"OpenAICodexTicketHarvester", func() error {
+				if openAIGateway != nil {
+					openAIGateway.StopOpenAICodexTicketHarvester()
+				}
+				return nil
+			}},
 			{"ScheduledTestRunnerService", func() error {
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()
+				}
+				return nil
+			}},
+			{"IntelligentTestService", func() error {
+				if intelligentTest != nil {
+					intelligentTest.Stop()
+				}
+				return nil
+			}},
+			{"AccountHealthAutomationService", func() error {
+				if accountHealthAutomation != nil {
+					accountHealthAutomation.Stop()
 				}
 				return nil
 			}},

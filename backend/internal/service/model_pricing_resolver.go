@@ -8,6 +8,7 @@ import (
 
 // PricingSource 定价来源标识
 const (
+	PricingSourceGlobal   = "global"
 	PricingSourceGroup    = "group"
 	PricingSourceChannel  = "channel"
 	PricingSourceLiteLLM  = "litellm"
@@ -44,10 +45,11 @@ type ResolvedPricing struct {
 }
 
 // ModelPricingResolver 统一模型定价解析器。
-// 解析链：Group → Channel → LiteLLM → Fallback。
+// 解析链：Global → Group → Channel → LiteLLM → Fallback。
 type ModelPricingResolver struct {
 	channelService *ChannelService
 	billingService *BillingService
+	globalPricing  *GlobalModelPricingService
 }
 
 // NewModelPricingResolver 创建定价解析器实例
@@ -58,6 +60,16 @@ func NewModelPricingResolver(channelService *ChannelService, billingService *Bil
 	}
 }
 
+// NewModelPricingResolverWithGlobal creates the production resolver with
+// administrator-managed global price overrides enabled.
+func NewModelPricingResolverWithGlobal(channelService *ChannelService, billingService *BillingService, globalPricing *GlobalModelPricingService) *ModelPricingResolver {
+	return &ModelPricingResolver{
+		channelService: channelService,
+		billingService: billingService,
+		globalPricing:  globalPricing,
+	}
+}
+
 // PricingInput 定价解析输入
 type PricingInput struct {
 	Model   string
@@ -65,10 +77,23 @@ type PricingInput struct {
 	Group   *Group
 }
 
-// Resolve 解析模型定价。
-// 1. 获取基础定价（LiteLLM → Fallback）
-// 2. 如果指定了 GroupID，查找渠道定价并覆盖
+// Resolve resolves the legacy effective price first, then applies a matching
+// global override. This preserves unspecified cache and media token prices.
 func (r *ModelPricingResolver) Resolve(ctx context.Context, input PricingInput) *ResolvedPricing {
+	resolved := r.resolveLegacy(ctx, input)
+	if r.globalPricing == nil {
+		return resolved
+	}
+	global := r.globalPricing.Match(ctx, input.Model)
+	if global == nil {
+		return resolved
+	}
+	return r.applyGlobalPricing(input.Model, global, resolved)
+}
+
+// resolveLegacy preserves the pre-global pricing chain. Keeping the existing
+// resolution in one function makes the no-match path behavior-identical.
+func (r *ModelPricingResolver) resolveLegacy(ctx context.Context, input PricingInput) *ResolvedPricing {
 	longContextPricingEnabled := input.Group == nil || input.Group.LongContextPricingEnabled
 	if groupPricing := matchGroupModelPricing(input.Group, input.Model); groupPricing != nil {
 		// Group token cards only override the first-tier / flat rates.
@@ -125,6 +150,84 @@ func (r *ModelPricingResolver) Resolve(ctx context.Context, input PricingInput) 
 	}
 
 	return resolved
+}
+
+func (r *ModelPricingResolver) applyGlobalPricing(model string, global *ChannelModelPricing, legacy *ResolvedPricing) *ResolvedPricing {
+	mode := global.BillingMode
+	if mode == "" {
+		mode = BillingModeToken
+	}
+	if mode != BillingModeToken {
+		resolved := &ResolvedPricing{
+			Mode:                      mode,
+			Source:                    PricingSourceGlobal,
+			channelPricing:            global,
+			longContextPricingEnabled: legacy == nil || legacy.longContextPricingEnabled,
+		}
+		r.applyRequestTierOverrides(global, resolved)
+		return resolved
+	}
+
+	// Token overrides inherit the effective legacy base, including any group or
+	// channel cache prices. If the legacy mode is not token-based, fall back to
+	// the catalog base; input/output are mandatory for global token entries.
+	var resolved ResolvedPricing
+	if legacy != nil && legacy.Mode == BillingModeToken {
+		resolved = *legacy
+		if legacy.BasePricing != nil {
+			base := *legacy.BasePricing
+			resolved.BasePricing = &base
+		}
+	} else {
+		base, source := r.resolveBasePricing(model)
+		resolved = ResolvedPricing{
+			Mode:                      BillingModeToken,
+			BasePricing:               base,
+			Source:                    source,
+			SupportsCacheBreakdown:    base != nil && base.SupportsCacheBreakdown,
+			longContextPricingEnabled: legacy == nil || legacy.longContextPricingEnabled,
+		}
+	}
+	resolved.Mode = BillingModeToken
+	resolved.Source = PricingSourceGlobal
+	resolved.channelPricing = global
+	resolved.Intervals = nil
+	resolved.RequestTiers = nil
+	resolved.DefaultPerRequestPrice = 0
+	if resolved.BasePricing == nil {
+		resolved.BasePricing = &ModelPricing{}
+	}
+	applyChannelTokenPriceOverrides(resolved.BasePricing, global)
+	if global.CacheWrite1hPrice != nil {
+		resolved.SupportsCacheBreakdown = true
+		resolved.BasePricing.SupportsCacheBreakdown = true
+	}
+	return &resolved
+}
+
+func pricingInputForAPIKey(model string, apiKey *APIKey) PricingInput {
+	input := PricingInput{Model: model}
+	if apiKey == nil {
+		return input
+	}
+	input.Group = apiKey.Group
+	if apiKey.GroupID != nil && *apiKey.GroupID > 0 {
+		groupID := *apiKey.GroupID
+		input.GroupID = &groupID
+	} else if apiKey.Group != nil && apiKey.Group.ID > 0 {
+		groupID := apiKey.Group.ID
+		input.GroupID = &groupID
+	}
+	return input
+}
+
+func isExplicitPricingSource(resolved *ResolvedPricing) bool {
+	if resolved == nil {
+		return false
+	}
+	return resolved.Source == PricingSourceGlobal ||
+		resolved.Source == PricingSourceGroup ||
+		resolved.Source == PricingSourceChannel
 }
 
 func (r *ModelPricingResolver) resolveConfiguredPricing(config *ChannelModelPricing, model, source string) *ResolvedPricing {

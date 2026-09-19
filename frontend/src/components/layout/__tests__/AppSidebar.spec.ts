@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 import zhCommon from '@/i18n/locales/zh/common'
+import zhIntelligentTests from '@/i18n/locales/zh/admin/intelligentTests'
+import zhAccountHealth from '@/i18n/locales/zh/admin/accountHealth'
 
 const componentPath = resolve(dirname(fileURLToPath(import.meta.url)), '../AppSidebar.vue')
 const componentSource = readFileSync(componentPath, 'utf8')
@@ -13,6 +15,32 @@ const styleSource = readFileSync(stylePath, 'utf8')
 describe('AppSidebar navigation copy', () => {
   it('uses the concise prompt rules label', () => {
     expect(zhCommon.nav.promptRules).toBe('提示词')
+  })
+
+  it('links administrators to the intelligent test center', () => {
+    expect(zhIntelligentTests.intelligentTests.nav).toBe('智能测试')
+    expect(componentSource).toContain("path: '/admin/intelligent-tests'")
+    expect(componentSource).toContain("label: t('admin.intelligentTests.nav')")
+  })
+
+  it('links all administrators to account health', () => {
+    expect(zhAccountHealth.accountHealth.nav).toBe('账号健康')
+    expect(componentSource).toContain("path: '/admin/account-health'")
+    expect(componentSource).toContain("label: t('admin.accountHealth.nav')")
+    const line = componentSource.split('\n').find(sourceLine => sourceLine.includes("path: '/admin/account-health'")) ?? ''
+    expect(line).not.toContain('superAdminOnly')
+  })
+})
+
+describe('AppSidebar super administrator visibility', () => {
+  it('marks plugin management as super-admin-only', () => {
+    expect(componentSource).toContain("path: '/admin/plugins'")
+    expect(componentSource).toContain('superAdminOnly: true')
+  })
+
+  it('only appends system settings for super administrators', () => {
+    expect(componentSource).toContain('if (authStore.isSuperAdmin)')
+    expect(componentSource).toContain("path: '/admin/settings'")
   })
 })
 

@@ -1,0 +1,4 @@
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000003","name":"__structured_output__","input":"{\"summary\":\"Missing required title field\",\"tags\":[\"incomplete\"]}"}},"seq":1}
+{"eventType":"toolUseEvent","event":{"toolUseEvent":{"toolUseId":"toolu_test_000003","name":"__structured_output__","stop":true}},"seq":2}
+{"eventType":"messageMetadataEvent","event":{"messageMetadataEvent":{"usage":{"inputTokens":80,"outputTokens":30},"stopReason":"tool_use"}},"seq":3}
+{"eventType":"messageStopEvent","event":{},"seq":4}

@@ -1,0 +1,3 @@
+{"eventType":"assistantResponseEvent","event":{"assistantResponseEvent":{"content":"Hello! I'm Claude, an AI assistant."}},"seq":1}
+{"eventType":"messageMetadataEvent","event":{"messageMetadataEvent":{"usage":{"inputTokens":25,"outputTokens":12}}},"seq":2}
+{"eventType":"messageStopEvent","event":{},"seq":3}

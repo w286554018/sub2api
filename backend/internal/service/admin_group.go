@@ -1546,9 +1546,12 @@ func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []
 
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定
 // groupID: nil=不修改, 指向0=解绑, 指向正整数=绑定到目标分组
-func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, actorAdminID, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.AuthorizeUserMutation(ctx, actorAdminID, apiKey.UserID); err != nil {
 		return nil, err
 	}
 
@@ -1650,9 +1653,12 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 }
 
 // AdminResetAPIKeyRateLimitUsage resets all API key rate-limit usage windows.
-func (s *adminServiceImpl) AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error) {
+func (s *adminServiceImpl) AdminResetAPIKeyRateLimitUsage(ctx context.Context, actorAdminID, keyID int64) (*APIKey, error) {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.AuthorizeUserMutation(ctx, actorAdminID, apiKey.UserID); err != nil {
 		return nil, err
 	}
 	apiKey.Usage5h = 0

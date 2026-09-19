@@ -488,6 +488,31 @@ export default {
     },
   },
 
+  billing: {
+    title: '账单',
+    description: '按月查看模型消费汇总，并导出限定日期范围内的明细。',
+    statementMonth: '账单月份',
+    requests: '请求数',
+    totalTokens: '总 Token',
+    totalCost: '总费用',
+    model: '模型',
+    inputTokens: '输入 Token',
+    outputTokens: '输出 Token',
+    cacheTokens: '缓存 Token',
+    cost: '费用',
+    noData: '所选月份暂无账单数据。',
+    loadFailed: '加载账单失败',
+    exportTitle: '导出账单明细',
+    exportHint: '日期范围包含开始和结束日期，最长 31 天，最多导出 10,000 条记录。',
+    startDate: '开始日期',
+    endDate: '结束日期',
+    exportCSV: '导出 CSV',
+    exporting: '导出中...',
+    invalidRange: '请选择有效的日期范围。',
+    rangeTooLong: '导出范围不能超过 31 天。',
+    exportFailed: '导出账单失败',
+  },
+
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
     status: {
@@ -806,6 +831,7 @@ export default {
     days: '天',
     codeRedeemSuccess: '兑换成功！',
     failedToRedeem: '兑换失败，请检查兑换码后重试。',
+    historyLoadFailed: '加载兑换记录失败，请重试。',
     userRefreshFailed: '兑换成功，但账户信息刷新失败。',
     subscriptionRefreshFailed: '兑换成功，但订阅状态刷新失败。',
     pleaseEnterCode: '请输入兑换码'
@@ -829,6 +855,7 @@ export default {
     securityTitle: '安全设置',
     securityDescription: '密码、双因素认证和通知提醒集中放在右侧。',
     administrator: '管理员',
+    superAdministrator: '超级管理员',
     user: '用户',
     username: '用户名',
     email: '邮箱',

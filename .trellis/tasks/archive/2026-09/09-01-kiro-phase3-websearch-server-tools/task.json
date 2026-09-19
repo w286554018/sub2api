@@ -1,0 +1,33 @@
+{
+  "id": "kiro-phase3-websearch-server-tools",
+  "name": "kiro-phase3-websearch-server-tools",
+  "title": "Kiro Phase 3: WebSearch + Server Tools",
+  "description": "Phase 3: 将 WebSearch 改造为模型参与的搜索循环, 完善服务端工具语义. 独立迭代, 基于 Phase 1/2 的协议基础. 参考 KIRO_PROTOCOL_IMPROVEMENT_DISCUSSION.md.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "w286554018",
+  "assignee": "w286554018",
+  "createdAt": "2026-09-01",
+  "completedAt": "2026-09-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-01-kiro-p3s0-search-contract",
+    "09-01-kiro-p3s1-search-orchestration",
+    "09-01-kiro-p3s2-server-tool-projection",
+    "09-01-kiro-p3s3-compatibility-rollout"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "status": "done"
+  }
+}

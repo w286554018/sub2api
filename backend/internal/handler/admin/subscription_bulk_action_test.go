@@ -94,7 +94,7 @@ func TestSubscriptionBulkAction_ReplaysPartialResultWithoutRepeatingExtension(t 
 	repo := &bulkActionHandlerSubscriptionRepo{sub: &service.UserSubscription{ID: 1, UserID: 1, GroupID: 10, ExpiresAt: expiresAt}}
 	svc := service.NewSubscriptionService(nil, repo, nil, nil, nil)
 	t.Cleanup(svc.Stop)
-	h := NewSubscriptionHandler(svc)
+	h := NewSubscriptionHandler(svc, newStubAdminService())
 	router := gin.New()
 	path := "/api/v1/admin/subscriptions/bulk-action"
 	router.POST(path, h.BulkAction)
@@ -142,7 +142,7 @@ func TestSubscriptionBulkAction_ClientCancellationStillPersistsReplay(t *testing
 	t.Cleanup(svc.Stop)
 	router := gin.New()
 	path := "/api/v1/admin/subscriptions/bulk-action"
-	router.POST(path, NewSubscriptionHandler(svc).BulkAction)
+	router.POST(path, NewSubscriptionHandler(svc, newStubAdminService()).BulkAction)
 	body := `{"subscription_ids":[1],"action":"extend","days":7}`
 	request := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body)).WithContext(requestCtx)
 	request.Header.Set("Content-Type", "application/json")
@@ -165,9 +165,11 @@ func TestSubscriptionBulkAction_ValidatesBeforeIdempotencyAndExecution(t *testin
 	gin.SetMode(gin.TestMode)
 	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(storeUnavailableRepoStub{}, service.DefaultIdempotencyConfig()))
 	t.Cleanup(func() { service.SetDefaultIdempotencyCoordinator(nil) })
+	svc := service.NewSubscriptionService(nil, &bulkActionHandlerSubscriptionRepo{}, nil, nil, nil)
+	t.Cleanup(svc.Stop)
 	router := gin.New()
 	path := "/api/v1/admin/subscriptions/bulk-action"
-	router.POST(path, NewSubscriptionHandler(nil).BulkAction)
+	router.POST(path, NewSubscriptionHandler(svc, newStubAdminService()).BulkAction)
 	tooManyIDs := make([]int64, 101)
 	for i := range tooManyIDs {
 		tooManyIDs[i] = 1
@@ -200,7 +202,7 @@ func TestSubscriptionBulkAssign_RejectsInvalidUserIDsBeforeExecution(t *testing.
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	path := "/api/v1/admin/subscriptions/bulk-assign"
-	router.POST(path, NewSubscriptionHandler(nil).BulkAssign)
+	router.POST(path, NewSubscriptionHandler(nil, nil).BulkAssign)
 	for _, ids := range [][]int64{{}, {1, 0}, {1, -1}, make([]int64, 101)} {
 		t.Run(fmt.Sprint(len(ids), ids), func(t *testing.T) {
 			body, err := json.Marshal(BulkAssignSubscriptionRequest{UserIDs: ids, GroupID: 1, ValidityDays: 30})
