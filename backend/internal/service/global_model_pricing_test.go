@@ -284,7 +284,7 @@ func TestGatewayImageCostGlobalTokenUsesReportedTokens(t *testing.T) {
 		ImageCount: 1,
 		ImageSize:  "1K",
 		Usage:      ClaudeUsage{InputTokens: 2, OutputTokens: 3},
-	}, &APIKey{}, "private-image-model", 1)
+	}, &APIKey{}, "private-image-model", 1, PlatformOpenAI)
 
 	require.Equal(t, string(BillingModeToken), cost.BillingMode)
 	require.InDelta(t, 0.08, cost.TotalCost, 1e-10)

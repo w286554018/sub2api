@@ -12,6 +12,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/adobe"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -403,6 +404,11 @@ func defaultModelsListCandidateIDs(platform string) []string {
 		return ids
 	case PlatformGrok:
 		return xai.DefaultModelIDs()
+	case PlatformAdobe:
+		// 只给图像族：视频还没接线（见 adobe.ImageModelIDs 的注释）。
+		return adobe.ImageModelIDs()
+	case PlatformOpenCodeGo:
+		return DefaultOpenCodeGoModelIDs()
 	case PlatformComposite:
 		return compositeDefaultModelsListCandidateIDs()
 	default:
@@ -417,13 +423,17 @@ func defaultModelsListCandidateIDs(platform string) []string {
 func defaultAllowImageGenerationForPlatform(platform string) bool {
 	// Grok image and video generation routes share the legacy image-generation gate.
 	// Older clients send the false zero value, so Grok groups must default enabled.
-	return platform == PlatformGrok
+	//
+	// Adobe groups exist solely to serve image generation, so they must default
+	// enabled for the same reason: a false zero value from an older client would
+	// otherwise make every request fail the gate.
+	return platform == PlatformGrok || platform == PlatformAdobe
 }
 
 func compositeDefaultModelsListCandidateIDs() []string {
 	seen := make(map[string]struct{})
 	ids := make([]string, 0)
-	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformKiro, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax} {
+	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformKiro, PlatformGrok, PlatformAdobe, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo} {
 		for _, id := range defaultModelsListCandidateIDs(platform) {
 			if _, ok := seen[id]; ok {
 				continue
@@ -615,7 +625,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	// 先归一化（非订阅分组清空高峰配置、清洗停用状态下的脏字段）再校验，与 UpdateGroup 同一收口。
 	peakRateEnabled, peakStart, peakEnd, peakRateMultiplier := NormalizePeakRateConfig(subscriptionType, input.PeakRateEnabled, input.PeakStart, input.PeakEnd, peakRateMultiplier)
 	if err := ValidatePeakRateConfig(subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier); err != nil {
-		return nil, err
+		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
 
 	profitMinMargin := 0.0
@@ -1055,7 +1065,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	// 防止单独修改 start/end 导致最终 start>=end 等非法配置入库。与 CreateGroup 同一收口。
 	group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier = NormalizePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
 	if err := ValidatePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier); err != nil {
-		return nil, err
+		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
 	if input.ProfitControlEnabled != nil {
 		group.ProfitControlEnabled = *input.ProfitControlEnabled

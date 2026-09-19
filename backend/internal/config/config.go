@@ -989,6 +989,15 @@ type GatewayConfig struct {
 	// DisableCodexOriginatorNormalization: 已废弃，等价于 DisableCodexIdentityEnforcement。
 	// 保留以兼容既有配置文件；加载时会折叠进新键，不要在新代码里直接读取。
 	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
+	// CodexTelemetryEnabled is the process-level kill switch for Codex client
+	// telemetry. Default true via viper: per-account extra.codex_telemetry_enabled
+	// still gates sending. Set false (GATEWAY_CODEX_TELEMETRY_ENABLED=false) to
+	// ignore every account toggle. Zero-value Config in tests is false, so
+	// existing suites do not enqueue telemetry unless they opt in.
+	CodexTelemetryEnabled bool `mapstructure:"codex_telemetry_enabled"`
+	// CodexStatsigAPIKey overrides the public Codex Statsig SDK key used for
+	// OTLP metric export. Empty keeps the client-shipped default.
+	CodexStatsigAPIKey string `mapstructure:"codex_statsig_api_key"`
 	// CodexImageGenerationBridgeEnabled: 是否为 Codex `/v1/responses` 自动注入 image_generation 工具和桥接指令。
 	// 默认关闭，避免纯文本 Codex 请求被意外改写；显式携带 image_generation 工具的请求仍按分组能力转发。
 	CodexImageGenerationBridgeEnabled bool `mapstructure:"codex_image_generation_bridge_enabled"`
@@ -1276,11 +1285,15 @@ type GatewayOpenAIWSConfig struct {
 	MaxConnsPerAccount int `mapstructure:"max_conns_per_account"`
 	MinIdlePerAccount  int `mapstructure:"min_idle_per_account"`
 	MaxIdlePerAccount  int `mapstructure:"max_idle_per_account"`
-	// DynamicMaxConnsByAccountConcurrencyEnabled: 是否按账号并发动态计算连接池上限
+	// DynamicMaxConnsByAccountConcurrencyEnabled: 是否按账号并发动态计算连接池上限。
+	// 旧版及 mode_router_v2 的 ctx_pool 共用此开关和类型系数；关闭后使用 max_conns_per_account。
+	// mode_router_v2 下并发数 <= 0 的账号仍不可调度。
 	DynamicMaxConnsByAccountConcurrencyEnabled bool `mapstructure:"dynamic_max_conns_by_account_concurrency_enabled"`
-	// OAuthMaxConnsFactor: OAuth 账号连接池系数（effective=ceil(concurrency*factor)）
+	// OAuthMaxConnsFactor: OAuth 账号连接池系数（effective=ceil(concurrency*factor)，再受 max_conns_per_account 封顶）。
+	// ctx_pool 接入下每个客户端会话在整个生命周期（含轮次之间）持有一条上游连接，此上限限制的是同时持有连接的会话数，
+	// 在飞请求数另由账号并发槽限制；系数 1.0 会让存活会话数一到并发数就返回 1013 busy，默认 5.0。
 	OAuthMaxConnsFactor float64 `mapstructure:"oauth_max_conns_factor"`
-	// APIKeyMaxConnsFactor: API Key 账号连接池系数（effective=ceil(concurrency*factor)）
+	// APIKeyMaxConnsFactor: API Key 账号连接池系数，含义与 OAuthMaxConnsFactor 相同，默认 5.0。
 	APIKeyMaxConnsFactor  float64 `mapstructure:"apikey_max_conns_factor"`
 	DialTimeoutSeconds    int     `mapstructure:"dial_timeout_seconds"`
 	ReadTimeoutSeconds    int     `mapstructure:"read_timeout_seconds"`
@@ -2050,6 +2063,7 @@ func setDefaults() {
 		"open.bigmodel.cn",
 		"api.minimaxi.com", // MiniMax CN quota + inference
 		"api.minimax.io",   // MiniMax intl; frozen allowlists must add this host to use the intl site
+		"opencode.ai",
 		"generativelanguage.googleapis.com",
 		"cloudcode-pa.googleapis.com",
 		"*.openai.azure.com",
@@ -2375,9 +2389,11 @@ func setDefaults() {
 	viper.SetDefault("gateway.force_codex_cli", false)
 	viper.SetDefault("gateway.disable_codex_identity_enforcement", false)
 	viper.SetDefault("gateway.disable_codex_originator_normalization", false)
+	viper.SetDefault("gateway.codex_telemetry_enabled", true)
+	viper.SetDefault("gateway.codex_statsig_api_key", "")
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
-	viper.SetDefault("gateway.openai_compact_model", "gpt-5.4")
+	viper.SetDefault("gateway.openai_compact_model", "gpt-5.5")
 	viper.SetDefault("gateway.live.max_session_duration_seconds", 3600)
 	// OpenAI Responses WebSocket（默认开启；可通过 force_http 紧急回滚）
 	viper.SetDefault("gateway.openai_ws.enabled", true)
@@ -2403,8 +2419,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.min_idle_per_account", 4)
 	viper.SetDefault("gateway.openai_ws.max_idle_per_account", 12)
 	viper.SetDefault("gateway.openai_ws.dynamic_max_conns_by_account_concurrency_enabled", true)
-	viper.SetDefault("gateway.openai_ws.oauth_max_conns_factor", 1.0)
-	viper.SetDefault("gateway.openai_ws.apikey_max_conns_factor", 1.0)
+	viper.SetDefault("gateway.openai_ws.oauth_max_conns_factor", 5.0)
+	viper.SetDefault("gateway.openai_ws.apikey_max_conns_factor", 5.0)
 	viper.SetDefault("gateway.openai_ws.dial_timeout_seconds", 10)
 	viper.SetDefault("gateway.openai_ws.read_timeout_seconds", 900)
 	viper.SetDefault("gateway.openai_ws.write_timeout_seconds", 120)

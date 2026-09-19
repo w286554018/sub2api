@@ -193,6 +193,7 @@ export interface CustomMenuItem {
   icon_svg: string
   url: string
   page_slug?: string
+  hide_open_button?: boolean
   visibility: 'user' | 'admin'
   sort_order: number
 }
@@ -278,6 +279,10 @@ export interface PublicSettings {
   /** When true, user monitor hides the user ranking tab and /users payload. */
   channel_monitor_hide_user_ranking?: boolean
   available_channels_enabled: boolean
+  /** When false, the whole user-facing subscription surface is hidden. Default true. */
+  subscription_enabled: boolean
+  /** Mirrors payment config BALANCE_PAYMENT_DISABLED; true = balance top-up closed (subscription-only site). */
+  payment_balance_disabled: boolean
   model_plaza_enabled: boolean
   model_plaza_require_auth: boolean
   plugin_management_enabled: boolean
@@ -535,7 +540,7 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'kiro' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'composite'
+export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'kiro' | 'grok' | 'adobe' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'composite'
 
 export type VideoModelPrices = Record<string, Record<string, number>>
 
@@ -939,7 +944,7 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'kiro' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax'
+export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'kiro' | 'grok' | 'adobe' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1399,6 +1404,19 @@ export interface AntigravityModelQuota {
   reset_time: string  // 重置时间 ISO8601
 }
 
+export interface AdobeCreditProgress {
+  current_usage: number
+  usage_limit: number
+  percentage_used: number
+}
+
+export interface AdobeCreditPool {
+  name: string
+  total?: number | null
+  used?: number | null
+  available?: number | null
+}
+
 export interface KiroCreditProgress {
   current_usage: number
   usage_limit: number
@@ -1497,6 +1515,13 @@ export interface AccountUsageInfo {
   kiro_runtime_state?: string | null
   kiro_runtime_reason?: string | null
   kiro_runtime_reset_at?: string | null
+
+  // Adobe credits/balance 快照（Step 6）：planCap 是不透明字符串（目前只见过 FREE）
+  adobe_plan_cap?: string | null
+  adobe_credit?: AdobeCreditProgress | null
+  adobe_credit_pools?: AdobeCreditPool[] | null
+  adobe_credit_reset_at?: string | null
+
   // Antigravity 403 forbidden 状态
   is_forbidden?: boolean
   forbidden_reason?: string
@@ -1541,7 +1566,7 @@ export interface CodexUsageSnapshot {
 
 export type OpenAICompactMode = 'auto' | 'force_on' | 'force_off'
 export type OpenAIResponsesMode = 'auto' | 'force_responses' | 'force_chat_completions'
-export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings'
+export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance'
 
 export interface OpenAICompactState {
   openai_compact_mode?: OpenAICompactMode

@@ -156,6 +156,12 @@ func TestSubscriptionOwnerMutations_BlockPrivilegedTarget(t *testing.T) {
 			method: http.MethodPost,
 			invoke: func(h *SubscriptionHandler, c *gin.Context) { h.Restore(c) },
 		},
+		{
+			name:   "bulk revoke",
+			method: http.MethodPost,
+			body:   `{"subscription_ids":[99],"action":"revoke"}`,
+			invoke: func(h *SubscriptionHandler, c *gin.Context) { h.BulkAction(c) },
+		},
 	}
 
 	for _, tt := range tests {

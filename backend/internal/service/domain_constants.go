@@ -52,11 +52,13 @@ const (
 	PlatformGemini      = domain.PlatformGemini
 	PlatformAntigravity = domain.PlatformAntigravity
 	PlatformGrok        = domain.PlatformGrok
+	PlatformAdobe       = domain.PlatformAdobe
 	// 国产 OpenAI 兼容供应商（与 grok 一样经 OpenAI 网关转发）。
-	PlatformKimi     = domain.PlatformKimi
-	PlatformZhipu    = domain.PlatformZhipu
-	PlatformDeepseek = domain.PlatformDeepseek
-	PlatformMiniMax  = domain.PlatformMiniMax
+	PlatformKimi       = domain.PlatformKimi
+	PlatformZhipu      = domain.PlatformZhipu
+	PlatformDeepseek   = domain.PlatformDeepseek
+	PlatformMiniMax    = domain.PlatformMiniMax
+	PlatformOpenCodeGo = domain.PlatformOpenCodeGo
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
 	PlatformKiro      = domain.PlatformKiro
@@ -67,6 +69,8 @@ const (
 const (
 	AccountModePayG   = domain.AccountModePayG
 	AccountModeCoding = domain.AccountModeCoding
+	AccountModeZen    = domain.AccountModeZen
+	AccountModeGo     = domain.AccountModeGo
 )
 
 // 上游 API 协议（国产供应商）：决定转发端点与格式，与接入模式正交。
@@ -87,6 +91,10 @@ const (
 	DefaultDeepseekBaseURL    = "https://api.deepseek.com"
 	// MiniMax 按量付费与 Coding/Token Plan 共用推理域名，靠 API Key 区分套餐。
 	DefaultMiniMaxBaseURL = "https://api.minimaxi.com/v1"
+	// OpenCode Go：Chat Completions / Responses / models 共用 /v1 基址。
+	DefaultOpenCodeGoBaseURL = "https://opencode.ai/zen/go/v1"
+	// OpenCode Zen：按量付费网关，模型列表为 /zen/v1/models。
+	DefaultOpenCodeZenBaseURL = "https://opencode.ai/zen/v1"
 )
 
 // 国产供应商 Anthropic 协议端点的默认 base_url（上游路径为 {base}/v1/messages）。
@@ -97,6 +105,9 @@ const (
 	DefaultZhipuAnthropicBaseURL      = "https://open.bigmodel.cn/api/anthropic"
 	DefaultDeepseekAnthropicBaseURL   = "https://api.deepseek.com/anthropic"
 	DefaultMiniMaxAnthropicBaseURL    = "https://api.minimaxi.com/anthropic"
+	// OpenCode Go Anthropic 基址不含 /v1：nativeAnthropicTargetURL 会再拼 /v1/messages。
+	DefaultOpenCodeGoAnthropicBaseURL  = "https://opencode.ai/zen/go"
+	DefaultOpenCodeZenAnthropicBaseURL = "https://opencode.ai/zen"
 )
 
 // IsCNProvider 报告 platform 是否为国产 OpenAI 兼容供应商（kimi/zhipu/deepseek/minimax）。
@@ -109,6 +120,17 @@ func IsCNProvider(platform string) bool {
 	}
 }
 
+// IsOpenCodeGo 报告 platform 是否为 OpenCode Go 订阅网关。
+func IsOpenCodeGo(platform string) bool {
+	return platform == PlatformOpenCodeGo
+}
+
+// IsMultiProtocolAPIKeyProvider 报告 platform 是否为多协议 API Key 网关
+// （国产供应商 + OpenCode）：走 OpenAI 网关、支持 adaptive 协议分流。
+func IsMultiProtocolAPIKeyProvider(platform string) bool {
+	return IsCNProvider(platform) || platform == PlatformOpenCodeGo
+}
+
 // AllowedQuotaPlatforms 是允许设置 user × platform quota 的平台列表（单一权威来源）。
 // ent/schema/user_platform_quota.go 的 Validate 函数独立维护（构建期约束），
 // 若新增平台需同步修改该 schema。
@@ -119,10 +141,18 @@ var AllowedQuotaPlatforms = []string{
 	PlatformAntigravity,
 	PlatformKiro,
 	PlatformGrok,
+	PlatformAdobe,
 	PlatformKimi,
 	PlatformZhipu,
 	PlatformDeepseek,
 	PlatformMiniMax,
+	PlatformOpenCodeGo,
+}
+
+func cloneAllowedQuotaPlatforms() []string {
+	platforms := make([]string, len(AllowedQuotaPlatforms))
+	copy(platforms, AllowedQuotaPlatforms)
+	return platforms
 }
 
 // AllowedSchedulingThresholdPlatforms 是允许设置账号自动停调阈值的平台列表。
@@ -135,6 +165,7 @@ var AllowedSchedulingThresholdPlatforms = []string{
 	PlatformKimi,
 	PlatformZhipu,
 	PlatformMiniMax,
+	PlatformOpenCodeGo,
 }
 
 // IsAllowedQuotaPlatform 报告 s 是否为合法的 quota platform 标识。
@@ -522,6 +553,15 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
+
+	// SettingKeySubscriptionEnabled is a DB-backed soft switch for the user-facing
+	// subscription surface: sidebar entries, purchase-page subscription tab, header
+	// progress badge, usage billing-type filter and the /subscriptions route. When
+	// false users can no longer buy or browse subscriptions from the UI; the
+	// subscriptions API, existing subscription billing and admin subscription
+	// management are unaffected. Together with BALANCE_PAYMENT_DISABLED it forms the
+	// admin "site billing mode" selector. Defaults to true (opt-out feature).
+	SettingKeySubscriptionEnabled = "subscription_enabled"
 
 	// SettingKeyModelPlazaEnabled is a DB-backed soft switch for the Model Plaza page
 	// (public group/model pricing showcase). When false: the plaza endpoint returns 404

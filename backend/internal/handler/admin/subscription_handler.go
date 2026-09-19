@@ -2,7 +2,9 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"strconv"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -57,6 +59,41 @@ func (h *SubscriptionHandler) authorizeOwnerMutation(c *gin.Context, subscriptio
 	return authorizeTargetUserMutation(c, h.adminService, subscription.UserID)
 }
 
+func (h *SubscriptionHandler) authorizeBulkOwnerMutation(c *gin.Context, input *service.BulkSubscriptionActionInput) bool {
+	includeDeleted := input.Action == "restore"
+	seen := make(map[int64]struct{}, len(input.SubscriptionIDs))
+	userIDs := make([]int64, 0, len(input.SubscriptionIDs))
+	for _, subscriptionID := range input.SubscriptionIDs {
+		if _, ok := seen[subscriptionID]; ok {
+			continue
+		}
+		seen[subscriptionID] = struct{}{}
+
+		var (
+			subscription *service.UserSubscription
+			err          error
+		)
+		if includeDeleted {
+			subscription, err = h.subscriptionService.GetByIDIncludeDeleted(c.Request.Context(), subscriptionID)
+		} else {
+			subscription, err = h.subscriptionService.GetByID(c.Request.Context(), subscriptionID)
+		}
+		if errors.Is(err, service.ErrSubscriptionNotFound) {
+			// Preserve bulk-action partial results for missing subscriptions.
+			continue
+		}
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return false
+		}
+		userIDs = append(userIDs, subscription.UserID)
+	}
+	if len(userIDs) == 0 {
+		return true
+	}
+	return authorizeTargetUserMutation(c, h.adminService, userIDs...)
+}
+
 // AssignSubscriptionRequest represents assign subscription request
 type AssignSubscriptionRequest struct {
 	UserID       int64  `json:"user_id" binding:"required"`
@@ -67,7 +104,7 @@ type AssignSubscriptionRequest struct {
 
 // BulkAssignSubscriptionRequest represents bulk assign subscription request
 type BulkAssignSubscriptionRequest struct {
-	UserIDs      []int64 `json:"user_ids" binding:"required,min=1"`
+	UserIDs      []int64 `json:"user_ids" binding:"required,min=1,max=100,dive,gt=0"`
 	GroupID      int64   `json:"group_id" binding:"required"`
 	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
 	Notes        string  `json:"notes"`
@@ -209,6 +246,26 @@ func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 	}
 
 	response.Success(c, dto.BulkAssignResultFromService(result))
+}
+
+// BulkAction applies one operation to selected subscriptions, returning each outcome.
+// POST /api/v1/admin/subscriptions/bulk-action
+func (h *SubscriptionHandler) BulkAction(c *gin.Context) {
+	var req service.BulkSubscriptionActionInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := req.Validate(); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if !h.authorizeBulkOwnerMutation(c, &req) {
+		return
+	}
+	executeAdminIdempotentJSONWithTimeout(c, "admin.subscriptions.bulk-action", req, service.DefaultWriteIdempotencyTTL(), 2*time.Minute, func(ctx context.Context) (any, error) {
+		return h.subscriptionService.BulkSubscriptionAction(ctx, &req)
+	})
 }
 
 // Extend handles adjusting a subscription (extend or shorten)

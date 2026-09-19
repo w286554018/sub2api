@@ -173,7 +173,16 @@ func TestCreateCodexBackendReqClientSendsNoBrowserFingerprint(t *testing.T) {
 		require.Empty(t, headers.Get(key), key)
 	}
 	require.NotContains(t, headers.Get("User-Agent"), "Chrome")
-	require.NotEmpty(t, capture(privacy).Get("Sec-Ch-Ua"), "privacy must retain browser headers")
+	require.Contains(t, capture(privacy).Get("User-Agent"), "Firefox/", "privacy must retain browser impersonation")
 	_, err = CreateCodexBackendReqClient("://missing-scheme")
 	require.ErrorContains(t, err, "invalid proxy URL")
+}
+
+func TestGetSharedReqClient_ImpersonateUsesFirefoxFingerprint(t *testing.T) {
+	sharedReqClients = sync.Map{}
+	client, err := getSharedReqClient(reqClientOptions{Timeout: time.Second, Impersonate: true})
+	require.NoError(t, err)
+	// chatgpt.com 的 Cloudflare 会质询 req 内置的 Chrome/120 伪装，必须保持 Firefox 指纹。
+	require.Contains(t, client.Headers.Get("User-Agent"), "Firefox/")
+	require.NotContains(t, client.Headers.Get("User-Agent"), "Chrome/")
 }

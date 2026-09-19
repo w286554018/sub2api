@@ -354,8 +354,9 @@ func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string) []byte {
 		message = "upstream request failed"
 	}
 	event := map[string]any{
-		"type":   "error",
-		"status": statusCode,
+		"type":            "error",
+		"sequence_number": 0,
+		"status":          statusCode,
 		"error": map[string]any{
 			"type":    "upstream_error",
 			"message": message,
@@ -363,7 +364,7 @@ func buildOpenAIWSHTTPBridgeErrorEvent(statusCode int, message string) []byte {
 	}
 	body, err := json.Marshal(event)
 	if err != nil {
-		return []byte(`{"type":"error","error":{"type":"upstream_error","message":"upstream request failed"}}`)
+		return []byte(`{"type":"error","sequence_number":0,"error":{"type":"upstream_error","message":"upstream request failed"}}`)
 	}
 	return body
 }
@@ -398,9 +399,9 @@ func buildOpenAIWSHTTPBridgeFailedEvent(responseID, model string, source []byte,
 	if model = strings.TrimSpace(model); model != "" {
 		response["model"] = model
 	}
-	body, err := json.Marshal(map[string]any{"type": "response.failed", "response": response})
+	body, err := json.Marshal(map[string]any{"type": "response.failed", "sequence_number": 0, "response": response})
 	if err != nil {
-		return []byte(`{"type":"response.failed","response":{"status":"failed","output":[],"error":{"code":"upstream_error","message":"Upstream response failed"}}}`)
+		return []byte(`{"type":"response.failed","sequence_number":0,"response":{"status":"failed","output":[],"error":{"code":"upstream_error","message":"Upstream response failed"}}}`)
 	}
 	return body
 }
@@ -432,6 +433,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	if writeClientMessage == nil {
 		return nil, errors.New("client websocket writer is nil")
 	}
+	// 一次调用 = 一个对话回合（ingress 的 for turn := 1; ; turn++ 循环），所以收尾
+	// 也按回合注册：既覆盖本回合的重试循环，又让下一个回合从干净的 memo 重新开始。
+	defer finishCodexTelemetryTurn(c)
 	responseModelObserver := &upstreamResponseModelObserver{}
 
 	body, err := prepareOpenAIWSHTTPBridgeBody(account, payload)
@@ -545,7 +549,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if buildErr != nil {
 			return nil, buildErr
 		}
+		telemetryAttempt := s.beginCodexTelemetry(c, account, body, upstreamReq.Header)
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+		telemetryAttempt.observeResult(resp, err)
 		if err != nil {
 			if turn == 1 {
 				return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, true)

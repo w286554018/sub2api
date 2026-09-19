@@ -162,7 +162,7 @@ func TestCodexInferenceCallMatrixAuxiliaryRequests(t *testing.T) {
 					var req *http.Request
 					if endpoint == "images" {
 						c := codexIdentityHTTPContext("/v1/images/generations", headers)
-						upstream := &httpUpstreamRecorder{resp: auxiliaryImageResponse()}
+						upstream := &httpUpstreamRecorder{resp: auxiliaryDirectImageResponse()}
 						svc.httpUpstream = upstream
 						input := []byte(`{"model":"gpt-image-2","prompt":"draw a square"}`)
 						parsed, err := svc.ParseOpenAIImagesRequest(c, input)
@@ -194,6 +194,8 @@ func TestCodexInferenceCallMatrixAuxiliaryRequests(t *testing.T) {
 					require.Empty(t, req.Header.Get(codexMatrixInferenceHeader), "auxiliary ingress must not mint a direct Responses trace")
 					if endpoint == "alpha" {
 						require.True(t, strings.HasSuffix(req.URL.Path, "/alpha/search"))
+					} else if endpoint == "images" {
+						require.True(t, strings.HasSuffix(req.URL.Path, "/images/generations"))
 					} else {
 						require.True(t, strings.HasSuffix(req.URL.Path, "/responses"), "exclusion follows ingress, not the auxiliary upstream URL")
 					}

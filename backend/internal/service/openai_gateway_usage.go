@@ -185,12 +185,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// Calculate cost
 	tokens := UsageTokens{
-		InputTokens:         actualInputTokens,
-		ImageInputTokens:    result.Usage.ImageInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		InputTokens:          actualInputTokens,
+		ImageInputTokens:     max(result.Usage.ImageInputTokens-result.Usage.ImageCacheReadTokens, 0),
+		ImageCacheReadTokens: result.Usage.ImageCacheReadTokens,
+		OutputTokens:         result.Usage.OutputTokens,
+		CacheCreationTokens:  result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:      result.Usage.CacheReadInputTokens,
+		ImageOutputTokens:    result.Usage.ImageOutputTokens,
 	}
 
 	// Get rate multiplier
@@ -235,6 +236,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
 	longContextBillingGate := openAILongContextBillingGate(billingAccount)
+	imagePlatform := imageBillingPlatform(account)
 	cost, err = s.calculateOpenAIRecordUsageCost(
 		ctx,
 		result,
@@ -248,6 +250,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		serviceTier,
 		longContextBillingGate,
 		pricingAt,
+		imagePlatform,
 	)
 	if err != nil {
 		if !isUsagePricingUnavailableError(err) {
@@ -281,6 +284,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			responseCost, responseErr := s.calculateOpenAIRecordUsageCost(
 				ctx, result, apiKey, responseModels, multiplier, imageMultiplier,
 				videoMultiplier, baseMultiplier, tokens, serviceTier, longContextBillingGate, pricingAt,
+				imagePlatform,
 			)
 			// 基线定价源以 baselineBillingModel 为准：它正是 calculateOpenAIRecordUsageCost
 			// 内部做渠道定价判断时使用的模型，且"首候选有渠道价"必然意味着首候选就是实际
@@ -312,6 +316,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			"",
 			longContextBillingGate,
 			pricingAt,
+			imagePlatform,
 		)
 		if standardErr != nil {
 			return standardErr
@@ -366,6 +371,14 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		)
 	}
 
+	imageSizeBreakdown := cloneImageSizeBreakdown(result.ImageSizeBreakdown)
+	if result.Usage.ImageCacheReadTokens > 0 {
+		if imageSizeBreakdown == nil {
+			imageSizeBreakdown = make(map[string]int)
+		}
+		// Keep the image cache split in the existing usage_logs JSONB payload.
+		imageSizeBreakdown["image_cache_read_tokens"] = result.Usage.ImageCacheReadTokens
+	}
 	usageLog := &UsageLog{
 		UserID:                   user.ID,
 		APIKeyID:                 apiKey.ID,
@@ -393,7 +406,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageInputSize:           optionalTrimmedStringPtr(result.ImageInputSize),
 		ImageOutputSize:          optionalTrimmedStringPtr(result.ImageOutputSize),
 		ImageSizeSource:          optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:       result.ImageSizeBreakdown,
+		ImageSizeBreakdown:       imageSizeBreakdown,
 		NativeCompactionV2:       input.NativeCompactionV2,
 	}
 	isVideoUsage := isGrokVideoUsageResult(result, billingModels)
@@ -563,6 +576,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	serviceTier string,
 	longContextBillingGate *bool,
 	pricingAt time.Time,
+	platform string,
 ) (*CostBreakdown, error) {
 	billingModel := firstUsageBillingModel(billingModels)
 	if result != nil && result.WebSearchCalls > 0 {
@@ -594,7 +608,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	if result != nil && result.ImageCount > 0 {
 		// 渠道定价为 token 计费时走 token 路径，否则走图片计费
 		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved == nil || resolved.Mode != BillingModeToken {
-			return s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier), nil
+			return s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier, platform), nil
 		}
 	}
 
@@ -743,6 +757,7 @@ func (s *OpenAIGatewayService) calculateOpenAIImageCost(
 	apiKey *APIKey,
 	result *OpenAIForwardResult,
 	multiplier float64,
+	platform string,
 ) *CostBreakdown {
 	sizeTier := NormalizeImageBillingTierOrDefault(result.ImageSize)
 	resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)
@@ -760,13 +775,13 @@ func (s *OpenAIGatewayService) calculateOpenAIImageCost(
 	}
 	groupConfig := imagePriceConfigFromAPIKey(apiKey)
 	if apiKeyHasConfiguredImagePrice(apiKey, sizeTier) {
-		return s.billingService.CalculateImageCost(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier)
+		return s.billingService.CalculateImageCostWithPlatform(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier, platform)
 	}
 	if refreshed := s.apiKeyWithFreshGroupMediaPricing(ctx, apiKey); refreshed != apiKey {
 		apiKey = refreshed
 		groupConfig = imagePriceConfigFromAPIKey(apiKey)
 		if apiKeyHasConfiguredImagePrice(apiKey, sizeTier) {
-			return s.billingService.CalculateImageCost(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier)
+			return s.billingService.CalculateImageCostWithPlatform(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier, platform)
 		}
 	}
 	if resolved != nil && (resolved.Source == PricingSourceGlobal || resolved.Source == PricingSourceChannel) &&
@@ -789,7 +804,7 @@ func (s *OpenAIGatewayService) calculateOpenAIImageCost(
 		logger.LegacyPrintf("service.openai_gateway", "Calculate image channel cost failed: %v", err)
 	}
 
-	return s.billingService.CalculateImageCost(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier)
+	return s.billingService.CalculateImageCostWithPlatform(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier, platform)
 }
 
 func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
@@ -931,7 +946,7 @@ func groupMediaPricingLooksIncomplete(group *Group) bool {
 // 运营者的修复手段是配置账号级 model_mapping（映射到已定价的 CN 模型）或
 // 分组/渠道显式定价。
 func (s *OpenAIGatewayService) filterCNProviderBillingModelCandidates(ctx context.Context, account *Account, apiKey *APIKey, candidates []string) []string {
-	if account == nil || !account.IsCNProvider() {
+	if account == nil || (!account.IsCNProvider() && !account.IsOpenCodeGo()) {
 		return candidates
 	}
 	out := make([]string, 0, len(candidates))
@@ -1155,4 +1170,15 @@ func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.C
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
 		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
 	}
+}
+
+func cloneImageSizeBreakdown(input map[string]int) map[string]int {
+	if len(input) == 0 {
+		return nil
+	}
+	output := make(map[string]int, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }

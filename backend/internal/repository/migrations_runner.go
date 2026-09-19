@@ -91,12 +91,8 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	// keeps that superset).  The current file is semantically safe and must remain
 	// immutable; accept only that observed historical checksum pair.
 	"145_allow_kiro_user_platform_quotas.sql": newMigrationChecksumCompatibilityRule("bc174c2b9dd244f10090a322bb685c8fd6c3e8050777a07b3c92c08b1d8cae94", "d5662e58880a4cd75950cfba9be3c25e8cf49d7b94d49684cc5777e779c88eee"),
-	// The same deployment line later widened migration 157's platform CHECK
-	// constraint for additional providers. Keep this compatibility narrow to
-	// the checksum observed in the live database.
-	"157_user_platform_quotas_add_grok.sql": newMigrationChecksumCompatibilityRule("a918734da39c2e5a82e4a5e9511bac1f4cf7e310ceadd647df52692320633c1b", "5cace8fa32c6174a72721cd9b01f28f4545de1fd7bcd9ca196a4225056ec4fb8"),
-	"159_batch_image_foundation.sql":        newMigrationChecksumCompatibilityRule("d902b70982025ec519749faf058aab7631e82c3f48167b9a4ae4db718eb72cce", "82da85b5d98e67a0507647b873a40373e84538e4adafdeed6767c0ac8b6570b2"),
-	"161_batch_image_pricing_snapshot.sql":  newMigrationChecksumCompatibilityRule("4012af3e43636cb6af22e0176d59d1fcc70615c0f310194329461ae462c4fbd6", "96d915c9b7a6941ae99039e0ff3f1a61481eb9bddd933d11c6fadb2274554e87"),
+	"159_batch_image_foundation.sql":          newMigrationChecksumCompatibilityRule("d902b70982025ec519749faf058aab7631e82c3f48167b9a4ae4db718eb72cce", "82da85b5d98e67a0507647b873a40373e84538e4adafdeed6767c0ac8b6570b2"),
+	"161_batch_image_pricing_snapshot.sql":    newMigrationChecksumCompatibilityRule("4012af3e43636cb6af22e0176d59d1fcc70615c0f310194329461ae462c4fbd6", "96d915c9b7a6941ae99039e0ff3f1a61481eb9bddd933d11c6fadb2274554e87"),
 	// 195 originally seeded mode=v2; flipped to v1 (safe default / opt-in v2). Existing DBs
 	// that already applied the v2 seed keep their row and the historical checksum.
 	"195_channel_monitor_mode.sql": newMigrationChecksumCompatibilityRule("13f3792f3e3e53ee96e26415c884cf8062c77172824b54fcc9a8c0c2b1f185ec", "4c74fe33ef2274cc72e1bb49671e651274532c034b29f5b2982c2a4c88d101a6"),
@@ -110,6 +106,12 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	//（db=4de3bf30）。当前文件必须保留 kiro，才能在 224 尚未应用且已有 kiro 数据的环境
 	// 成功升级；两个历史 checksum 双向互认，227 会将已应用旧版的约束统一为全部 9 平台。
 	"224_user_platform_quotas_add_cn_providers.sql": newMigrationChecksumCompatibilityRule("5227db3c1a6a1e2e422a9f9ba9d1f490c708b6c6dd91ce89f3c48115421a3e55", "4de3bf301cd838bbaf85613ce37dd47643165c0e3f36a1075341ff71aa37fae1"),
+	// 157/237/238 是官方迁移，本 fork 就地在平台白名单里补了 kiro/adobe。
+	// 从官方镜像切到本 fork 的库记录的是官方 checksum，需要放行；
+	// 两版约束的差异由 239_fork_platform_constraints_superset 统一收敛。
+	"157_user_platform_quotas_add_grok.sql": newMigrationChecksumCompatibilityRule("a918734da39c2e5a82e4a5e9511bac1f4cf7e310ceadd647df52692320633c1b", "5cace8fa32c6174a72721cd9b01f28f4545de1fd7bcd9ca196a4225056ec4fb8"),
+	"237_add_minimax_platform.sql":          newMigrationChecksumCompatibilityRule("c754b29e15c10ef2a72887c4e2dd04a73a37c6c06218d1b2725836884450c03a", "f4c73d2dbce114ca7ade1aac51998c3465490f4f3c9b3e868e53590f3fa8601b"),
+	"238_opencode_go_platform.sql":          newMigrationChecksumCompatibilityRule("d310f134e119bd0b01c36e048841d04e1adc04a117c5c516ccdbbc8800742414", "6f987e251519bd3759e60da44620a5d777494cceb333b6ce394aa0ea536ef5a2"),
 }
 
 // ApplyMigrations 将嵌入的 SQL 迁移文件应用到指定的数据库。

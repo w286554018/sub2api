@@ -18,36 +18,37 @@ func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo 
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 1.1
 	return NewGatewayService(
-		nil,                           // accountRepo
-		nil,                           // groupRepo
-		usageRepo,                     // usageLogRepo
-		nil,                           // usageBillingRepo
-		userRepo,                      // userRepo
-		subRepo,                       // userSubRepo
-		nil,                           // userGroupRateRepo
-		nil,                           // cache
-		cfg,                           // cfg
-		nil,                           // schedulerSnapshot
-		nil,                           // concurrencyService
-		NewBillingService(cfg, nil),   // billingService
-		nil,                           // rateLimitService
-		&BillingCacheService{},        // billingCacheService
-		nil,                           // identityService
-		nil,                           // httpUpstream
-		&DeferredService{},            // deferredService
-		nil,                           // claudeTokenProvider
-		nil,                           // kiroTokenProvider
-		nil,                           // kiroCooldownStore
-		nil,                           // sessionLimitCache
-		nil,                           // rpmCache
-		nil,                           // digestStore
-		nil,                           // settingService
-		nil,                           // tlsFPProfileService
-		nil,                           // channelService
-		nil,                           // resolver
-		nil,                           // compositeResolver
-		nil,                           // balanceNotifyService
-		nil,                           // userPlatformQuotaRepo
+		nil,                         // accountRepo
+		nil,                         // groupRepo
+		usageRepo,                   // usageLogRepo
+		nil,                         // usageBillingRepo
+		userRepo,                    // userRepo
+		subRepo,                     // userSubRepo
+		nil,                         // userGroupRateRepo
+		nil,                         // cache
+		cfg,                         // cfg
+		nil,                         // schedulerSnapshot
+		nil,                         // concurrencyService
+		NewBillingService(cfg, nil), // billingService
+		nil,                         // rateLimitService
+		&BillingCacheService{},      // billingCacheService
+		nil,                         // identityService
+		nil,                         // httpUpstream
+		&DeferredService{},          // deferredService
+		nil,                         // claudeTokenProvider
+		nil,                         // kiroTokenProvider
+		nil,                         // adobeTokenProvider
+		nil,                         // kiroCooldownStore
+		nil,                         // sessionLimitCache
+		nil,                         // rpmCache
+		nil,                         // digestStore
+		nil,                         // settingService
+		nil,                         // tlsFPProfileService
+		nil,                         // channelService
+		nil,                         // resolver
+		nil,                         // compositeResolver
+		nil,                         // balanceNotifyService
+		nil,                         // userPlatformQuotaRepo
 	)
 }
 
@@ -467,7 +468,7 @@ func TestGatewayServiceRecordUsage_DeepSeekAccountStatsUsesRequestPricingAtAndUp
 		name        string
 		offPeakCost float64
 	}{
-		{"deepseek-v4-flash", 1000*2.2e-7 + 500*6.6e-7 + 1000*7e-9},
+		{"deepseek-v4-flash", 1000*1.5e-7 + 500*6e-7 + 1000*3e-9},
 		{"deepseek-v4-pro", 1000*6.6e-7 + 500*1.98e-6 + 1000*2.2e-8},
 	} {
 		for _, slot := range []struct {
