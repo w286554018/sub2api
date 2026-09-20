@@ -318,14 +318,14 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       'OpenAI',
       'Gemini',
       'Antigravity',
-      'Kiro',
       'Grok',
-      'Adobe',
       'Kimi',
       'Zhipu GLM',
       'DeepSeek',
       'MiniMax',
       'OpenCode',
+      'Kiro',
+      'Adobe',
     ])
   })
 
