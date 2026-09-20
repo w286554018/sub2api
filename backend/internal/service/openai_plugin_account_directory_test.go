@@ -103,6 +103,8 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 		"AutoPauseOnExpired": {}, "CreatedAt": {}, "UpdatedAt": {}, "Schedulable": {},
 		"RateLimitedAt": {}, "RateLimitResetAt": {}, "OverloadUntil": {},
 		"TempUnschedulableUntil": {}, "TempUnschedulableReason": {},
+		"KiroQuotaState": {}, "KiroQuotaReason": {}, "KiroQuotaResetAt": {},
+		"KiroRuntimeState": {}, "KiroRuntimeReason": {}, "KiroRuntimeResetAt": {},
 		"SessionWindowStart": {}, "SessionWindowEnd": {}, "SessionWindowStatus": {},
 		"ParentAccountID": {}, "QuotaDimension": {}, "GroupIDs": {},
 	}
@@ -124,9 +126,11 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 	// The raw Credentials blob must never serialize; Extra and the proxy ARE released.
 	acct := &Account{
 		ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive,
-		Credentials: map[string]any{"access_token": "AT", "refresh_token": "LEAK-REFRESH"},
-		Extra:       map[string]any{"opaque": "extra-released"},
-		Proxy:       &Proxy{Host: "host", Port: 1, Username: "user", Password: "pw-released"},
+		Credentials:       map[string]any{"access_token": "AT", "refresh_token": "LEAK-REFRESH"},
+		Extra:             map[string]any{"opaque": "extra-released"},
+		Proxy:             &Proxy{Host: "host", Port: 1, Username: "user", Password: "pw-released"},
+		KiroQuotaState:    kiroQuotaStateCreditsExhausted,
+		KiroRuntimeReason: "quota metadata released",
 	}
 	snap := accountReadableSnapshotJSON(acct)
 	require.NotNil(t, snap)
@@ -135,6 +139,8 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 	assert.NotContains(t, string(snap), "LEAK-REFRESH", "raw Credentials must never appear in metadata")
 	assert.Contains(t, string(snap), "extra-released", "Extra is intentionally released")
 	assert.Contains(t, string(snap), "pw-released", "proxy is intentionally released (already exposed via 打票)")
+	assert.Contains(t, string(snap), kiroQuotaStateCreditsExhausted, "Kiro quota state is readable metadata")
+	assert.Contains(t, string(snap), "quota metadata released", "Kiro runtime reason is readable metadata")
 
 	// Cycle safety: a populated Groups/AccountGroups back-reference cycle must NOT
 	// crash json.Marshal (encoding/json does not detect cycles). Stripping them
