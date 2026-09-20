@@ -71,12 +71,13 @@
                 <th class="w-10 px-4 py-3"><input type="checkbox" class="rounded text-primary-600" :checked="pageSelected" @change="togglePageSelection" /></th>
                 <th class="px-4 py-3">{{ t('admin.intelligentTests.account') }}</th>
                 <th class="px-4 py-3">{{ t('admin.intelligentTests.platform') }}</th>
+                <th class="min-w-56 px-4 py-3">{{ t('admin.intelligentTests.model') }}</th>
                 <th class="px-4 py-3">{{ t('admin.intelligentTests.tests') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-              <tr v-if="loading"><td colspan="4" class="px-4 py-8 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
-              <tr v-else-if="!accounts.length"><td colspan="4" class="px-4 py-8 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
+              <tr v-if="loading"><td colspan="5" class="px-4 py-8 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
+              <tr v-else-if="!accounts.length"><td colspan="5" class="px-4 py-8 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
               <tr v-for="account in accounts" v-else :key="account.account_id" class="align-top hover:bg-gray-50 dark:hover:bg-dark-700/50">
                 <td class="px-4 py-3"><input v-model="selectedAccountIds" type="checkbox" class="rounded text-primary-600" :value="account.account_id" /></td>
                 <td class="px-4 py-3">
@@ -86,6 +87,20 @@
                 </td>
                 <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ account.platform }}</td>
                 <td class="px-4 py-3">
+                  <div @click.capture="loadAccountModels(account.account_id)">
+                    <Select
+                      v-model="selectedAccountModels[account.account_id]"
+                      :data-test="`account-model-${account.account_id}`"
+                      :options="accountModelOptions(account.account_id)"
+                      value-key="id"
+                      label-key="display_name"
+                      size="sm"
+                      :loading="accountModelsLoading[account.account_id]"
+                    />
+                  </div>
+                  <p class="mt-1 text-xs text-gray-500">{{ t('admin.intelligentTests.modelHint') }}</p>
+                </td>
+                <td class="px-4 py-3">
                   <div class="grid gap-2 lg:grid-cols-2">
                     <div v-for="test in account.tests" :key="test.test_type" class="rounded-md border border-gray-100 p-3 dark:border-dark-700">
                       <div class="flex items-center justify-between gap-2">
@@ -94,6 +109,7 @@
                       </div>
                       <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                         <span>{{ t('admin.intelligentTests.historyCount', { count: test.history_count }) }}</span>
+                        <span v-if="test.latest?.model">{{ test.latest.model }}</span>
                         <span v-if="test.latest?.created_at">{{ formatDate(test.latest.created_at) }}</span>
                       </div>
                       <div class="mt-3 flex flex-wrap gap-2">
@@ -124,14 +140,15 @@
         </form>
         <div class="overflow-hidden rounded-md border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800">
           <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-            <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-dark-700/60 dark:text-gray-400"><tr><th class="px-4 py-3">ID</th><th class="px-4 py-3">{{ t('admin.intelligentTests.account') }}</th><th class="px-4 py-3">{{ t('admin.intelligentTests.testType') }}</th><th class="px-4 py-3">{{ t('common.status') }}</th><th class="px-4 py-3">{{ t('admin.intelligentTests.score') }}</th><th class="px-4 py-3">{{ t('common.actions') }}</th></tr></thead>
+            <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-dark-700/60 dark:text-gray-400"><tr><th class="px-4 py-3">ID</th><th class="px-4 py-3">{{ t('admin.intelligentTests.account') }}</th><th class="px-4 py-3">{{ t('admin.intelligentTests.testType') }}</th><th class="px-4 py-3">{{ t('admin.intelligentTests.model') }}</th><th class="px-4 py-3">{{ t('common.status') }}</th><th class="px-4 py-3">{{ t('admin.intelligentTests.score') }}</th><th class="px-4 py-3">{{ t('common.actions') }}</th></tr></thead>
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-              <tr v-if="loading"><td colspan="6" class="px-4 py-8 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
-              <tr v-else-if="!records.length"><td colspan="6" class="px-4 py-8 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
+              <tr v-if="loading"><td colspan="7" class="px-4 py-8 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
+              <tr v-else-if="!records.length"><td colspan="7" class="px-4 py-8 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
               <tr v-for="record in records" v-else :key="record.id" class="hover:bg-gray-50 dark:hover:bg-dark-700/50">
                 <td class="px-4 py-3">#{{ record.id }}</td>
                 <td class="px-4 py-3">#{{ record.account_id }}</td>
                 <td class="px-4 py-3">{{ settingName(record.test_type) }}</td>
+                <td class="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{{ record.model || '-' }}</td>
                 <td class="px-4 py-3"><StatusPill :status="record.status" :label="statusLabel(record.status)" /></td>
                 <td class="px-4 py-3">{{ record.score ?? '-' }}</td>
                 <td class="px-4 py-3"><div class="flex flex-wrap gap-2"><button class="btn btn-xs btn-secondary" type="button" @click="openDetail(record.id)">{{ t('common.view') }}</button><button v-if="canCancel(record.status)" class="btn btn-xs btn-ghost" type="button" @click="cancelJob(record.id)">{{ t('common.cancel') }}</button><button v-if="isTerminal(record.status)" class="btn btn-xs btn-ghost" type="button" @click="reevaluateJob(record.id)">{{ t('admin.intelligentTests.reevaluate') }}</button></div></td>
@@ -157,7 +174,7 @@
 
     <BaseDialog :show="Boolean(detailRecord)" :title="t('admin.intelligentTests.detail.title')" width="extra-wide" @close="detailRecord = null">
       <div v-if="detailRecord" class="space-y-4 text-sm">
-        <div class="grid gap-3 md:grid-cols-4"><InfoItem label="ID" :value="`#${detailRecord.id}`" /><InfoItem :label="t('admin.intelligentTests.account')" :value="`#${detailRecord.account_id}`" /><InfoItem :label="t('admin.intelligentTests.testType')" :value="settingName(detailRecord.test_type)" /><InfoItem :label="t('common.status')" :value="statusLabel(detailRecord.status)" /></div>
+        <div class="grid gap-3 md:grid-cols-5"><InfoItem label="ID" :value="`#${detailRecord.id}`" /><InfoItem :label="t('admin.intelligentTests.account')" :value="`#${detailRecord.account_id}`" /><InfoItem :label="t('admin.intelligentTests.testType')" :value="settingName(detailRecord.test_type)" /><InfoItem :label="t('admin.intelligentTests.model')" :value="detailRecord.model || '-'" /><InfoItem :label="t('common.status')" :value="statusLabel(detailRecord.status)" /></div>
         <div v-if="detailRecord.error_message" class="rounded-md bg-red-50 p-3 text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ detailRecord.error_message }}</div>
         <div v-if="safeSvg" class="rounded-md border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900" v-html="safeSvg"></div>
         <div class="rounded-md border border-gray-200 dark:border-dark-700"><div class="border-b border-gray-200 px-3 py-2 font-medium dark:border-dark-700">{{ t('admin.intelligentTests.detail.result') }}</div><pre class="max-h-80 overflow-auto whitespace-pre-wrap p-3 text-xs text-gray-700 dark:text-gray-300">{{ boundedResult(detailRecord.result) }}</pre></div>
@@ -184,6 +201,8 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore, useAuthStore } from '@/stores'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { adminAPI } from '@/api/admin'
+import type { ClaudeModel } from '@/types'
 import {
   intelligentTestsAPI,
   newIntelligentTestRequestKey,
@@ -224,6 +243,9 @@ const running = ref(false)
 const error = ref('')
 const selectedAccountIds = ref<number[]>([])
 const selectedTestTypes = ref<string[]>([])
+const selectedAccountModels = reactive<Record<number, string>>({})
+const accountModels = reactive<Record<number, ClaudeModel[]>>({})
+const accountModelsLoading = reactive<Record<number, boolean>>({})
 const detailRecord = ref<IntelligentTestRecord | null>(null)
 const previewRecord = ref<IntelligentTestRecord | null>(null)
 const saving = reactive<Record<string, boolean>>({})
@@ -429,6 +451,25 @@ function togglePageSelection(): void {
   selectedAccountIds.value = pageSelected.value ? [] : accounts.value.map(account => account.account_id)
 }
 
+function accountModelOptions(accountID: number): Array<Record<string, unknown>> {
+  return [
+    { id: '', type: 'model', display_name: t('admin.intelligentTests.modelAuto'), created_at: '' },
+    ...(accountModels[accountID] || []).map(model => ({ ...model })),
+  ]
+}
+
+async function loadAccountModels(accountID: number): Promise<void> {
+  if (accountModelsLoading[accountID] || Object.prototype.hasOwnProperty.call(accountModels, accountID)) return
+  accountModelsLoading[accountID] = true
+  try {
+    accountModels[accountID] = await adminAPI.accounts.getAvailableModels(accountID)
+  } catch (err) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.intelligentTests.errors.modelsLoad')))
+  } finally {
+    accountModelsLoading[accountID] = false
+  }
+}
+
 async function runSelected(): Promise<void> {
   await runAccounts(selectedAccountIds.value, selectedTestTypes.value)
 }
@@ -439,14 +480,24 @@ async function runAccounts(accountIds: number[], testTypes: string[]): Promise<v
     appStore.showError(t('admin.intelligentTests.errors.batchLimit'))
     return
   }
-  const signature = JSON.stringify([[...accountIds].sort((a, b) => a - b), [...testTypes].sort()])
+  const modelOverrides = Object.fromEntries(
+    accountIds
+      .map(accountID => [String(accountID), (selectedAccountModels[accountID] || '').trim()] as const)
+      .filter(([, model]) => model),
+  )
+  const signature = JSON.stringify([[...accountIds].sort((a, b) => a - b), [...testTypes].sort(), modelOverrides])
   if (signature !== runSignature) {
     runSignature = signature
     runKey = newIntelligentTestRequestKey()
   }
   running.value = true
   try {
-    const response = await intelligentTestsAPI.run({ account_ids: accountIds, test_types: testTypes, idempotency_key: runKey })
+    const response = await intelligentTestsAPI.run({
+      account_ids: accountIds,
+      test_types: testTypes,
+      idempotency_key: runKey,
+      ...(Object.keys(modelOverrides).length ? { account_models: modelOverrides } : {}),
+    })
     appStore.showSuccess(t(response.reused ? 'admin.intelligentTests.messages.reused' : 'admin.intelligentTests.messages.enqueued', { count: response.created_count || response.reused_count || response.records.length }))
     runSignature = ''
     await loadData(false)

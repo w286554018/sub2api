@@ -45,6 +45,9 @@ export default {
       },
       account: 'Account',
       platform: 'Platform',
+      model: 'Test model',
+      modelAuto: 'Auto-select an available model',
+      modelHint: 'When empty, uses the account mapping or live model catalog.',
       tests: 'Tests',
       testType: 'Test type',
       score: 'Score',
@@ -86,6 +89,7 @@ export default {
         accountId: 'Enter a valid account ID',
         timeRange: 'End time cannot be earlier than start time',
         batchLimit: 'Select at most 50 accounts per batch',
+        modelsLoad: 'Failed to load available account models',
       },
   },
 }

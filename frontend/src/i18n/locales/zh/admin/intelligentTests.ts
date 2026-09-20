@@ -45,6 +45,9 @@ export default {
       },
       account: '账号',
       platform: '平台',
+      model: '测试模型',
+      modelAuto: '自动选择账号可用模型',
+      modelHint: '留空时按该账号的映射或实时模型目录自动选择。',
       tests: '测试项',
       testType: '测试类型',
       score: '分数',
@@ -86,6 +89,7 @@ export default {
         accountId: '请输入有效账号 ID',
         timeRange: '结束时间不能早于开始时间',
         batchLimit: '每批最多选择 50 个账号',
+        modelsLoad: '加载账号可用模型失败',
       },
   },
 }

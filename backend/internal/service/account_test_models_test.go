@@ -82,6 +82,92 @@ func TestFetchOpenAIAccountModelsPreservesEmptyCatalog(t *testing.T) {
 	require.Empty(t, models, "an empty upstream catalog must not become a static model list")
 }
 
+func TestResolveIntelligentTestModelReplacesUnavailableOpenAIPreference(t *testing.T) {
+	gateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		return ordinaryModelsUpstreamResponse(`{"data":[
+			{"id":"gpt-5.6-sol","display_name":"GPT-5.6 Sol"},
+			{"id":"gpt-image-2","display_name":"GPT Image 2"}
+		]}`), nil
+	}})
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	svc := &AccountTestService{openaiGatewayService: gateway}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "gpt-5.4")
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.6-sol", model)
+}
+
+func TestResolveIntelligentTestModelKeepsAvailableOpenAIOverride(t *testing.T) {
+	gateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		return ordinaryModelsUpstreamResponse(`{"data":[
+			{"id":"gpt-5.6-sol","display_name":"GPT-5.6 Sol"},
+			{"id":"gpt-6-astra","display_name":"GPT-6 Astra"}
+		]}`), nil
+	}})
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	svc := &AccountTestService{openaiGatewayService: gateway}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "gpt-6-astra")
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-6-astra", model)
+}
+
+func TestResolveIntelligentTestModelRejectsUnavailableOpenAIMapping(t *testing.T) {
+	gateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		return ordinaryModelsUpstreamResponse(`{"data":[
+			{"id":"gpt-5.6-sol","display_name":"GPT-5.6 Sol"}
+		]}`), nil
+	}})
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	account.Credentials["model_mapping"] = map[string]any{"gpt-5.4": "gpt-5.4"}
+	svc := &AccountTestService{openaiGatewayService: gateway}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "gpt-5.4")
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.6-sol", model)
+}
+
+func TestResolveIntelligentTestModelKeepsAvailableOpenAIMappingAlias(t *testing.T) {
+	gateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		return ordinaryModelsUpstreamResponse(`{"data":[
+			{"id":"gpt-5.6-sol","display_name":"GPT-5.6 Sol"}
+		]}`), nil
+	}})
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	account.Credentials["model_mapping"] = map[string]any{"company-gpt": "gpt-5.6-sol"}
+	svc := &AccountTestService{openaiGatewayService: gateway}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "company-gpt")
+
+	require.NoError(t, err)
+	require.Equal(t, "company-gpt", model)
+}
+
+func TestResolveIntelligentTestModelDoesNotReuseRetiredOpenAIMappingWhenDiscoveryFails(t *testing.T) {
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	account.Credentials["model_mapping"] = map[string]any{"gpt-5.4": "gpt-5.4"}
+	svc := &AccountTestService{}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "gpt-5.4")
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.6-sol", model)
+}
+
+func TestResolveIntelligentTestModelDoesNotReuseRetiredOpenAIMappingAliasWhenDiscoveryFails(t *testing.T) {
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	account.Credentials["model_mapping"] = map[string]any{"company-gpt": "gpt-5.4"}
+	svc := &AccountTestService{}
+
+	model, err := svc.resolveIntelligentTestModel(context.Background(), account, "company-gpt")
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.6-sol", model)
+}
+
 func TestFetchOpenAIAccountModelsOAuthLabelsLocalImageModelsLikeUpstream(t *testing.T) {
 	newCodexModelsOAuthCacheServer(t, `{"models":[{"slug":"gpt-5.6-sol"}]}`)
 	svc := &AccountTestService{openaiGatewayService: &OpenAIGatewayService{}}

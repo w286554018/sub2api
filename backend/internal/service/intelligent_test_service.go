@@ -157,6 +157,11 @@ func (s *IntelligentTestService) Enqueue(ctx context.Context, actorID int64, req
 			return nil, intelligentTestBad("model overrides must target selected tests and be at most 200 characters")
 		}
 	}
+	for accountID, model := range req.AccountModels {
+		if !seenAccounts[accountID] || utf8.RuneCountInString(model) > 200 {
+			return nil, intelligentTestBad("account model overrides must target selected accounts and be at most 200 characters")
+		}
+	}
 	return s.repo.Enqueue(ctx, actorID, req)
 }
 

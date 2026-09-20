@@ -86,6 +86,17 @@ func TestIntelligentTestRepositoryRejectsMismatchedIdempotencyFingerprint(t *tes
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestIntelligentRequestFingerprintIncludesAccountModelOverrides(t *testing.T) {
+	base := service.IntelligentTestEnqueue{
+		AccountIDs: []int64{3},
+		TestTypes:  []string{"candy"},
+	}
+	withModel := base
+	withModel.AccountModels = map[int64]string{3: "gpt-5.6-sol"}
+
+	require.NotEqual(t, intelligentRequestFingerprint(base), intelligentRequestFingerprint(withModel))
+}
+
 func TestIntelligentTestRepositoryFinishRejectsLostLease(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

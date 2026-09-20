@@ -25,10 +25,16 @@ describe('admin intelligent tests API', () => {
 
   it('preserves idempotency keys and super-admin setting payload shape', async () => {
     client.post.mockResolvedValueOnce({ data: { records: [], created_count: 0, reused_count: 0, reused: false } })
-    await intelligentTestsAPI.run({ account_ids: [1, 2], test_types: ['candy'], idempotency_key: 'request-1' })
+    await intelligentTestsAPI.run({
+      account_ids: [1, 2],
+      test_types: ['candy'],
+      account_models: { 1: 'gpt-5.6-sol', 2: 'claude-sonnet-4-6' },
+      idempotency_key: 'request-1',
+    })
     expect(client.post).toHaveBeenCalledWith('/admin/intelligent-tests/jobs', {
       account_ids: [1, 2],
       test_types: ['candy'],
+      account_models: { 1: 'gpt-5.6-sol', 2: 'claude-sonnet-4-6' },
       idempotency_key: 'request-1',
     })
 

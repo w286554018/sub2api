@@ -105,6 +105,7 @@ export interface IntelligentTestRunRequest {
   test_types: string[]
   idempotency_key: string
   models?: Record<string, string>
+  account_models?: Record<string, string>
 }
 
 export interface IntelligentTestRunResponse {

@@ -175,6 +175,9 @@ func (r *intelligentTestRepository) Enqueue(ctx context.Context, actorID int64, 
 			if override := strings.TrimSpace(req.Models[testType]); override != "" {
 				cfg.Model = override
 			}
+			if override := strings.TrimSpace(req.AccountModels[accountID]); override != "" {
+				cfg.Model = override
+			}
 			cfgBytes, err := json.Marshal(cfg)
 			if err != nil {
 				return nil, err
@@ -554,10 +557,11 @@ func intelligentRequestFingerprint(req service.IntelligentTestEnqueue) string {
 	sort.Slice(accountIDs, func(i, j int) bool { return accountIDs[i] < accountIDs[j] })
 	sort.Strings(testTypes)
 	encoded, _ := json.Marshal(struct {
-		AccountIDs []int64           `json:"account_ids"`
-		TestTypes  []string          `json:"test_types"`
-		Models     map[string]string `json:"models"`
-	}{accountIDs, testTypes, req.Models})
+		AccountIDs    []int64           `json:"account_ids"`
+		TestTypes     []string          `json:"test_types"`
+		Models        map[string]string `json:"models"`
+		AccountModels map[int64]string  `json:"account_models"`
+	}{accountIDs, testTypes, req.Models, req.AccountModels})
 	sum := sha256.Sum256(encoded)
 	return hex.EncodeToString(sum[:])
 }

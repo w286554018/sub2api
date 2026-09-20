@@ -140,3 +140,19 @@ func TestIntelligentTestServiceRedactsRunnerErrorsBeforePersistence(t *testing.T
 	require.NotContains(t, record.ErrorMessage, "query-secret")
 	require.Contains(t, record.ErrorMessage, "[REDACTED]")
 }
+
+func TestIntelligentTestServiceRejectsModelOverrideForUnselectedAccount(t *testing.T) {
+	repo := &intelligentTestRepositoryStub{}
+	svc := NewIntelligentTestService(repo, intelligentTestRunnerFunc(func(context.Context, *IntelligentTestRecord) error {
+		return nil
+	}))
+
+	_, err := svc.Enqueue(context.Background(), 9, IntelligentTestEnqueue{
+		AccountIDs:    []int64{3},
+		TestTypes:     []string{"candy"},
+		AccountModels: map[int64]string{4: "gpt-5.6-sol"},
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "account model overrides")
+}

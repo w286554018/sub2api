@@ -115,6 +115,7 @@ type IntelligentTestEnqueue struct {
 	AccountIDs     []int64           `json:"account_ids"`
 	TestTypes      []string          `json:"test_types"`
 	Models         map[string]string `json:"models,omitempty"`
+	AccountModels  map[int64]string  `json:"account_models,omitempty"`
 	IdempotencyKey string            `json:"idempotency_key"`
 }
 

@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -3649,13 +3650,22 @@ func (s *AccountTestService) RunIntelligentTest(ctx context.Context, record *Int
 		modelID = record.Model
 	}
 	probe := s.newIntelligentTestProbe()
+	account, err := probe.accountRepo.GetByID(ctx, record.AccountID)
+	if err != nil {
+		return errors.New("account not found")
+	}
+	modelID, err = probe.resolveIntelligentTestModel(ctx, account, modelID)
+	if err != nil {
+		return err
+	}
+	record.Model = modelID
 	startedAt := time.Now()
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 	ginCtx.Set(accountTestIntelligentContextKey, true)
 	record.Status = IntelligentTestStatusRunning
-	err := probe.TestAccountConnection(ginCtx, record.AccountID, modelID, record.ConfigSnapshot.Prompt, AccountTestModeDefault)
+	err = probe.TestAccountConnection(ginCtx, record.AccountID, modelID, record.ConfigSnapshot.Prompt, AccountTestModeDefault)
 	result, image, errMsg := parseIntelligentTestSSEOutput(w.Body.String())
 	record.DurationMS = time.Since(startedAt).Milliseconds()
 	record.Result = trimIntelligentText(result, 16000)
@@ -3675,6 +3685,158 @@ func (s *AccountTestService) RunIntelligentTest(ctx context.Context, record *Int
 		return markIntelligentTestNotEvaluated(record, kind)
 	}
 	return nil
+}
+
+func (s *AccountTestService) resolveIntelligentTestModel(ctx context.Context, account *Account, preferred string) (string, error) {
+	if account == nil {
+		return "", errors.New("account not found")
+	}
+	preferred = strings.TrimSpace(preferred)
+	mapping := account.GetModelMapping()
+	if !account.IsOpenAI() {
+		if len(mapping) > 0 {
+			if preferred != "" && mappingSupportsRequestedModel(mapping, preferred) {
+				return preferred, nil
+			}
+			if model := firstIntelligentTestMappingModel(account.Platform, mapping); model != "" {
+				return model, nil
+			}
+		}
+		return preferred, nil
+	}
+
+	models, discoverErr := s.FetchOpenAIAccountModels(ctx, account)
+	if discoverErr == nil {
+		if preferred != "" && openAIIntelligentModelAvailable(account, models, preferred) {
+			return preferred, nil
+		}
+		if !account.IsOpenAIPassthroughEnabled() {
+			if model := firstAvailableOpenAIMappingModel(account, models); model != "" {
+				return model, nil
+			}
+		}
+		if model := firstOpenAIIntelligentTestModel(models); model != "" {
+			return model, nil
+		}
+	}
+
+	if discoverErr != nil && len(mapping) > 0 && !account.IsOpenAIPassthroughEnabled() {
+		if preferred != "" && isIntelligentTestTextModel(PlatformOpenAI, preferred) {
+			if mappedModel, matched := account.ResolveMappedModel(preferred); matched && isIntelligentTestTextModel(PlatformOpenAI, mappedModel) {
+				return preferred, nil
+			}
+		}
+		if model := firstIntelligentTestMappingModel(account.Platform, mapping); model != "" {
+			return model, nil
+		}
+	}
+
+	if discoverErr != nil && preferred != "" && !isKnownOpenAIModel(preferred) && (len(mapping) == 0 || account.IsOpenAIPassthroughEnabled()) {
+		return preferred, nil
+	}
+	if model := firstOpenAIIntelligentTestModel(openai.DefaultModels); model != "" {
+		return model, nil
+	}
+	if discoverErr != nil {
+		return "", fmt.Errorf("discover OpenAI models: %w", discoverErr)
+	}
+	return "", errors.New("no text model available for intelligent test")
+}
+
+func openAIIntelligentModelAvailable(account *Account, models []openai.Model, requestedModel string) bool {
+	if containsIntelligentTestModel(models, requestedModel) {
+		return true
+	}
+	if account == nil || account.IsOpenAIPassthroughEnabled() {
+		return false
+	}
+	mappedModel, matched := account.ResolveMappedModel(requestedModel)
+	return matched && containsIntelligentTestModel(models, strings.TrimSpace(mappedModel))
+}
+
+func firstAvailableOpenAIMappingModel(account *Account, models []openai.Model) string {
+	if account == nil {
+		return ""
+	}
+	mapping := account.GetModelMapping()
+	candidates := make([]string, 0, len(mapping))
+	for requestedModel, mappedModel := range mapping {
+		requestedModel = strings.TrimSpace(requestedModel)
+		mappedModel = strings.TrimSpace(mappedModel)
+		if requestedModel == "" || strings.Contains(requestedModel, "*") || !isIntelligentTestTextModel(PlatformOpenAI, requestedModel) {
+			continue
+		}
+		if !isIntelligentTestTextModel(PlatformOpenAI, mappedModel) || !containsIntelligentTestModel(models, mappedModel) {
+			continue
+		}
+		candidates = append(candidates, requestedModel)
+	}
+	sort.Strings(candidates)
+	if len(candidates) == 0 {
+		return ""
+	}
+	return candidates[0]
+}
+
+func firstIntelligentTestMappingModel(platform string, mapping map[string]string) string {
+	candidates := make([]string, 0, len(mapping))
+	for model, mappedModel := range mapping {
+		model = strings.TrimSpace(model)
+		if model == "" || strings.Contains(model, "*") || !isIntelligentTestTextModel(platform, model) {
+			continue
+		}
+		if platform == PlatformOpenAI && !isIntelligentTestTextModel(platform, mappedModel) {
+			continue
+		}
+		candidates = append(candidates, model)
+	}
+	sort.Strings(candidates)
+	if len(candidates) == 0 {
+		return ""
+	}
+	return candidates[0]
+}
+
+func containsIntelligentTestModel(models []openai.Model, modelID string) bool {
+	for _, model := range models {
+		if strings.EqualFold(strings.TrimSpace(model.ID), modelID) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstOpenAIIntelligentTestModel(models []openai.Model) string {
+	for _, model := range models {
+		modelID := strings.TrimSpace(model.ID)
+		if isIntelligentTestTextModel(PlatformOpenAI, modelID) {
+			return modelID
+		}
+	}
+	return ""
+}
+
+func isKnownOpenAIModel(modelID string) bool {
+	return containsIntelligentTestModel(openai.DefaultModels, modelID)
+}
+
+func isIntelligentTestTextModel(platform, modelID string) bool {
+	modelID = strings.ToLower(strings.TrimSpace(modelID))
+	if modelID == "" {
+		return false
+	}
+	if platform == PlatformOpenAI && isOpenAIImageModel(modelID) {
+		return false
+	}
+	if platform == PlatformOpenAI && openai.CanonicalizeOpenAIModelAliasSpelling(modelID) == "gpt-5.4" {
+		return false
+	}
+	for _, marker := range []string{"embedding", "moderation", "transcri", "text-to-speech", "tts", "realtime", "-audio", "-video", "image"} {
+		if strings.Contains(modelID, marker) {
+			return false
+		}
+	}
+	return true
 }
 
 func markIntelligentTestNotEvaluated(record *IntelligentTestRecord, reason string) error {
