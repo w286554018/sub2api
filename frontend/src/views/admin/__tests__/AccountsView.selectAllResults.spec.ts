@@ -101,6 +101,7 @@ const AccountTableFiltersStub = {
 }
 
 const ConfirmDialogStub = {
+  name: 'ConfirmDialog',
   props: ['show', 'title', 'message'],
   emits: ['confirm', 'cancel'],
   template: `

@@ -337,16 +337,19 @@
           </div>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <span>{{ t('common.total') }}: {{ historyTotal }} {{ t('pagination.results') }}</span>
-            <label>
-              {{ t('pagination.perPage') }}
+            <div class="flex items-center gap-2">
+              <span>{{ t('pagination.perPage') }}</span>
               <Select
                 v-model="historyPageSize"
-                class="w-20"
                 :options="historyPageSizeOptions"
+                :aria-label="t('pagination.perPage')"
+                class="w-24"
+                size="sm"
                 :disabled="loadingHistory || submitting"
+                data-testid="history-page-size"
                 @change="fetchHistory(1)"
               />
-            </label>
+            </div>
             <button
               class="btn btn-secondary"
               :disabled="loadingHistory || submitting || historyPage <= 1"

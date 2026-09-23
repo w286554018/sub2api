@@ -1057,6 +1057,112 @@ describe('CreateAccountModal Adobe model mapping', () => {
     expect(submittedCredentials()).not.toHaveProperty('model_mapping')
   })
 
+  it('粘贴 sub2api-data JSON 时只把 cookie 写进凭据', async () => {
+    const wrapper = await openAdobeTab()
+    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
+      type: 'sub2api-data',
+      version: 1,
+      exported_at: '2026-09-20T06:54:00.000Z',
+      proxies: [],
+      accounts: [
+        {
+          name: 'adobe-jane@example.com',
+          platform: 'adobe',
+          type: 'oauth',
+          credentials: { cookie: 'ims_sid=abc; aux_sid=def' },
+          concurrency: 10,
+          priority: 1
+        }
+      ]
+    }))
+    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+
+    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
+  })
+
+  it('粘贴带 arp_session_id 的 sub2api-data JSON 会写入凭据', async () => {
+    const wrapper = await openAdobeTab()
+    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
+      type: 'sub2api-data',
+      accounts: [
+        {
+          credentials: {
+            cookie: 'ims_sid=abc; aux_sid=def',
+            arp_session_id: 'arp-from-json'
+          }
+        }
+      ]
+    }))
+    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+
+    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
+    expect(submittedCredentials()?.arp_session_id).toBe('arp-from-json')
+  })
+
+  it('粘贴带 access_token 的 sub2api-data JSON 会写入凭据，空则不下发该键', async () => {
+    const wrapper = await openAdobeTab()
+    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
+      type: 'sub2api-data',
+      accounts: [
+        {
+          credentials: {
+            cookie: 'ims_sid=abc; aux_sid=def',
+            access_token: 'ims-from-json'
+          }
+        }
+      ]
+    }))
+    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+
+    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
+    expect(submittedCredentials()?.access_token).toBe('ims-from-json')
+
+    createAccountMock.mockClear()
+    const wrapperEmpty = await openAdobeTab()
+    await wrapperEmpty.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapperEmpty.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapperEmpty.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
+    await wrapperEmpty.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+    expect(submittedCredentials()).not.toHaveProperty('access_token')
+  })
+
+  it('ARP 框手填会写入凭据，空则不下发该键', async () => {
+    const wrapper = await openAdobeTab()
+    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="adobe-arp-input"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
+    await wrapper.get('[data-testid="adobe-arp-input"]').setValue('  typed-arp  ')
+    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+    expect(submittedCredentials()?.arp_session_id).toBe('typed-arp')
+
+    createAccountMock.mockClear()
+    const wrapperEmpty = await openAdobeTab()
+    await wrapperEmpty.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapperEmpty.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapperEmpty.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
+    await wrapperEmpty.get('[data-testid="adobe-create-account"]').trigger('click')
+    await flushPromises()
+    expect(submittedCredentials()).not.toHaveProperty('arp_session_id')
+  })
+
   it('Adobe 中转号在第一步提交 type=apikey + base_url，不改默认 priority', async () => {
     const wrapper = await openAdobeTab()
     await wrapper.get('[data-testid="adobe-account-type-relay"]').trigger('click')

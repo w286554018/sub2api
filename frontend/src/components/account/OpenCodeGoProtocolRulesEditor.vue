@@ -61,8 +61,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import Select from '@/components/common/Select.vue'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
   cloneOpenCodeGoProtocolRules,
@@ -83,15 +83,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const protocolOptions = computed<SelectOption[]>(() => [
-  {
-    value: 'chat_completions',
-    label: t('admin.accounts.cnProviders.apiProtocol.chatCompletions')
-  },
+const getRowKey = createStableObjectKeyResolver<OpenCodeGoProtocolRule>('opencode-go-protocol-rule')
+const protocolOptions = computed<Array<{ value: OpenCodeGoProtocolRule['protocol']; label: string }>>(() => [
+  { value: 'chat_completions', label: t('admin.accounts.cnProviders.apiProtocol.chatCompletions') },
   { value: 'responses', label: t('admin.accounts.cnProviders.apiProtocol.responses') },
   { value: 'anthropic', label: t('admin.accounts.cnProviders.apiProtocol.anthropic') }
 ])
-const getRowKey = createStableObjectKeyResolver<OpenCodeGoProtocolRule>('opencode-go-protocol-rule')
 
 const addRow = () => {
   emit('update:rows', [...props.rows, { pattern: '', protocol: 'chat_completions' }])

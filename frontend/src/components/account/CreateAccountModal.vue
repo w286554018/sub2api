@@ -4218,6 +4218,17 @@
           />
           <p class="input-hint">{{ t('admin.accounts.adobe.accessTokenHint') }}</p>
         </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.adobe.arpLabel') }}</label>
+          <textarea
+            v-model="adobeArpSession"
+            rows="3"
+            class="input font-mono text-xs"
+            :placeholder="t('admin.accounts.adobe.arpPlaceholder')"
+            data-testid="adobe-arp-input"
+          ></textarea>
+          <p class="input-hint">{{ t('admin.accounts.adobe.arpHint') }}</p>
+        </div>
       </div>
       <div v-else-if="isKiroImportMode" class="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
         <!-- Provider 选择:决定字段显隐与必填、示例 -->
@@ -4713,6 +4724,7 @@ import {
   parseDateTimeLocalInput
 } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import { extractAdobeAccessTokenFromCookieInput, extractAdobeAccessTokenInput, extractAdobeArpFromCookieInput, extractAdobeArpSessionInput, extractAdobeCookieInput } from '@/utils/adobeAccount'
 import { getAccountExpiryTimestamp } from '@/components/account/accountExpiry'
 import { VERTEX_LOCATION_SELECT_OPTIONS, BEDROCK_REGION_SELECT_OPTIONS } from '@/constants/account'
 import { KIRO_REGION_SELECT_OPTIONS } from '@/constants/kiroRegions'
@@ -4920,7 +4932,19 @@ const kiroAPIRegion = ref('us-east-1')
 // Adobe：cookie 是长期凭据，access_token 可留空（首次刷新时用 cookie 换取）
 const adobeCookie = ref('')
 const adobeAccessToken = ref('')
+const adobeArpSession = ref('')
 const upstreamBillingAutoProbeEnabled = ref(true)
+
+watch(adobeCookie, (value) => {
+  if (!adobeArpSession.value.trim()) {
+    const arp = extractAdobeArpFromCookieInput(value)
+    if (arp) adobeArpSession.value = arp
+  }
+  if (!adobeAccessToken.value.trim()) {
+    const token = extractAdobeAccessTokenFromCookieInput(value)
+    if (token) adobeAccessToken.value = token
+  }
+})
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
 const accountMode = ref<CnAccountMode>('payg')
@@ -5129,9 +5153,9 @@ const allowedModels = ref<string[]>([])
 
 // Adobe 用通用的「模型限制」区块（白名单 / 映射双模式），默认给空白名单。
 //
-// 空白名单 = 不下发 model_mapping = 后端回落到 DefaultAdobeModelMapping（17 条）。
+// 空白名单 = 不下发 model_mapping = 后端回落到 DefaultAdobeModelMapping（23 条）。
 // 刻意不预勾 13 个对外名：预勾会把历史别名 gpt-image / gpt-image-1 /
-// gpt-image-1-mini / gpt-image-2.5-prism 挡在门外，而运维八成不知道自己丢了它们。
+// gpt-image-1-mini / gpt-image-2.5-prism / nano-banana* 挡在门外，而运维八成不知道自己丢了它们。
 const applyAdobeModelRestrictionDefaults = () => {
   modelRestrictionMode.value = 'whitelist'
   allowedModels.value = []
@@ -5892,10 +5916,10 @@ const handleSelectGeminiOAuthType = (oauthType: 'code_assist' | 'google_one' | '
 watch(
   [modelRestrictionMode, () => form.platform],
   ([newMode]) => {
-    // Adobe 例外：预勾全部 13 个对外名会把历史别名 gpt-image / gpt-image-1 /
-    // gpt-image-1-mini / gpt-image-2.5-prism 挡在门外——它们不在用户面清单里
+    // Adobe 例外：预勾全部对外名会把历史别名 gpt-image / gpt-image-1 /
+    // gpt-image-1-mini / gpt-image-2.5-prism / nano-banana* 挡在门外——它们不在用户面清单里
     // （Step 8 刻意的），却是老客户端还在发的名字。留空 = 不下发 model_mapping
-    // = 后端回落到 DefaultAdobeModelMapping 那 17 条，四个别名都还在。
+    // = 后端回落到 DefaultAdobeModelMapping，历史别名都还在。
     if (form.platform === 'adobe') return
     if (newMode === 'whitelist') {
       allowedModels.value = [...getModelsByPlatform(form.platform)]
@@ -6275,6 +6299,7 @@ const resetForm = () => {
   kiroAPIRegion.value = 'us-east-1'
   adobeCookie.value = ''
   adobeAccessToken.value = ''
+  adobeArpSession.value = ''
   upstreamRequestIdHeader.value = ''
   upstreamBillingAutoProbeEnabled.value = true
   editQuotaLimit.value = null
@@ -6975,21 +7000,29 @@ const handleAdobeCreate = async () => {
     appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
     return
   }
-  if (!adobeCookie.value.trim()) {
+  const cookie = extractAdobeCookieInput(adobeCookie.value)
+  if (!cookie) {
     appStore.showError(t('admin.accounts.adobe.cookieRequired'))
     return
   }
 
   const credentials: Record<string, unknown> = {
-    cookie: adobeCookie.value.trim()
+    cookie
   }
   // 留空时由后台刷新器首次用 cookie 换取，不写入空串以免被当成"已有 token"。
-  if (adobeAccessToken.value.trim()) {
-    credentials.access_token = adobeAccessToken.value.trim()
+  const token = extractAdobeAccessTokenInput(adobeAccessToken.value)
+    || extractAdobeAccessTokenFromCookieInput(adobeCookie.value)
+  if (token) {
+    credentials.access_token = token
+  }
+  const arp = extractAdobeArpSessionInput(adobeArpSession.value)
+    || extractAdobeArpFromCookieInput(adobeCookie.value)
+  if (arp) {
+    credentials.arp_session_id = arp
   }
 
   // 白名单为空且没有映射行 => 不下发 model_mapping，由后端回落到
-  // DefaultAdobeModelMapping（17 条，含 4 个历史别名）。
+  // DefaultAdobeModelMapping（含历史别名）。
   const modelMapping = buildModelMappingObject(
     modelRestrictionMode.value,
     allowedModels.value,

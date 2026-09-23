@@ -1971,11 +1971,11 @@ const handleBulkResetStatus = async () => {
   }
 }
 const handleBulkRefreshToken = async () => {
-  const accountIds = [...selIds.value]
   if (!showBulkRefreshTokenConfirm.value) {
     showBulkRefreshTokenConfirm.value = true
     return
   }
+  const accountIds = [...selIds.value]
   try {
     showBulkRefreshTokenConfirm.value = false
     const result = await adminAPI.accounts.batchRefresh(accountIds)
