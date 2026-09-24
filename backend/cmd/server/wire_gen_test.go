@@ -49,7 +49,7 @@ func TestProvideCodexBackendClientFactoryQuotaAndPrivacyIsolation(t *testing.T) 
 			}
 			recorder := httptest.NewRecorder()
 			recorder.Header().Set("Content-Type", "application/json")
-			_, _ = recorder.WriteString(`{"plan_type":"pro","available_count":0,"credits":[]}`)
+			_, _ = recorder.WriteString(`{"plan_type":"pro","available_count":0,"credits":{"has_credits":false,"unlimited":false,"balance":null}}`)
 			return recorder.Result(), nil
 		}
 	})
@@ -62,7 +62,7 @@ func TestProvideCodexBackendClientFactoryQuotaAndPrivacyIsolation(t *testing.T) 
 	}
 	repo := &quotaWireAccountRepo{account: account}
 	svc := service.ProvideOpenAIQuotaService(repo, nil, service.NewOpenAITokenProvider(repo, nil, nil),
-		func(string) (*req.Client, error) { return client, nil }, nil)
+		func(string) (*req.Client, error) { return client, nil }, nil, nil)
 	usage, err := svc.QueryUsage(context.Background(), account.ID)
 	require.NoError(t, err)
 	require.Equal(t, "pro", usage.PlanType)
@@ -101,6 +101,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 	)
 	accountExpirySvc := service.NewAccountExpiryService(nil, time.Second)
 	codexVersionSyncSvc := service.NewOpenAICodexVersionSyncService(nil, nil, nil, time.Second)
+	claudeCodeVersionSyncSvc := service.NewClaudeCodeVersionSyncService(nil, nil, nil, time.Second)
 	proxyExpirySvc := service.NewProxyExpiryService(nil, time.Second)
 	subscriptionExpirySvc := service.NewSubscriptionExpiryService(nil, time.Second)
 	pricingSvc := service.NewPricingService(cfg, nil)
@@ -128,6 +129,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		accountExpirySvc,
 		nil, // cnProviderBalanceCheck
 		codexVersionSyncSvc,
+		claudeCodeVersionSyncSvc,
 		proxyExpirySvc,
 		subscriptionExpirySvc,
 		&service.UsageCleanupService{},
@@ -156,6 +158,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // quotaFlusher
 		nil, // upstreamBillingProbe
 		nil, // ollamaCloudUsage
+		nil, // opencodeGoUsage
 		nil, // auditLog
 		nil, // openAIAutoReset
 		nil, // promptAudit

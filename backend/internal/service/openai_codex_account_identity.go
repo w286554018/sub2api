@@ -187,7 +187,7 @@ func scopeCodexAccountTurnMetadata(raw string, account *Account, apiKeyID int64)
 	if !gjson.Valid(raw) || !gjson.Parse(raw).IsObject() {
 		return raw
 	}
-	return rewriteCodexJSONMembers(raw, func(name string, value gjson.Result) (string, bool) {
+	return escapeCodexTurnMetadataNonASCII(rewriteCodexJSONMembers(raw, func(name string, value gjson.Result) (string, bool) {
 		if value.Type != gjson.String {
 			return "", false
 		}
@@ -197,7 +197,7 @@ func scopeCodexAccountTurnMetadata(raw string, account *Account, apiKeyID int64)
 		}
 		next, err := marshalCodexTurnMetadataValue(field[name])
 		return next, err == nil
-	})
+	}))
 }
 
 func applyCodexAccountIdentityClientMetadataMap(requestBody map[string]any, account *Account, apiKeyID int64) bool {

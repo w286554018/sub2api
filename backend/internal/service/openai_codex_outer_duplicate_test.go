@@ -171,6 +171,8 @@ func TestCodexOuterDuplicateEmbeddedKeepsLiteralUTF8(t *testing.T) {
 	ids := resolveCodexFingerprintIDsFromRequest(account, nil)
 	scoped, _, err = applyCodexFingerprintClientMetadataRaw(scoped, ids)
 	require.NoError(t, err)
-	require.Contains(t, string(scoped), `\"literal\":\"a<b>&c `+"\u00e9"+`\"`)
-	require.NotContains(t, string(scoped), `\u00e9`)
+	embedded := gjson.GetBytes(scoped, "client_metadata."+openAIWSTurnMetadataHeader).String()
+	require.Equal(t, "a<b>&c \u00e9", gjson.Get(embedded, "literal").String())
+	require.NotContains(t, embedded, "\u00e9")
+	require.Contains(t, embedded, `\u00e9`)
 }

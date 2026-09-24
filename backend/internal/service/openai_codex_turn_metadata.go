@@ -57,7 +57,7 @@ func rewriteCodexTurnMetadataJSON(raw string, rebuildInvalid bool, updates func(
 			return original
 		}
 	}
-	return next
+	return escapeCodexTurnMetadataNonASCII(next)
 }
 
 // Visit every member, including duplicate keys, without decoding into a map.
@@ -139,4 +139,26 @@ func marshalCodexTurnMetadataValue(value any) (string, error) {
 		}
 	}
 	return string(out), nil
+}
+
+// Headers must be ASCII; escaping the original JSON retains member order,
+// duplicates, and untouched values unlike decoding and re-marshalling a map.
+func escapeCodexTurnMetadataNonASCII(raw string) string {
+	if strings.IndexFunc(raw, func(r rune) bool { return r >= 0x7f }) < 0 {
+		return raw
+	}
+	var out strings.Builder
+	out.Grow(len(raw))
+	for _, r := range raw {
+		switch {
+		case r < 0x7f:
+			out.WriteRune(r)
+		case r <= 0xffff:
+			fmt.Fprintf(&out, `\u%04x`, r)
+		default:
+			high, low := utf16.EncodeRune(r)
+			fmt.Fprintf(&out, `\u%04x\u%04x`, high, low)
+		}
+	}
+	return out.String()
 }
