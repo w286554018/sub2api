@@ -516,6 +516,13 @@ func validateOpenAIImagesModel(model string) error {
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
 }
 
+func validateNativeOpenAIImagesModel(model string) error {
+	if isOpenAIImageGenerationModel(model) {
+		return nil
+	}
+	return fmt.Errorf("images endpoint requires an image model, got %q", model)
+}
+
 // Keep this separate from isOpenAIImageGenerationModel: that predicate also
 // drives native Responses tool conversion, pricing and rate-limit policy.
 func isGeminiCompatibleImageModel(model string) bool {

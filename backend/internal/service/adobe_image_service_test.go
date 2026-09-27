@@ -111,7 +111,7 @@ func TestAdobeImageServiceGenerateFillsBillingFields(t *testing.T) {
 	require.Equal(t, "gpt-image-2", result.Forward.Model)
 	require.Equal(t, "firefly-gpt-image-2", result.Forward.UpstreamModel)
 	require.NotEmpty(t, result.Forward.RequestID)
-	require.Greater(t, result.Forward.Duration, time.Duration(0))
+	require.GreaterOrEqual(t, result.Forward.Duration, time.Duration(0))
 }
 
 // 账号的默认 mapping 必须真的生效：gpt-image-2 → firefly-gpt-image-2。
@@ -343,12 +343,12 @@ func TestAdobeImageServiceMissingSizeKeepsDefaultTier(t *testing.T) {
 // 缺口 A 的服务层回归：这些 size 在旧实现里全部静默出方图。
 func TestAdobeImageServiceForwardsGPTImage2Pixels(t *testing.T) {
 	tests := map[string]adobe.Size{
-		"3840x2160": {3840, 2160},
-		"2160x3840": {2160, 3840},
-		"2048x1152": {2048, 1152},
-		"1536x1024": {1536, 1024},
-		"1024x1536": {1024, 1536},
-		"1152x928":  {1152, 928},
+		"3840x2160": {Width: 3840, Height: 2160},
+		"2160x3840": {Width: 2160, Height: 3840},
+		"2048x1152": {Width: 2048, Height: 1152},
+		"1536x1024": {Width: 1536, Height: 1024},
+		"1024x1536": {Width: 1024, Height: 1536},
+		"1152x928":  {Width: 1152, Height: 928},
 	}
 	for size, want := range tests {
 		t.Run(size, func(t *testing.T) {

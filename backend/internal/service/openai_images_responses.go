@@ -1813,11 +1813,11 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if requestModel == "" {
 		requestModel = openAIImagesDefaultModel
 	}
-	if err := validateOpenAIImagesModel(requestModel); err != nil {
+	if err := validateNativeOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)
-	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
+	if err := validateNativeOpenAIImagesModel(upstreamModel); err != nil {
 		return nil, err
 	}
 	direct := usesCodexDirectImages(upstreamModel) && !isOpenAIImagesForceResponses(ctx)
