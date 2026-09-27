@@ -10,6 +10,9 @@ vi.mock('@/api/admin', () => ({ adminAPI: {
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showError: vi.fn(), showSuccess: vi.fn() }) }))
 vi.mock('@/utils/format', () => ({ formatDateTime: (value: string) => value }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('@/components/admin/AdminKeySecret.vue', () => ({ default: {
+  props: ['apiKey'], template: '<code>{{ apiKey.key }}</code>'
+} }))
 enableAutoUnmount(afterEach)
 beforeEach(() => { getKeys.mockReset(); vi.spyOn(console, 'error').mockImplementation(() => {}) })
 afterEach(() => vi.restoreAllMocks())

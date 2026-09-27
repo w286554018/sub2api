@@ -41,6 +41,14 @@ func TestAdminBillingExportUsesSensitiveReadAuditAction(t *testing.T) {
 	)
 }
 
+func TestAdminAPIKeyListUsesSensitiveReadAuditAction(t *testing.T) {
+	require.Equal(
+		t,
+		"admin.api_keys.list",
+		auditSensitiveReads["GET /api/v1/admin/api-keys"],
+	)
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog
