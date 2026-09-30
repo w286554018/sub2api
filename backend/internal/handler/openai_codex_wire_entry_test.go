@@ -188,11 +188,7 @@ func TestCodexWireEntryEndpointMatrix(t *testing.T) {
 						got := captures[0]
 						strict := mode == "device" && enabled
 						require.Equal(t, "/backend-api/codex"+strings.TrimPrefix(path, "/v1"), got.path)
-						if raw {
-							require.Equal(t, codexWireMarker, got.header.Get("OpenAI-Beta"), "prove the passthrough branch")
-						} else {
-							require.NotEqual(t, codexWireMarker, got.header.Get("OpenAI-Beta"))
-						}
+						require.Equal(t, codexWireMarker, got.header.Get("OpenAI-Beta"))
 						if strict && !compact {
 							require.Equal(t, "zstd", got.header.Get("Content-Encoding"))
 							require.Equal(t, int64(len(got.raw)), got.contentLength)
@@ -326,14 +322,18 @@ func TestCodexWireEntryMessagesBridgeMatchesResponses(t *testing.T) {
 	captures := upstream.taken()
 	require.Len(t, captures, 2)
 	var previous string
-	for _, got := range captures {
+	for i, got := range captures {
 		installation := gjson.GetBytes(got.body, "client_metadata.x-codex-installation-id").String()
 		require.NotEmpty(t, installation)
 		if previous != "" {
 			require.Equal(t, previous, installation)
 		}
 		previous = installation
-		require.Empty(t, got.header.Get("OpenAI-Beta"))
+		if i == 0 {
+			require.Equal(t, codexWireMarker, got.header.Get("OpenAI-Beta"))
+		} else {
+			require.Empty(t, got.header.Get("OpenAI-Beta"))
+		}
 		require.Empty(t, got.header.Get("x-codex-installation-id"))
 		require.Empty(t, got.header.Get("session_id"))
 		require.Empty(t, got.header.Get("conversation_id"))

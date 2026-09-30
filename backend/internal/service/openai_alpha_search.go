@@ -701,11 +701,12 @@ func parseOpenAIResponsesSSEForAlphaSearch(body []byte) (string, []any, error) {
 		}
 		collectOpenAIAlphaSearchURLCitations(event, &results, seenURLs)
 	}
-
-	// HTTP 200, text deltas and [DONE] alone do not prove a billable completion.
+	// A transport-level 200, deltas or [DONE] alone are not a successful
+	// search. Do not return partial content or a billable result on EOF.
 	if completedResponse == nil {
-		return "", nil, fmt.Errorf("missing successful response.completed event")
+		return "", nil, fmt.Errorf("alpha search responses stream ended before completion")
 	}
+
 	out := output.String()
 	if strings.TrimSpace(out) == "" {
 		out = extractOpenAIResponsesCompletedText(completedResponse)
