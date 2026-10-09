@@ -326,6 +326,7 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       'OpenCode',
       'Kiro',
       'Adobe',
+      'TypeSafe / Jev',
     ])
   })
 

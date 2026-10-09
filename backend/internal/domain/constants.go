@@ -33,6 +33,7 @@ const (
 	PlatformZhipu    = "zhipu"    // 智谱 GLM (bigmodel)
 	PlatformDeepseek = "deepseek" // DeepSeek
 	PlatformMiniMax  = "minimax"  // MiniMax (M 系列)
+	PlatformTypeSafe = "typesafe" // TypeSafe AI System One (Jev)
 	// PlatformOpenCodeGo 是 OpenCode 平台（账号类型 Zen 按量 / Go 订阅）。
 	// 值保持 opencode_go 以兼容已落库的分组、配额与 Composite 路由 CHECK。
 	PlatformOpenCodeGo = "opencode_go"
@@ -195,6 +196,8 @@ var DefaultKiroModelMapping = map[string]string{
 	"claude-opus-5-5-thinking":            "claude-opus-5.5",
 	"claude-sonnet-5":                     "claude-sonnet-5",
 	"claude-sonnet-5-thinking":            "claude-sonnet-5",
+	"claude-sonnet-5-5":                   "claude-sonnet-5.5",
+	"claude-sonnet-5-5-thinking":          "claude-sonnet-5.5",
 	"claude-sonnet-4-6":                   "claude-sonnet-4.6",
 	"claude-sonnet-4-6-thinking":          "claude-sonnet-4.6",
 	"claude-opus-4-5-20251101":            "claude-opus-4.5",
