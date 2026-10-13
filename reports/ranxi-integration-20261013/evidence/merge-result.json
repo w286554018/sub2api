@@ -1,0 +1,42 @@
+{
+  "merge_commit": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+  "parents": [
+    "1f08460552fbac66106baa97d0e3841f93057d58",
+    "1d2ed630e292eaaac95454c1786bf3b7e5ed0828"
+  ],
+  "tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "ref": "refs/heads/integration/ranxi-20261013",
+  "command": [
+    "git",
+    "-C",
+    "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree",
+    "commit",
+    "-F",
+    "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-final-merge-message.txt"
+  ],
+  "exit_code": 0,
+  "stdout": "[detached HEAD 0e98a5faf] 合并 ranxi production 功能并保留现有 fork 契约\n",
+  "stderr": "",
+  "verified_tests": [
+    "baseline-go-correct-cwd-v4",
+    "baseline-frontend-test-v4",
+    "frontend-full-vitest-v1",
+    "frontend-after-lint-target-final-v7",
+    "frontend-typecheck-v1",
+    "frontend-lint-v2",
+    "frontend-build-v1",
+    "k3s-fork-default-modified-v2",
+    "release-matrix-fdrive-python312-final-v3",
+    "backend-final-fixes-focused-v1",
+    "integrated-go-fdrive-final-v5",
+    "windows-embed-fdrive-final-v2",
+    "embed-resource-fdrive-final-v3",
+    "linux-embed-fdrive-final-v1",
+    "repository-integration-fdrive-compile-final-v4",
+    "mihomo-linux-fdrive-compile-final-v2",
+    "repository-integration-final-fdrive-run-v6",
+    "mihomo-linux-final-fdrive-run-v3",
+    "final-preservation-run-v3-before"
+  ],
+  "formal_head_remains": "1f08460552fbac66106baa97d0e3841f93057d58"
+}

@@ -1,0 +1,30 @@
+{
+  "status": "completed",
+  "command": [
+    "go",
+    "test",
+    "-tags=unit",
+    "-p",
+    "1",
+    "-timeout=15m",
+    "./..."
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\backend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5b3c27f65977dda133ad10acde7be8202dd18993",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMEMLIMIT": "1GiB",
+    "GOGC": "25",
+    "GOFLAGS": "-p=1"
+  },
+  "started_at": "2026-10-13T14:38:36.141060+08:00",
+  "runner_pid": 46796,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\integrated-go-full-v2.log",
+  "exit_code": 1,
+  "command_pid": 38260,
+  "ended_at": "2026-10-13T14:52:34.481576+08:00",
+  "elapsed_seconds": 838.338,
+  "log_bytes": 4441330,
+  "log_sha256": "431be5c853b7306f95fde4b567e40d17413ce0073ca11b81d16cfbe9595e3718"
+}

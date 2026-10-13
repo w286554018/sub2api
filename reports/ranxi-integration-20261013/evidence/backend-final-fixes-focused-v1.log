@@ -1,0 +1,289 @@
+2026/10/13 10:02:42 Timezone initialized: UTC (UTC offset: +00:00)
+=== RUN   TestQuality5xxProductionProviderAppliesBeforeReturning
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxProductionProviderAppliesBeforeReturning (0.05s)
+=== RUN   TestQuality5xxPendingRemoveModelsNotCoveredByOlderFinish
+--- PASS: TestQuality5xxPendingRemoveModelsNotCoveredByOlderFinish (0.00s)
+=== RUN   TestQuality5xxWorkerProviderHasQueue
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxWorkerProviderHasQueue (0.06s)
+=== RUN   TestQuality5xxSemanticStreams
+=== RUN   TestQuality5xxSemanticStreams/overload/passthrough=false
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+=== RUN   TestQuality5xxSemanticStreams/request_policy_400/passthrough=false
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+=== RUN   TestQuality5xxSemanticStreams/request_permission/passthrough=false
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+=== RUN   TestQuality5xxSemanticStreams/overload/passthrough=true
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+=== RUN   TestQuality5xxSemanticStreams/request_policy_400/passthrough=true
+redis: 2026/10/13 10:02:42 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+=== RUN   TestQuality5xxSemanticStreams/request_permission/passthrough=true
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+--- PASS: TestQuality5xxSemanticStreams (0.34s)
+    --- PASS: TestQuality5xxSemanticStreams/overload/passthrough=false (0.06s)
+    --- PASS: TestQuality5xxSemanticStreams/request_policy_400/passthrough=false (0.06s)
+    --- PASS: TestQuality5xxSemanticStreams/request_permission/passthrough=false (0.05s)
+    --- PASS: TestQuality5xxSemanticStreams/overload/passthrough=true (0.06s)
+    --- PASS: TestQuality5xxSemanticStreams/request_policy_400/passthrough=true (0.05s)
+    --- PASS: TestQuality5xxSemanticStreams/request_permission/passthrough=true (0.05s)
+=== RUN   TestQuality5xxSemanticProbeDoesNotRecurse
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+--- PASS: TestQuality5xxSemanticProbeDoesNotRecurse (0.05s)
+=== RUN   TestQuality5xxWebsocketSemanticFailure
+=== RUN   TestQuality5xxWebsocketSemanticFailure/error
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+=== RUN   TestQuality5xxWebsocketSemanticFailure/response.failed
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxWebsocketSemanticFailure (0.12s)
+    --- PASS: TestQuality5xxWebsocketSemanticFailure/error (0.06s)
+    --- PASS: TestQuality5xxWebsocketSemanticFailure/response.failed (0.06s)
+=== RUN   TestQuality5xxBPSStreamFailure
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+--- PASS: TestQuality5xxBPSStreamFailure (0.06s)
+=== RUN   TestQuality5xxChoosesProbeOrCandyWithoutChangingRule
+=== RUN   TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=false/recovery=false
+=== RUN   TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=false/recovery=true
+=== RUN   TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=true/recovery=false
+=== RUN   TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=true/recovery=true
+--- PASS: TestQuality5xxChoosesProbeOrCandyWithoutChangingRule (0.00s)
+    --- PASS: TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=false/recovery=false (0.00s)
+    --- PASS: TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=false/recovery=true (0.00s)
+    --- PASS: TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=true/recovery=false (0.00s)
+    --- PASS: TestQuality5xxChoosesProbeOrCandyWithoutChangingRule/bps=true/recovery=true (0.00s)
+=== RUN   TestQuality5xxDoesNotSkipRecentlyCompletedPlan
+--- PASS: TestQuality5xxDoesNotSkipRecentlyCompletedPlan (0.00s)
+=== RUN   TestQuality5xxCoalescesWithOverlappingCron
+--- PASS: TestQuality5xxCoalescesWithOverlappingCron (0.00s)
+=== RUN   TestQuality5xxSignalsFilterAndCoalesceAcrossReplicas
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxSignalsFilterAndCoalesceAcrossReplicas (0.10s)
+=== RUN   TestQuality5xxRunPreservesFutureScheduleAndUsesNormalResults
+--- PASS: TestQuality5xxRunPreservesFutureScheduleAndUsesNormalResults (0.00s)
+=== RUN   TestQuality5xxOnlyObservesActualHTTPFailures
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxOnlyObservesActualHTTPFailures (0.06s)
+=== RUN   TestQuality5xxTemporarilyUnschedulesOAuthAccountBeforeProbe
+2026/10/13 10:02:43 WARN quality_5xx_temp_unschedulable account_id=21 until=2026-10-13T10:12:43.423Z
+--- PASS: TestQuality5xxTemporarilyUnschedulesOAuthAccountBeforeProbe (0.00s)
+=== RUN   TestQuality5xxTriggeredPlanDoesNotProbeDuringTempUnschedulableWindow
+--- PASS: TestQuality5xxTriggeredPlanDoesNotProbeDuringTempUnschedulableWindow (0.00s)
+=== RUN   TestQuality5xxWorkerRetainsSignalAfterClaimFailure
+redis: 2026/10/13 10:02:43 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+2026/10/13 10:02:44 pelican plan=1 claim failed: database unavailable
+--- PASS: TestQuality5xxWorkerRetainsSignalAfterClaimFailure (1.09s)
+=== RUN   TestQuality5xxQueueFencesNewerEpisode
+redis: 2026/10/13 10:02:44 redis.go:2022: failed to initialize maintnotifications: failed to register handler for MOVING: handler register failed for 'MOVING': cannot overwrite existing handler
+--- PASS: TestQuality5xxQueueFencesNewerEpisode (0.07s)
+=== RUN   TestQuality5xxKeepsSignalWhileAnExistingLeaseCouldBeInterrupted
+--- PASS: TestQuality5xxKeepsSignalWhileAnExistingLeaseCouldBeInterrupted (0.00s)
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/enabled/missing=false
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/enabled/missing=true
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/fail-closed/missing=false
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/fail-closed/missing=true
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/models/missing=false
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/models/missing=true
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/proxy/missing=false
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/proxy/missing=true
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/scope/missing=false
+=== RUN   TestCodexHarvestCachesRejectPreInvalidationRead/scope/missing=true
+--- PASS: TestCodexHarvestCachesRejectPreInvalidationRead (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/enabled/missing=false (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/enabled/missing=true (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/fail-closed/missing=false (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/fail-closed/missing=true (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/models/missing=false (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/models/missing=true (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/proxy/missing=false (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/proxy/missing=true (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/scope/missing=false (0.00s)
+    --- PASS: TestCodexHarvestCachesRejectPreInvalidationRead/scope/missing=true (0.00s)
+=== RUN   TestTokenRefreshService_AttemptTimeoutStaysInsideDistributedLockLease
+--- PASS: TestTokenRefreshService_AttemptTimeoutStaysInsideDistributedLockLease (0.00s)
+=== RUN   TestTokenRefreshService_AttemptTimeoutTripsRetryableProviderThreshold
+2026/10/13 10:02:44 WARN token_refresh.retry_attempt_failed account_id=1 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 WARN token_refresh.retry_exhausted account_id=1 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 INFO token_refresh.temp_unschedulable_set account_id=1 until=2026-10-13T10:12:44Z
+2026/10/13 10:02:44 WARN token_refresh.retry_attempt_failed account_id=2 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 WARN token_refresh.retry_exhausted account_id=2 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 INFO token_refresh.temp_unschedulable_set account_id=2 until=2026-10-13T10:12:44Z
+2026/10/13 10:02:44 WARN token_refresh.account_refresh_failed account_id=1 platform=grok error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 WARN token_refresh.account_refresh_failed account_id=2 platform=grok error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 INFO token_refresh.cycle_completed total=3 oauth=3 needs_refresh=3 refreshed=0 skipped=1 failed=2
+--- PASS: TestTokenRefreshService_AttemptTimeoutTripsRetryableProviderThreshold (0.04s)
+=== RUN   TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected
+2026/10/13 10:02:44 WARN token_refresh.retry_attempt_failed account_id=43 attempt=1 max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 WARN token_refresh.retry_exhausted account_id=43 platform=grok max_retries=1 error="OAuth refresh attempt timed out"
+2026/10/13 10:02:44 INFO token_refresh.temp_unschedulable_set account_id=43 until=2026-10-13T10:12:44Z
+--- PASS: TestTokenRefreshService_LateSuccessPastAttemptDeadlineIsRejected (0.03s)
+=== RUN   TestTokenRefreshService_PersistedSuccessCrossingAttemptDeadlineStaysSuccessful
+--- PASS: TestTokenRefreshService_PersistedSuccessCrossingAttemptDeadlineStaysSuccessful (0.03s)
+=== RUN   TestUpstreamBillingProbeIdentityCoversAllAPIKeyPlatforms
+--- PASS: TestUpstreamBillingProbeIdentityCoversAllAPIKeyPlatforms (0.00s)
+=== RUN   TestUpstreamBillingProbeKiroRelayPersistsSnapshot
+--- PASS: TestUpstreamBillingProbeKiroRelayPersistsSnapshot (0.00s)
+=== RUN   TestUpstreamBillingProbeKiroDirectIsUnsupportedWithoutRequest
+--- PASS: TestUpstreamBillingProbeKiroDirectIsUnsupportedWithoutRequest (0.00s)
+=== RUN   TestUpstreamBillingProbeGrokAccountPersistsSnapshot
+--- PASS: TestUpstreamBillingProbeGrokAccountPersistsSnapshot (0.00s)
+=== RUN   TestUpstreamBillingProbeNonOpenAIWithoutBaseURLIsUnsupportedWithoutRequest
+--- PASS: TestUpstreamBillingProbeNonOpenAIWithoutBaseURLIsUnsupportedWithoutRequest (0.00s)
+=== RUN   TestUpstreamBillingProbeOfficialAPIBaseURLIsUnsupportedWithoutRequest
+--- PASS: TestUpstreamBillingProbeOfficialAPIBaseURLIsUnsupportedWithoutRequest (0.00s)
+=== RUN   TestUpstreamBillingProbeOfficialAPIHostMatchingIsNormalized
+--- PASS: TestUpstreamBillingProbeOfficialAPIHostMatchingIsNormalized (0.00s)
+=== RUN   TestUpstreamBillingProbeOpenAIDefaultBaseURLPreserved
+--- PASS: TestUpstreamBillingProbeOpenAIDefaultBaseURLPreserved (0.00s)
+=== RUN   TestUpstreamBillingProbeSetAccountEnabledAcceptsSupportedAPIKeys
+--- PASS: TestUpstreamBillingProbeSetAccountEnabledAcceptsSupportedAPIKeys (0.00s)
+=== RUN   TestUpstreamBillingProbeSettingsDefaultsAndValidation
+--- PASS: TestUpstreamBillingProbeSettingsDefaultsAndValidation (0.00s)
+=== RUN   TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.6
+--- PASS: TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot (0.00s)
+=== RUN   TestUpstreamBillingProbeAdaptiveCNUsesChatProtocolBaseURL
+--- PASS: TestUpstreamBillingProbeAdaptiveCNUsesChatProtocolBaseURL (0.00s)
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/openai
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.8
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/anthropic
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.8
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/gemini
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.8
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/antigravity
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.8
+=== RUN   TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/grok
+2026/10/13 10:02:44 INFO upstream_billing_rate_sync_applied source=upstream_billing_probe account_id=17 old_rate_multiplier=0.25 new_rate_multiplier=0.8
+--- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/openai (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/anthropic (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/gemini (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/antigravity (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncsResolvedRateForAllAPIKeyPlatforms/grok (0.00s)
+=== RUN   TestUpstreamBillingProbeOnlyDoesNotChangeAccountRate
+--- PASS: TestUpstreamBillingProbeOnlyDoesNotChangeAccountRate (0.00s)
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/round_to_four_decimals
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/maximum
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/zero_is_rejected
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/positive_below_database_precision_rounds_to_zero
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/just_above_the_write-back_ceiling
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/column_ceiling_is_far_above_the_write-back_ceiling
+=== RUN   TestUpstreamBillingProbeSyncRateRangeAndPrecision/negative
+--- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/round_to_four_decimals (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/maximum (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/zero_is_rejected (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/positive_below_database_precision_rounds_to_zero (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/just_above_the_write-back_ceiling (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/column_ceiling_is_far_above_the_write-back_ceiling (0.00s)
+    --- PASS: TestUpstreamBillingProbeSyncRateRangeAndPrecision/negative (0.00s)
+=== RUN   TestUpstreamBillingProbeSyncRateIgnoresEffectiveRate
+--- PASS: TestUpstreamBillingProbeSyncRateIgnoresEffectiveRate (0.00s)
+=== RUN   TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange
+=== RUN   TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange/zero
+2026/10/13 10:02:44 WARN upstream_billing_rate_sync_rejected source=upstream_billing_probe account_id=21 declared_resolved_rate_multiplier=0 max_rate_multiplier=100 current_rate_multiplier=0.25
+=== RUN   TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange/above_ceiling
+2026/10/13 10:02:44 WARN upstream_billing_rate_sync_rejected source=upstream_billing_probe account_id=21 declared_resolved_rate_multiplier=1000 max_rate_multiplier=100 current_rate_multiplier=0.25
+--- PASS: TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange (0.00s)
+    --- PASS: TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange/zero (0.00s)
+    --- PASS: TestUpstreamBillingProbeKeepsRateWhenDeclarationOutOfSyncRange/above_ceiling (0.00s)
+=== RUN   TestUpstreamBillingProbeWithoutSyncIgnoresUnusableDeclaredRate
+--- PASS: TestUpstreamBillingProbeWithoutSyncIgnoresUnusableDeclaredRate (0.00s)
+=== RUN   TestUpstreamBillingProbeRejectsMissingRequiredMultiplier
+--- PASS: TestUpstreamBillingProbeRejectsMissingRequiredMultiplier (0.00s)
+=== RUN   TestUpstreamBillingProbeDiscardsResultWhenIdentityChangesInFlight
+--- PASS: TestUpstreamBillingProbeDiscardsResultWhenIdentityChangesInFlight (0.00s)
+=== RUN   TestUpstreamBillingProbeRejectsInvalidPeakConfiguration
+=== RUN   TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/invalid_start
+=== RUN   TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/cross_midnight
+=== RUN   TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/invalid_timezone
+--- PASS: TestUpstreamBillingProbeRejectsInvalidPeakConfiguration (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/invalid_start (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/cross_midnight (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInvalidPeakConfiguration/invalid_timezone (0.00s)
+=== RUN   TestUpstreamBillingProbeRejectsInconsistentMultipliers
+=== RUN   TestUpstreamBillingProbeRejectsInconsistentMultipliers/resolved_does_not_use_user_override
+=== RUN   TestUpstreamBillingProbeRejectsInconsistentMultipliers/effective_rate_does_not_match_resolved_rate
+=== RUN   TestUpstreamBillingProbeRejectsInconsistentMultipliers/applied_peak_does_not_match_observed_window
+--- PASS: TestUpstreamBillingProbeRejectsInconsistentMultipliers (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInconsistentMultipliers/resolved_does_not_use_user_override (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInconsistentMultipliers/effective_rate_does_not_match_resolved_rate (0.00s)
+    --- PASS: TestUpstreamBillingProbeRejectsInconsistentMultipliers/applied_peak_does_not_match_observed_window (0.00s)
+=== RUN   TestUpstreamBillingProbeFailurePreservesLastSuccessAndRetryAfter
+--- PASS: TestUpstreamBillingProbeFailurePreservesLastSuccessAndRetryAfter (0.00s)
+=== RUN   TestUpstreamBillingProbeRetryAfterIsCappedAtMaxDelay
+--- PASS: TestUpstreamBillingProbeRetryAfterIsCappedAtMaxDelay (0.00s)
+=== RUN   TestUpstreamBillingProbeUnsupportedDelayIsStretchedAndBounded
+--- PASS: TestUpstreamBillingProbeUnsupportedDelayIsStretchedAndBounded (0.00s)
+=== RUN   TestUpstreamBillingProbeUnsupportedBackoffDefersRunnerButNotManualProbe
+--- PASS: TestUpstreamBillingProbeUnsupportedBackoffDefersRunnerButNotManualProbe (0.00s)
+=== RUN   TestUpstreamBillingProbeEmptyResponseIsPersistedAsFailure
+--- PASS: TestUpstreamBillingProbeEmptyResponseIsPersistedAsFailure (0.00s)
+=== RUN   TestUpstreamBillingProbeUnsupportedAndAccountToggle
+--- PASS: TestUpstreamBillingProbeUnsupportedAndAccountToggle (0.00s)
+=== RUN   TestUpstreamBillingProbeRunnerIsBoundedAndManualProbeIgnoresSwitches
+--- PASS: TestUpstreamBillingProbeRunnerIsBoundedAndManualProbeIgnoresSwitches (0.00s)
+=== RUN   TestUpstreamBillingProbeRunnerRechecksEnabledAfterDueSelection
+--- PASS: TestUpstreamBillingProbeRunnerRechecksEnabledAfterDueSelection (0.00s)
+=== RUN   TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect
+=== RUN   TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect/missing_hydrated_proxy
+=== RUN   TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect/mismatched_hydrated_proxy
+--- PASS: TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect (0.00s)
+    --- PASS: TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect/missing_hydrated_proxy (0.00s)
+    --- PASS: TestUpstreamBillingProbeNeverDowngradesMissingConfiguredProxyToDirect/mismatched_hydrated_proxy (0.00s)
+=== RUN   TestUpstreamBillingProbeRunnerOnlyScansOnLeader
+--- PASS: TestUpstreamBillingProbeRunnerOnlyScansOnLeader (0.00s)
+=== RUN   TestUpstreamBillingProbeLeaderLockFailsClosedOnCacheError
+--- PASS: TestUpstreamBillingProbeLeaderLockFailsClosedOnCacheError (0.00s)
+=== RUN   TestUpstreamBillingProbeLeaderLockUsesCadenceBuckets
+--- PASS: TestUpstreamBillingProbeLeaderLockUsesCadenceBuckets (0.00s)
+=== RUN   TestUpstreamBillingProbeFiveInstancesRunOneConcurrentBatch
+--- PASS: TestUpstreamBillingProbeFiveInstancesRunOneConcurrentBatch (0.00s)
+=== RUN   TestUpstreamBillingProbeManualBatchesShareConcurrencyLimit
+--- PASS: TestUpstreamBillingProbeManualBatchesShareConcurrencyLimit (0.10s)
+=== RUN   TestUpstreamBillingProbeManualAndScheduledRequestsShareOneNetworkProbe
+--- PASS: TestUpstreamBillingProbeManualAndScheduledRequestsShareOneNetworkProbe (0.02s)
+=== RUN   TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot
+--- PASS: TestUpstreamBillingProbeScheduledRechecksAfterWaitingForSlot (0.02s)
+=== RUN   TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow
+--- PASS: TestUpstreamBillingProbeLeaderLockCoversStaggeredInstancesInCadenceWindow (0.00s)
+=== RUN   TestProvideAccountUsageServicePreservesKiroAndAgentIdentityDependencies
+--- PASS: TestProvideAccountUsageServicePreservesKiroAndAgentIdentityDependencies (0.00s)
+=== RUN   TestProvideAccountTestServicePreservesKiroAndAgentIdentityDependencies
+--- PASS: TestProvideAccountTestServicePreservesKiroAndAgentIdentityDependencies (0.00s)
+PASS
+ok  	github.com/Wei-Shaw/sub2api/internal/service	2.726s

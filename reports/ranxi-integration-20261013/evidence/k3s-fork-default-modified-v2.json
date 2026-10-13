@@ -1,0 +1,30 @@
+{
+  "status": "completed",
+  "command": [
+    "python",
+    "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-wsl-pipe-long.py",
+    "env",
+    "TMPDIR=/mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp",
+    "python3",
+    "-B",
+    "/mnt/f/sub2api/.task-cache/ranxi-20261013/k3s-validation/deploy/tests/test_upgrade_k3s.py",
+    "-v"
+  ],
+  "cwd": "F:\\sub2api\\.task-cache\\ranxi-20261013\\k3s-validation",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "ddd6dbeacfb34579b51c7162256ef0107de367bd",
+  "environment": {
+    "WSL_PIPE_TIMEOUT": "140",
+    "TEMP": "F:\\sub2api\\.task-cache\\ranxi-20261013\\go-tmp",
+    "TMP": "F:\\sub2api\\.task-cache\\ranxi-20261013\\go-tmp"
+  },
+  "started_at": "2026-10-13T17:06:25.278085+08:00",
+  "runner_pid": 64808,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\k3s-fork-default-modified-v2.log",
+  "exit_code": 0,
+  "command_pid": 25752,
+  "ended_at": "2026-10-13T17:06:52.629103+08:00",
+  "elapsed_seconds": 27.348,
+  "log_bytes": 5066,
+  "log_sha256": "dedc0d85b9ac99fb99096620170a22c563622f58eff83cfb61445f2736416b00"
+}

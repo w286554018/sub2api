@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/c",
+    "pnpm.cmd exec vitest run --maxWorkers=2 --minWorkers=1"
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\frontend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5b3c27f65977dda133ad10acde7be8202dd18993",
+  "environment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "started_at": "2026-10-13T14:42:27.139138+08:00",
+  "runner_pid": 39648,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\frontend-full-vitest-v1.log",
+  "exit_code": 0,
+  "command_pid": 26828,
+  "ended_at": "2026-10-13T14:50:02.664033+08:00",
+  "elapsed_seconds": 455.522,
+  "log_bytes": 597225,
+  "log_sha256": "edcfc572f4144b05f31b85b86e25238d6f28e51931416438aabd21e289de0f7e"
+}

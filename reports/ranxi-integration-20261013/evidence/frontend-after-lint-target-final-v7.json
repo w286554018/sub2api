@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/c",
+    "pnpm.cmd exec vitest run src/views/admin/__tests__/ControlledExperimentsView.spec.ts src/views/admin/settings/MihomoSettings.spec.ts --maxWorkers=2 --minWorkers=1"
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\frontend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5bf2129ccae3b15e7f4b20ff4dbc5e1113ef6826",
+  "environment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "started_at": "2026-10-13T15:55:47.860082+08:00",
+  "runner_pid": 24672,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\frontend-after-lint-target-final-v7.log",
+  "exit_code": 0,
+  "command_pid": 23084,
+  "ended_at": "2026-10-13T15:55:55.341743+08:00",
+  "elapsed_seconds": 7.479,
+  "log_bytes": 918,
+  "log_sha256": "26cc8c385e387cc489bda866b3922b3e86d6d23905a64ddb4550dd8a2370f80c"
+}

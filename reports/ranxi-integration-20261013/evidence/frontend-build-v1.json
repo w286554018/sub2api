@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/c",
+    "pnpm.cmd run build"
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\frontend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5b3c27f65977dda133ad10acde7be8202dd18993",
+  "environment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "started_at": "2026-10-13T14:50:33.623166+08:00",
+  "runner_pid": 52784,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\frontend-build-v1.log",
+  "exit_code": 0,
+  "command_pid": 58900,
+  "ended_at": "2026-10-13T14:52:13.565787+08:00",
+  "elapsed_seconds": 99.939,
+  "log_bytes": 77135,
+  "log_sha256": "b428d8709c03ec85932e301b93e7af4b4297f7efa2ec4d74603669c0b7a06ba3"
+}

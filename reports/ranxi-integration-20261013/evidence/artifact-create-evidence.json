@@ -1,0 +1,124 @@
+{
+  "merge": {
+    "merge_commit": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+    "parents": [
+      "1f08460552fbac66106baa97d0e3841f93057d58",
+      "1d2ed630e292eaaac95454c1786bf3b7e5ed0828"
+    ],
+    "tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+    "ref": "refs/heads/integration/ranxi-20261013",
+    "command": [
+      "git",
+      "-C",
+      "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree",
+      "commit",
+      "-F",
+      "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-final-merge-message.txt"
+    ],
+    "exit_code": 0,
+    "stdout": "[detached HEAD 0e98a5faf] 合并 ranxi production 功能并保留现有 fork 契约\n",
+    "stderr": "",
+    "verified_tests": [
+      "baseline-go-correct-cwd-v4",
+      "baseline-frontend-test-v4",
+      "frontend-full-vitest-v1",
+      "frontend-after-lint-target-final-v7",
+      "frontend-typecheck-v1",
+      "frontend-lint-v2",
+      "frontend-build-v1",
+      "k3s-fork-default-modified-v2",
+      "release-matrix-fdrive-python312-final-v3",
+      "backend-final-fixes-focused-v1",
+      "integrated-go-fdrive-final-v5",
+      "windows-embed-fdrive-final-v2",
+      "embed-resource-fdrive-final-v3",
+      "linux-embed-fdrive-final-v1",
+      "repository-integration-fdrive-compile-final-v4",
+      "mihomo-linux-fdrive-compile-final-v2",
+      "repository-integration-final-fdrive-run-v6",
+      "mihomo-linux-final-fdrive-run-v3",
+      "final-preservation-run-v3-before"
+    ],
+    "formal_head_remains": "1f08460552fbac66106baa97d0e3841f93057d58"
+  },
+  "records": [
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\MODIFIED_FILE.bundle",
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "bundle",
+        "create",
+        "F:\\sub2api\\reports\\ranxi-integration-20261013\\MODIFIED_FILE.bundle",
+        "refs/heads/integration/ranxi-20261013",
+        "^1f08460552fbac66106baa97d0e3841f93057d58"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "bytes": 71105271,
+      "sha256": "91d38f9d230faff7e04d023d5d9de3c50d5dfb1953fd3e51d446d8b7d6c57f89"
+    },
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\DIFF_FILE.patch",
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "diff",
+        "--binary",
+        "--full-index",
+        "--no-ext-diff",
+        "--output=F:\\sub2api\\reports\\ranxi-integration-20261013\\DIFF_FILE.patch",
+        "1f08460552fbac66106baa97d0e3841f93057d58",
+        "0e98a5faf664f21302ab069f3afc90f3dc4c4447"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "bytes": 83554892,
+      "sha256": "e5a13c34c8f302fa82c8e848e4fd874b807eae2214544583867f5182082962e8"
+    },
+    {
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "bundle",
+        "verify",
+        "F:\\sub2api\\reports\\ranxi-integration-20261013\\MODIFIED_FILE.bundle"
+      ],
+      "exit_code": 0,
+      "stdout": "The bundle contains this ref:\n0e98a5faf664f21302ab069f3afc90f3dc4c4447 refs/heads/integration/ranxi-20261013\nThe bundle requires these 2 refs:\nefe9aab1e4ec89a42ba45e8dac20e882c5409a6a \n1f08460552fbac66106baa97d0e3841f93057d58 \nThe bundle uses this hash algorithm: sha1\n",
+      "stderr": "F:/sub2api/reports/ranxi-integration-20261013/MODIFIED_FILE.bundle is okay\n"
+    },
+    {
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "bundle",
+        "list-heads",
+        "F:\\sub2api\\reports\\ranxi-integration-20261013\\MODIFIED_FILE.bundle"
+      ],
+      "exit_code": 0,
+      "stdout": "0e98a5faf664f21302ab069f3afc90f3dc4c4447 refs/heads/integration/ranxi-20261013\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "update-ref",
+        "refs/heads/backup/pre-ranxi-local-main-20261013-b9faa9ee5",
+        "b9faa9ee584172e78a54e5d2016590e8dcef7bf4",
+        "0000000000000000000000000000000000000000"
+      ],
+      "exit_code": 0,
+      "preserved_local_main": "b9faa9ee584172e78a54e5d2016590e8dcef7bf4",
+      "backup_ref": "refs/heads/backup/pre-ranxi-local-main-20261013-b9faa9ee5"
+    }
+  ]
+}

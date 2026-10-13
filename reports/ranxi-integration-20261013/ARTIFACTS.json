@@ -1,0 +1,26 @@
+{
+  "integration": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+  "source_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "artifacts": [
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\MODIFIED_FILE.bundle",
+      "bytes": 71105271,
+      "sha256": "91d38f9d230faff7e04d023d5d9de3c50d5dfb1953fd3e51d446d8b7d6c57f89"
+    },
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\DIFF_FILE.patch",
+      "bytes": 83554892,
+      "sha256": "e5a13c34c8f302fa82c8e848e4fd874b807eae2214544583867f5182082962e8"
+    },
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\VERIFICATION.txt",
+      "bytes": 332291,
+      "sha256": "2bfb06d53d4e82198090f9fa46e963148a603d3da89a24abfd98a98b141a65b0"
+    },
+    {
+      "path": "F:\\sub2api\\reports\\ranxi-integration-20261013\\ROLLBACK.sh",
+      "bytes": 2876,
+      "sha256": "39030aad8d3f3b8bcd017d84bd4a4738c4d3de43e4bf756234f03366c94a3724"
+    }
+  ]
+}

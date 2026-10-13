@@ -1,0 +1,32 @@
+WSL_PIPE_COMMAND=['wsl.exe', '-d', 'Ubuntu-20.04', '--cd', '/tmp', '--exec', 'bash', '/mnt/c/Users/2023/.pi-desktop/scratch/3a228026-a80c-4cd9-bdb7-73559aa1e94c/ranxi-release-matrix-final.sh']
+WSL_PIPE_TIMEOUT_SETTING=580
+WSL_STDOUT_BEGIN
+RELEASE_INPUT_SHA256
+dfd3e0827f254614a30f24562c73aae4dabcd3f2321e672fb577810ec9a4a9a9  .github/release-tools/release_matrix.py
+7e4241e9868b729a981aa49e0ca55af5d23af2a639643619cfe9b68c1f746e5c  .github/release-tools/release-images.sh
+57b53cd869b1001d2c69285c15d94a04afc4b041fcdbfde789a8671508d4e4cd  .github/release-tools/test_release_matrix.py
+b2bdec9133b9d3c15d8e4b100dff5f70e2a56ecd3828321501f36ffe2b2ef013  .github/workflows/release.yml
+5af64b5de70e2f66e24fdb35a64673a09002efdc866a652715c112efa6b6451c  .goreleaser.yaml
+dd45f4ee491346147c4a03e79cfdf705b70e91a83b89307abc4d2deb6c895b36  .goreleaser.simple.yaml
+
+WSL_STDERR_BEGIN
+Installed 1 package in 306ms
+test_collect_and_verify_hash_and_source_binding (__main__.ReleaseMatrixTest.test_collect_and_verify_hash_and_source_binding) ... ok
+test_docker_commands_do_not_publish_during_dry_run (__main__.ReleaseMatrixTest.test_docker_commands_do_not_publish_during_dry_run) ... ok
+test_dry_run_plan_resolves_matrix_without_a_new_tag (__main__.ReleaseMatrixTest.test_dry_run_plan_resolves_matrix_without_a_new_tag) ... ok
+test_full_and_simple_matrix_match_existing_targets (__main__.ReleaseMatrixTest.test_full_and_simple_matrix_match_existing_targets) ... ok
+test_leaf_keeps_packaging_and_selects_only_one_target (__main__.ReleaseMatrixTest.test_leaf_keeps_packaging_and_selects_only_one_target) ... ok
+test_linux_context_preserves_binary_executable_mode (__main__.ReleaseMatrixTest.test_linux_context_preserves_binary_executable_mode) ... ok
+test_missing_extra_and_wrong_commit_artifacts_are_rejected (__main__.ReleaseMatrixTest.test_missing_extra_and_wrong_commit_artifacts_are_rejected) ... ok
+test_plan_requires_a_tag_for_publication (__main__.ReleaseMatrixTest.test_plan_requires_a_tag_for_publication) ... ok
+test_prerelease_plan_and_image_tags_are_isolated (__main__.ReleaseMatrixTest.test_prerelease_plan_and_image_tags_are_isolated) ... ok
+test_publication_config_has_no_compilation_or_docker_work (__main__.ReleaseMatrixTest.test_publication_config_has_no_compilation_or_docker_work) ... ok
+test_published_full_and_simple_image_tags (__main__.ReleaseMatrixTest.test_published_full_and_simple_image_tags) ... ok
+test_release_announcement_requires_explicit_opt_in (__main__.ReleaseMatrixTest.test_release_announcement_requires_explicit_opt_in) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.756s
+
+OK
+
+WSL_EXIT=0

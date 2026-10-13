@@ -1,0 +1,18 @@
+{
+  "baseline": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "restored_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "restored_tree": "ddd6dbeacfb34579b51c7162256ef0107de367bd",
+  "sentinel_sha256_before": "95cea009ef63e01ebfb99eb2c050cc2b9650dcb9bf99c4d9677a300e23d469d2",
+  "sentinel_sha256_after": "95cea009ef63e01ebfb99eb2c050cc2b9650dcb9bf99c4d9677a300e23d469d2",
+  "sentinel_preserved": true,
+  "tracked_clean": true,
+  "formal_head_unchanged": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "integration_ref_unchanged": "0e98a5faf664f21302ab069f3afc90f3dc4c4447"
+}
+ROLLBACK_INPUT_HEAD=0e98a5faf664f21302ab069f3afc90f3dc4c4447
+ROLLBACK_INPUT_BRANCH=DETACHED
+ROLLBACK_HEAD=1f08460552fbac66106baa97d0e3841f93057d58
+ROLLBACK_TREE=ddd6dbeacfb34579b51c7162256ef0107de367bd
+TRACKED_CLEAN=1
+ROLLBACK_EXIT=0
+

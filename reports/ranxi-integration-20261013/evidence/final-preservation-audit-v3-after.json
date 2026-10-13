@@ -1,0 +1,2767 @@
+{
+  "phase": "after",
+  "baseline": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "final_input_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "fdrive_validation_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "unchanged_validation_subtrees": {
+    "backend": {
+      "final": "ff01aa1de2c630d5ccc507daf9e11516a35fa9cc",
+      "validated": "ff01aa1de2c630d5ccc507daf9e11516a35fa9cc"
+    },
+    "frontend": {
+      "final": "9e07e133b5d7aedfcbd884e239cc6f0d22e4ea6d",
+      "validated": "9e07e133b5d7aedfcbd884e239cc6f0d22e4ea6d"
+    }
+  },
+  "original_untracked_count": 302,
+  "original_untracked_unchanged_count": 300,
+  "original_untracked_unexpected_changes": [],
+  "preserved_dynamic_updates": [
+    {
+      "path": ".omx/state/native-stop-state.json",
+      "exists": true,
+      "length": 121835,
+      "mtime_ns": 1791884524401805500,
+      "sha256": "ABFADA511ED81C7018024FBCDC913E6DEFA79DD3CE566DBC34D9AE2F3AD04859",
+      "dynamic": true,
+      "unchanged": false
+    },
+    {
+      "path": ".omx/state/session.json",
+      "exists": true,
+      "length": 228,
+      "mtime_ns": 1791880989081860300,
+      "sha256": "CC84158F60B37AC321ACBC832B871B2CC66D7D13BF3F2AB337999EAF3E959F2E",
+      "dynamic": true,
+      "unchanged": false
+    }
+  ],
+  "original_untracked_observations": [
+    {
+      "path": ".agents/skills/trellis-before-dev/SKILL.md",
+      "exists": true,
+      "length": 1892,
+      "mtime_ns": 1787752274232558200,
+      "sha256": "199D45432AD0A66EE051F2A1FCBD977126984037E4977D87B9C805DAA3422FEC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-brainstorm/SKILL.md",
+      "exists": true,
+      "length": 10593,
+      "mtime_ns": 1787752274234567900,
+      "sha256": "20A8CBACFDA487958221F878449B55F7E4491B0EE9F6677F886D1389779D2B84",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-break-loop/SKILL.md",
+      "exists": true,
+      "length": 7151,
+      "mtime_ns": 1787752274236567100,
+      "sha256": "2452E59334062E5676977377C6E5F7C6D286A343BFC4CA01177EF46DF02FC07A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/SKILL.md",
+      "exists": true,
+      "length": 4939,
+      "mtime_ns": 1787752274237567400,
+      "sha256": "6D31E55EE8ADC2312F365BBAB8C4D0B4E66D4F5461E797460A3855B032D3FD0E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/references/command-reference.md",
+      "exists": true,
+      "length": 17845,
+      "mtime_ns": 1787752274239573500,
+      "sha256": "8004E33542861C6621C8B99D9E33652503F3A6BDD9D19C803BB5A4064A6173C7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/references/forum.md",
+      "exists": true,
+      "length": 8203,
+      "mtime_ns": 1787752274240596800,
+      "sha256": "B642D4D12671751E04284DF2482627A01A77316E68B6C53D243B1482925CCC75",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/references/progress-debugging.md",
+      "exists": true,
+      "length": 8721,
+      "mtime_ns": 1787752274241565000,
+      "sha256": "E93F1860EDE2C46BB7FF6FB7567243B8E42E854B78973F5AF3B6DE4329995C22",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/references/workers.md",
+      "exists": true,
+      "length": 11427,
+      "mtime_ns": 1787752274242566500,
+      "sha256": "39DA7671F5AB889958BDBC7CF6968FA50440882ACB997976B88FD17FF39C2BCE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-channel/references/workflows.md",
+      "exists": true,
+      "length": 4616,
+      "mtime_ns": 1787752274242566500,
+      "sha256": "EBB1B721103B93B2E923DDD96D347AC7E7D7EEFF8438BDF38B1FC27A46F8EBE4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-check/SKILL.md",
+      "exists": true,
+      "length": 2911,
+      "mtime_ns": 1787752274244570500,
+      "sha256": "5C260DB51826A7217EB71C3F5B1A02AE3A211335D46F6F08DD2A461037BD5656",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/SKILL.md",
+      "exists": true,
+      "length": 12842,
+      "mtime_ns": 1787752274245569800,
+      "sha256": "CA5E3F69C6FC016851D58943A27C6C0049F21D42FC912978E57D8E18B56B61FD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/add-project-local-conventions.md",
+      "exists": true,
+      "length": 2589,
+      "mtime_ns": 1787752274246572200,
+      "sha256": "089FBE708369BBAC4E9CB7FDAED610B312B29CC1AB771AC8F7F6B43408AF42F1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-agents.md",
+      "exists": true,
+      "length": 2719,
+      "mtime_ns": 1787752274247566600,
+      "sha256": "FB49D81DF85556D313E64EE23DC325ACA57A032E98D98493BCC91513AF800651",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-context-loading.md",
+      "exists": true,
+      "length": 3386,
+      "mtime_ns": 1787752274250082100,
+      "sha256": "04035E5DCBDA3C6304154E663FF35A709D817914317E0DC3AB950DFEC7C6E6BA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-hooks.md",
+      "exists": true,
+      "length": 2389,
+      "mtime_ns": 1787752274251085200,
+      "sha256": "6771BD2D0BCB862BC80C187B224389B21A953D9428E996668D17535B22F60C18",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-skills-or-commands.md",
+      "exists": true,
+      "length": 7080,
+      "mtime_ns": 1787752274252084000,
+      "sha256": "F78F3891B83A069146C501B93CD7521572B7A79DFC1E07F789112D30CEDBB1DA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-spec-structure.md",
+      "exists": true,
+      "length": 2467,
+      "mtime_ns": 1787752274254084800,
+      "sha256": "8C82AE1E03139CAAC072D46A5CD54AAA0CDFA348FB2E205CBE93E1A5E972FD74",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-task-lifecycle.md",
+      "exists": true,
+      "length": 4682,
+      "mtime_ns": 1787752274255083400,
+      "sha256": "DE533A68A41FA1E80F569B5C4E1A6C04B76AD372D9E511D3B471835072CEF855",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/change-workflow.md",
+      "exists": true,
+      "length": 4349,
+      "mtime_ns": 1787752274256082800,
+      "sha256": "2CC9CD7C5062C648398C090796E4CAF68E9CE690A0602482B180E66CD819A05E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/customize-local/overview.md",
+      "exists": true,
+      "length": 2922,
+      "mtime_ns": 1787752274257085500,
+      "sha256": "07B6A438E77D80E5735E7825248ED813374167F31018FBE0F67D2BF2BF6A8D8D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/bundled-skills.md",
+      "exists": true,
+      "length": 11771,
+      "mtime_ns": 1787752274258082600,
+      "sha256": "5D822FDC5B68C42BEC5F8BCB0D2E1213567CBD61A6ACEF42CA997F2E3A3473B1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/context-injection.md",
+      "exists": true,
+      "length": 4133,
+      "mtime_ns": 1787752274259588400,
+      "sha256": "5EB6E756A3FEC86AF78712FCFCC282393B0C65D3D7575DCBD4001640B555E596",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/generated-files.md",
+      "exists": true,
+      "length": 4017,
+      "mtime_ns": 1787752274260598900,
+      "sha256": "498AFBB9B3CA3DFEF3111894F7C2534F6DAACFB613F573AAFB858F3BD372FBF2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/multi-agent-channel.md",
+      "exists": true,
+      "length": 6854,
+      "mtime_ns": 1787752274261597600,
+      "sha256": "B4066FBBEA77FCFA7CFD974B2528E332208767101C7DEF163B69A099DF82DE26",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/overview.md",
+      "exists": true,
+      "length": 3798,
+      "mtime_ns": 1787752274262596400,
+      "sha256": "22FD95CB76CDDCE926CAED8CAC2425321781F9C7B5680B72E86C0205FF8412AE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/spec-system.md",
+      "exists": true,
+      "length": 3536,
+      "mtime_ns": 1787752274263594700,
+      "sha256": "76635BE6C17A7215748BC283CFBA6EF8ACC00EF6128AD52DBB6BA228D6209FC8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/task-system.md",
+      "exists": true,
+      "length": 6234,
+      "mtime_ns": 1787752274264594500,
+      "sha256": "262ACC2C9698007DEFCDC95289DC844DEF7A1A0BCD9390A77C6B42A18228D708",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/workflow.md",
+      "exists": true,
+      "length": 3831,
+      "mtime_ns": 1787752274265595200,
+      "sha256": "AFD32DF7503D557AD61EE0C6198C9B9C38A9D27A16DF5A2AB97DD25F4F2A2645",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/local-architecture/workspace-memory.md",
+      "exists": true,
+      "length": 2835,
+      "mtime_ns": 1787752274266600900,
+      "sha256": "9E4F6AF739C8B97F53D002EE50043DFC05580512979AB29CBE5D3768F9D9DFC8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/platform-files/hooks-and-settings.md",
+      "exists": true,
+      "length": 4454,
+      "mtime_ns": 1787752274268601700,
+      "sha256": "9398C7F203962A185ECE9051115960932B7065179F5E1DFC174BEE2D3CB8382D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/platform-files/overview.md",
+      "exists": true,
+      "length": 3594,
+      "mtime_ns": 1787752274269600100,
+      "sha256": "F763B675063CE68186522BC6A110FCCB937B460F03CE700F856EC210D3C10E57",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/platform-files/platform-map.md",
+      "exists": true,
+      "length": 7093,
+      "mtime_ns": 1787752274270602100,
+      "sha256": "D0D806CEA1040FF63F517CE8F855D607911A3CF4025616AF1CA0FDB43A909B6C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-meta/references/platform-files/skills-and-commands.md",
+      "exists": true,
+      "length": 4123,
+      "mtime_ns": 1787752274271601700,
+      "sha256": "7F33F7340E53DD10A3C84D9A677572AF72E7A1767C8F5676AA9BC9AA1F7FCA4A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-session-insight/SKILL.md",
+      "exists": true,
+      "length": 6763,
+      "mtime_ns": 1787752274272602100,
+      "sha256": "69249B23F9D4E07E65D50C5B4EC2292FB2ECB2FDB08197F2A10DCD46ADA97A50",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-session-insight/references/cli-quick-reference.md",
+      "exists": true,
+      "length": 6899,
+      "mtime_ns": 1787752274274604400,
+      "sha256": "ED74B8F6072C3E0DF081ACFF348F30747C227FDCE5F477B5B34781537F874FB9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-session-insight/references/triggering-patterns.md",
+      "exists": true,
+      "length": 4151,
+      "mtime_ns": 1787752274274604400,
+      "sha256": "65C14F0D6356AC2FE174B08D1004A9BB218E0E99BB9DE27619E842F16300A060",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-spec-bootstrap/SKILL.md",
+      "exists": true,
+      "length": 2720,
+      "mtime_ns": 1787752274276603600,
+      "sha256": "073887F5DB840632D51E2933625965527E42898FF02ADE7A028A78385C6EB12C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-spec-bootstrap/references/mcp-setup.md",
+      "exists": true,
+      "length": 2856,
+      "mtime_ns": 1787752274277600500,
+      "sha256": "324E149A07D5A4B7ACF7B162CAC466736938D3D2D08147BF139780EE3CFCEF97",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-spec-bootstrap/references/repository-analysis.md",
+      "exists": true,
+      "length": 2804,
+      "mtime_ns": 1787752274279600900,
+      "sha256": "9E24113607F362E51D64FB9228872BAB32790D929D2474AECA1A985AC3A724EE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-spec-bootstrap/references/spec-task-planning.md",
+      "exists": true,
+      "length": 2292,
+      "mtime_ns": 1787752274279600900,
+      "sha256": "976903865D2918FDB07F12DF32044EEB8E6A544B4B0E78A911FEC7C9283BF436",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-spec-bootstrap/references/spec-writing.md",
+      "exists": true,
+      "length": 2246,
+      "mtime_ns": 1787752274281105500,
+      "sha256": "022092CF1E94030BD17232B446F6CBF5C9355915178612419AC6246E95BEDDF8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".agents/skills/trellis-update-spec/SKILL.md",
+      "exists": true,
+      "length": 10465,
+      "mtime_ns": 1787752274283113200,
+      "sha256": "27BE6D654DBAA1B47F044346B64FCD5D513C3515BB55CF02BFBE914695390511",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/project-memory.json",
+      "exists": true,
+      "length": 7062,
+      "mtime_ns": 1788247434815233800,
+      "sha256": "B936AA38C8E2BC4766D902EAF5CEC1639460B9CF6039FA40081EF66BD4820BC6",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/sessions/26803a00-b220-4f24-94fa-b30a58e99451.json",
+      "exists": true,
+      "length": 201,
+      "mtime_ns": 1788147258609793800,
+      "sha256": "77BD424D40F5AAB1CC5F19A5BF14DF5276780FF7C71B9FF87F9BE71325F8D3E8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/sessions/c53c5e7b-981a-4667-85d1-e28081328798.json",
+      "exists": true,
+      "length": 196,
+      "mtime_ns": 1787752274287115700,
+      "sha256": "B82503BA7A29D94B64851323D51A5CAC2969CBDA3D70C42736ED7E502E5F6B0F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/agent-replay-26803a00-b220-4f24-94fa-b30a58e99451.jsonl",
+      "exists": true,
+      "length": 2700,
+      "mtime_ns": 1788280030155051100,
+      "sha256": "5818618AD6CAEDA5865E35AFFEEFCBADD5E5ADF0CEA71F079186A73C90F582F8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/checkpoints/checkpoint-2026-09-01T16-25-02-145Z.json",
+      "exists": true,
+      "length": 341,
+      "mtime_ns": 1788279902145798800,
+      "sha256": "5C416A09FE936C0B68DB81C27E9321B4AAC182BC9078359F2F7AA62630450FAA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/checkpoints/checkpoint-2026-09-01T16-25-48-422Z.json",
+      "exists": true,
+      "length": 341,
+      "mtime_ns": 1788279948423544100,
+      "sha256": "E635A65D7C849BE2B371C2220679A65BB40D448FAF1B0DE77F648641EC6303AD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/idle-notif-cooldown.json",
+      "exists": true,
+      "length": 46,
+      "mtime_ns": 1788281469512252000,
+      "sha256": "595B26ECD10D502199ED96B7016CD8CC318FA939D7183EEE9BEE8889D73D32A8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/last-tool-error.json",
+      "exists": true,
+      "length": 714,
+      "mtime_ns": 1788280164029459900,
+      "sha256": "EDD824F861328AF30D77692A5229979D0ACC958BDE52B507BFFF59C9675976F1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/session-end-jobs/26803a00-b220-4f24-94fa-b30a58e99451.json",
+      "exists": true,
+      "length": 10175,
+      "mtime_ns": 1788147258661958400,
+      "sha256": "5A51D10A29D0F675403931C2A08BC7AFD6D5009577D58B61DA114CDF643BF00A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/session-end-jobs/c53c5e7b-981a-4667-85d1-e28081328798.json",
+      "exists": true,
+      "length": 10191,
+      "mtime_ns": 1787752274289113900,
+      "sha256": "E0F716AA1E4369094B4E19CC64C022A09254EF23ABE3BFDCF44CB9439B6A782F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/session-end-jobs/discovery.json",
+      "exists": true,
+      "length": 438,
+      "mtime_ns": 1788147258569681500,
+      "sha256": "F1A1A43166004F11F7EF5EAE8811E41B4AD5625307641C2A52892BF4981BFC23",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/last-tool-error-state.json",
+      "exists": true,
+      "length": 714,
+      "mtime_ns": 1788280166547819200,
+      "sha256": "142C2C88EC6F0CDE3A0F5DAD47A8A718B7F5CE1E9DC5CA67B395E8F9CFE7FE85",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/mission-state.json",
+      "exists": true,
+      "length": 5659,
+      "mtime_ns": 1788280030428330200,
+      "sha256": "DFE7982805F42B8D7A2524D0745FBD2DFD3AA9D90378881143ED7D20C515DC1E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/pre-tool-advisory-throttle.json",
+      "exists": true,
+      "length": 774,
+      "mtime_ns": 1788281689999216900,
+      "sha256": "5E9A4D269F65922B7452ACB03B9B03A4F471BF8F500F6D303BCF131DB58B49D5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/session-started.json",
+      "exists": true,
+      "length": 143,
+      "mtime_ns": 1788280034176845600,
+      "sha256": "87F9EF3A28975DE57A2566E0DEC7FE54364906B484B961D5E4E0AE7E0DAF3041",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/subagent-tracking-state.json",
+      "exists": true,
+      "length": 6166,
+      "mtime_ns": 1788280030063190400,
+      "sha256": "3D7CB73DDFAF02CF1B9328513694345CAC6477745DF8902B44341221D0D9A487",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/6b182195-5b15-491a-8a97-0f04d5c2c70b/session-started.json",
+      "exists": true,
+      "length": 143,
+      "mtime_ns": 1788159499467613500,
+      "sha256": "327BD71120D47C10276D7413BCAFCCBE24586CDA6FFEBA90FDFBC2CF743DC78F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/8c1bc68f-23d2-4e7d-a74b-a8b753b69617/last-tool-error-state.json",
+      "exists": true,
+      "length": 310,
+      "mtime_ns": 1787821041584675100,
+      "sha256": "10193CBD224FDB0B8D804929541990283BB3F1D6377B46998631F99A61D583C8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/8c1bc68f-23d2-4e7d-a74b-a8b753b69617/mission-state.json",
+      "exists": true,
+      "length": 2849,
+      "mtime_ns": 1787821756329840200,
+      "sha256": "C8B644D7FCE2E69B88EB9D1DF47590665DF250B30B09F76C552F594BF414C0BD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/8c1bc68f-23d2-4e7d-a74b-a8b753b69617/pre-tool-advisory-throttle.json",
+      "exists": true,
+      "length": 1429,
+      "mtime_ns": 1787821647987006000,
+      "sha256": "42568E6CAA6D5E1835164E5286D5798071A4E3E17F28995DD1201A87FE1124C6",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/8c1bc68f-23d2-4e7d-a74b-a8b753b69617/session-started.json",
+      "exists": true,
+      "length": 142,
+      "mtime_ns": 1787820914356017800,
+      "sha256": "85657594AD096354FCCFD7946ED827112A012B1150D2E4EC9334AF9A2B2D8750",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/8c1bc68f-23d2-4e7d-a74b-a8b753b69617/subagent-tracking-state.json",
+      "exists": true,
+      "length": 877,
+      "mtime_ns": 1787821756445961300,
+      "sha256": "B87F1CEC8064CA1580047DB02189BF217898CAB1A1630939593DA8DDB4508D55",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/a23bfe79-bf8c-4482-9e3c-da9bfa38db3c/session-started.json",
+      "exists": true,
+      "length": 147,
+      "mtime_ns": 1787752274291110700,
+      "sha256": "EBC933866E16823FB45D2A3FF5BA811D762D00AF9048205654A6CEB7CAE89EC8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/abd52695-ca3f-40d0-819d-726a52fcd0c6/session-started.json",
+      "exists": true,
+      "length": 142,
+      "mtime_ns": 1787824165575192100,
+      "sha256": "9A6482E1CD41ADF4AAE15B3942C2081A7ADCD815849A3187D0419046E0CB2E2C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/c40e0000-e168-43e4-b248-91543ce85759/pre-tool-advisory-throttle.json",
+      "exists": true,
+      "length": 342,
+      "mtime_ns": 1788157859607372600,
+      "sha256": "C621580A53B6889D13DF8FF874D38FA6C038493117209F341FF2E0BCE15D8B84",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/c40e0000-e168-43e4-b248-91543ce85759/session-started.json",
+      "exists": true,
+      "length": 141,
+      "mtime_ns": 1788157307453391800,
+      "sha256": "5453CE381FC8CF7306A4ECCA4F291A5B31EAAA479B61B0A26F71583529F1C45A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omc/state/sessions/c53c5e7b-981a-4667-85d1-e28081328798/pre-tool-advisory-throttle.json",
+      "exists": true,
+      "length": 351,
+      "mtime_ns": 1787752274292115600,
+      "sha256": "4EC87D7A415732D8CB4CD90F19A4FC1E92C56F330AE8B252FAEA52AEFE932E5B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-10.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1787752274293115600,
+      "sha256": "6D73679773ECE453289C1AB8C17A7BA4A8EB6180F24E8B986303347B312EC6B3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-11.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274294116700,
+      "sha256": "2B5A203AF022455F3FD0FE47FD7AF13CBEF915B8077744167B173C48455F76E0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-12.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274296116700,
+      "sha256": "B08FBD7F34DBC299DB526845A860165642CE8E5D43FCD30B80968A4B83D7D11F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-13.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274296116700,
+      "sha256": "3128074AA732C28F981CC170F5227212CE31791D2F1C863C17B0B2F22A4148C0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-14.jsonl",
+      "exists": true,
+      "length": 223,
+      "mtime_ns": 1787752274297115400,
+      "sha256": "54B97C64E47144093816A73016DF0B65278C90B0AB378ADF153E224AB9539786",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-15.jsonl",
+      "exists": true,
+      "length": 445,
+      "mtime_ns": 1787752274298115900,
+      "sha256": "DC86AA163FA115B69790AC40A97A99D5234EC6B665494666CFCB217E81784EC1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-17.jsonl",
+      "exists": true,
+      "length": 1110,
+      "mtime_ns": 1787752274299116400,
+      "sha256": "4F84355FEB3FE0C546A1C2B18E49D3C89D4736316FB1644C0348499AE5CE876D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-18.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274300116200,
+      "sha256": "36C5D56D9B936371E3693B281BA610248FCFC48180FFBF8782E0771E8477A6E4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-22.jsonl",
+      "exists": true,
+      "length": 223,
+      "mtime_ns": 1787752274302117700,
+      "sha256": "D64B5A20A34A75D38757829F4F769A4969691B8871310A0C72F047843F548C35",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-24.jsonl",
+      "exists": true,
+      "length": 888,
+      "mtime_ns": 1787752274304118000,
+      "sha256": "42CA73F9ACE2FEAFF08B6DA76444A63FBF9437DFAE67D5B15EB0A689B45932C9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-25.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274304118000,
+      "sha256": "72337C66D6E9343B98F744E7B62C370D1813D56293776C1681EBD23CFA76ECB0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-26.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1787752274311282900,
+      "sha256": "CF386F76F002C2D02A014596C8CC0A438306850025F6BB1F8E211A04E1EFF9F3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-27.jsonl",
+      "exists": true,
+      "length": 1326,
+      "mtime_ns": 1787825171573313700,
+      "sha256": "D79E6037862932053B78F2589B60AC0AB4074B278CA7DD4B8844A5F9A92907D2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-08-31.jsonl",
+      "exists": true,
+      "length": 665,
+      "mtime_ns": 1788159540933051500,
+      "sha256": "CD4D83A09FF8A97527F56AD1296F444758E3C327C7D287C176FBD029A9332FEC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-01.jsonl",
+      "exists": true,
+      "length": 1554,
+      "mtime_ns": 1788281917752420200,
+      "sha256": "2F038A877C43B69701A9BCC7EBEE2F0FE189D6A73C66C12344D4F5580D076A75",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-04.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1788531581253631600,
+      "sha256": "51893880D458E71DC2C15A09F804D2FBAFDF4A0911368F4F95FBEE09D8B2B73C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-05.jsonl",
+      "exists": true,
+      "length": 888,
+      "mtime_ns": 1788622697969795600,
+      "sha256": "83BE4F2018145AEFB7A7B8B3A48AEE03E7AB43E7B4C9AF78BB94578BA053E52A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-08.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1788854209209167600,
+      "sha256": "9A22334F96A5D0D5D9E284181F087E25DC0EE5682004C294960F3BB790BFC039",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-11.jsonl",
+      "exists": true,
+      "length": 444,
+      "mtime_ns": 1789110206206397900,
+      "sha256": "1C426C03DF907747B430A0B8D922AFCD78B18F937FB9BC3B91D9D984739A8361",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-12.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1789235009513886500,
+      "sha256": "3C9F16900B2D3B081906D1F355D4C8C3CD540051F5C06AAF40859B8D99D6E9A1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-13.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1789277357962393700,
+      "sha256": "1AF8E0C6AA6E5727906EC013E731FA97846B82FD6414FFB9C56EF45A98A0AA55",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-16.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1789528040172552800,
+      "sha256": "8290704427742396885CA33AF018DE744E9B3AE4BA3150BCE3D340162266BA4B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-17.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1789610260768377200,
+      "sha256": "A0FB6B77AC86AFA175D1A32E89321B959B5528808B3DB2A11540BE7775DA1D1F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-18.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1789695056741511700,
+      "sha256": "B4C27EC0291FD2691C97B1C831F7C51478ABB13E73DC396CB05D78237B782E08",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-19.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1789827266378103500,
+      "sha256": "E8D29BAA64AAA62BD413455E1C6FC1F8E1229FC63E07FD0AC1C99BCD092B9D7B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-20.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1789887646955765500,
+      "sha256": "E80E3D58E41A8693116AB6FC3CEAFC00EC49B64D648EC18BB99C40B7D45141A8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-21.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1789959218894986200,
+      "sha256": "90EB99F7BFB56982BDCB83251ADC1B9D328565D759D1006761DE4112B14F96FF",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-23.jsonl",
+      "exists": true,
+      "length": 442,
+      "mtime_ns": 1790134700726125100,
+      "sha256": "6DCEB592D29D7327345919344BC393ED1376BF874B7FCC9E5C73FD52242892AA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-24.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1790213442075256800,
+      "sha256": "EC8B5780EF5950D204F31CB60637EC2405F145436B629DAEC4FC9CE264EA57A2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-27.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1790507293795053900,
+      "sha256": "85E6CE43CC7F1E0BBA2CE7BF00912E8B77701EECD36C27A6596350D780F34F2F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-09-30.jsonl",
+      "exists": true,
+      "length": 888,
+      "mtime_ns": 1790779491205969300,
+      "sha256": "FBA2D0A579F320E052657F075839A62FB0128737A2D0D8DFF3BD0E07BFE752F0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-10-03.jsonl",
+      "exists": true,
+      "length": 222,
+      "mtime_ns": 1791008790397127400,
+      "sha256": "DA8A13180D155F92EA1A2156C3B6341FEC40CFA43C83758E2C7BEA0DE793B8B1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-10-08.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1791469267627187900,
+      "sha256": "DB29B6B0BC9FDB9ECF3A5AAA33719F9F4E7460FFFBF74D11FDE199171CADAC9D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-10-09.jsonl",
+      "exists": true,
+      "length": 1105,
+      "mtime_ns": 1791533578498412700,
+      "sha256": "2C122B0F916EFCAA58D3B382B5C4849F17FEF9950FCB6061985DB89D9BD69F94",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/logs/omx-2026-10-10.jsonl",
+      "exists": true,
+      "length": 221,
+      "mtime_ns": 1791594597478299400,
+      "sha256": "639FBF652DF7C15D40C07786FF7B3DBA2F84C156F6DE222CD9D09391D7CF5DD9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/state/native-stop-state.json",
+      "exists": true,
+      "length": 121835,
+      "mtime_ns": 1791884524401805500,
+      "sha256": "ABFADA511ED81C7018024FBCDC913E6DEFA79DD3CE566DBC34D9AE2F3AD04859",
+      "dynamic": true,
+      "unchanged": false
+    },
+    {
+      "path": ".omx/state/session.json",
+      "exists": true,
+      "length": 228,
+      "mtime_ns": 1791880989081860300,
+      "sha256": "CC84158F60B37AC321ACBC832B871B2CC66D7D13BF3F2AB337999EAF3E959F2E",
+      "dynamic": true,
+      "unchanged": false
+    },
+    {
+      "path": ".omx/state/sessions/01a033ea-74c0-7010-bd31-cd5ef926774c/prompt-routing-state.json",
+      "exists": true,
+      "length": 380,
+      "mtime_ns": 1787752274315280800,
+      "sha256": "91197B4AFF3BF2ABD8990CE3741189B66D0636106E944DBBB6F43DD3A17D2A6C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/state/sessions/01a05af8-deda-7c53-877e-77322917b358/prompt-routing-state.json",
+      "exists": true,
+      "length": 369,
+      "mtime_ns": 1788232694373525200,
+      "sha256": "BB4C41F4D3A5DB014C03D5E68D0290A1C106641B586D7AD425190727D7276207",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/__pycache__/deploy_with_clipboard.cpython-313.pyc",
+      "exists": true,
+      "length": 4299,
+      "mtime_ns": 1791525729086361400,
+      "sha256": "2736392A0051848B66CED03E7DFFC6CDC69101A7CE7410C538E930D81F2CAB62",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/__pycache__/run_backend_checks.cpython-313.pyc",
+      "exists": true,
+      "length": 2043,
+      "mtime_ns": 1791525728995677100,
+      "sha256": "BFF2D85FC9C5475E230D5460B8B8F259A1DD0AA3B45BD0912E98C0660437A14C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/__pycache__/run_frontend_checks.cpython-313.pyc",
+      "exists": true,
+      "length": 2245,
+      "mtime_ns": 1791526323159403900,
+      "sha256": "21CF50FAFEB03E8C0419A284A817A2D2721B09E8821BF14D3D5379717B3F34D0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/deploy_with_clipboard.py",
+      "exists": true,
+      "length": 2681,
+      "mtime_ns": 1791525709876346700,
+      "sha256": "D5C6AB726CAAA0FBD2C9D0AC99A6EC174D9A7B1F9D90C47EBD183EF00A204451",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/hold_local_docker.py",
+      "exists": true,
+      "length": 1417,
+      "mtime_ns": 1791528191940627900,
+      "sha256": "589A01F0C7DDF68B3D3BD00EC372DF970B26C23E2B169BE154330252606E4A33",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/production-baseline.json",
+      "exists": true,
+      "length": 398,
+      "mtime_ns": 1791537151477173500,
+      "sha256": "8531E45C8AE5E0CA7DCCA3A6A66CF0707C0EEE1C927564B8F2B4A123C50EFE7D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/run_backend_checks.py",
+      "exists": true,
+      "length": 1200,
+      "mtime_ns": 1791525453054602900,
+      "sha256": "1969B7CC4290E358836E9FE68485B148AF1D8E65EE8BF3C88C419FE091A64636",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/run_frontend_checks.py",
+      "exists": true,
+      "length": 1275,
+      "mtime_ns": 1791525972553756000,
+      "sha256": "798634F0C92E82663071B8A2931ACAB62C5A0F49329C72463A75833325A79565",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".omx/verification/20261009-upstream/status.md",
+      "exists": true,
+      "length": 2898,
+      "mtime_ns": 1791526312778622300,
+      "sha256": "F2558D406B809D69F61C5B914752FA88A50296A8B978F8FA7B5D435DC7E9CD4B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/agents/trellis-check.md",
+      "exists": true,
+      "length": 3486,
+      "mtime_ns": 1787752274316280200,
+      "sha256": "C50BCE66786E1926F1FCB46D8E06D3C092B01040D3A6640233E5FC52E66CF3F4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/agents/trellis-implement.md",
+      "exists": true,
+      "length": 3555,
+      "mtime_ns": 1787752274317280800,
+      "sha256": "72114B4F191E1CAB19136D14DD2400876ADCCD3DB4CAE77821C9E266579FC015",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/agents/trellis-research.md",
+      "exists": true,
+      "length": 996,
+      "mtime_ns": 1787752274318276200,
+      "sha256": "942530793FC10BBCA975927EEDFB53FE62F0FA98C34845FFD08A51B20F7A4E9A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/extensions/trellis/index.ts",
+      "exists": true,
+      "length": 63760,
+      "mtime_ns": 1787752274320801400,
+      "sha256": "7DA569F1F4C6C1211FF013E33565DB54D4A5B6E4EEB3B46CA80331F448B17755",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/prompts/trellis-continue.md",
+      "exists": true,
+      "length": 2409,
+      "mtime_ns": 1787752274321799300,
+      "sha256": "4C23A90F8526AD1D08815E13A1DCF88573143640C2035AD99B9C8CFCF53700C1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/prompts/trellis-finish-work.md",
+      "exists": true,
+      "length": 3491,
+      "mtime_ns": 1787752274322941200,
+      "sha256": "2C39171191B98B07C405DD3D60D8AFCD47C5DF959246A3443248CC669D0F65C5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/prompts/trellis-start.md",
+      "exists": true,
+      "length": 2493,
+      "mtime_ns": 1787752274322941200,
+      "sha256": "3518EFC269B51D639A4B4CB0E02A6CE08581C1C225F8BD92BC74D05B90152B15",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".pi/settings.json",
+      "exists": true,
+      "length": 138,
+      "mtime_ns": 1787752274323942000,
+      "sha256": "A9E2101C4B33C549387A558E30021036F2581EAA869BF2B8A89927EC959D27F8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/.gitignore",
+      "exists": true,
+      "length": 493,
+      "mtime_ns": 1787752274324942900,
+      "sha256": "3D6C16331D7D4B09098FFF33208E048F419FA00DB42299F19D21542379D5CB44",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/.template-hashes.json",
+      "exists": true,
+      "length": 10585,
+      "mtime_ns": 1787752274326941900,
+      "sha256": "1833112148A96320E01FEA763EA5D332A72B30857B967F7C9B6AA1610B363447",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/.version",
+      "exists": true,
+      "length": 5,
+      "mtime_ns": 1787752274327947100,
+      "sha256": "EE1C413148B2131FB45FDFEFB11CD80CE78C021BCB7ED33BF4922CB9E8D62B0E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/agents/check.md",
+      "exists": true,
+      "length": 2607,
+      "mtime_ns": 1787752274328948800,
+      "sha256": "03D9F3E45DBA629FD659A967C3EF17EFFBA886DB527870E4D2FAB6930282A8DA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/agents/implement.md",
+      "exists": true,
+      "length": 2415,
+      "mtime_ns": 1787752274329946500,
+      "sha256": "6DA19490FA082E0A65B44764D41A5C29C05BDB74F34E8917F8B04CB193C29550",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/config.yaml",
+      "exists": true,
+      "length": 7027,
+      "mtime_ns": 1787752274329946500,
+      "sha256": "A966E6D374E9E6FF283CF761CCD99631323EE1754856CEF51AD154CA0AFB9DFA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/__init__.py",
+      "exists": true,
+      "length": 110,
+      "mtime_ns": 1787752274330947400,
+      "sha256": "4371CB0CDD6D3EFAC5822D54A230F5D4FE7B6D45785AA3D73A9D0D4664F15C46",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/add_session.py",
+      "exists": true,
+      "length": 24423,
+      "mtime_ns": 1787752274331946600,
+      "sha256": "4AE65DD5AE1E7D1B7C83320CF0DF520CF0EB712AAD37978CEBD3BC3F16DC89AF",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/__init__.py",
+      "exists": true,
+      "length": 2863,
+      "mtime_ns": 1787752274332947800,
+      "sha256": "1805ECEF04BE58B5040F64932A9ED4DCF7198926ADAAE54A5D9EA99DEC599EB2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/active_task.py",
+      "exists": true,
+      "length": 22532,
+      "mtime_ns": 1787752274333949800,
+      "sha256": "9B057E4AD4AB0F936C7DE0E796A6C50D25F75BF9185A9C34C342B58590A321DC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/cli_adapter.py",
+      "exists": true,
+      "length": 34347,
+      "mtime_ns": 1787752274334948400,
+      "sha256": "C0AAD912322F5F11A87C09FA1E84AB4B76E62F3904F860477E521A7F71EA691C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/config.py",
+      "exists": true,
+      "length": 18813,
+      "mtime_ns": 1787752274336947900,
+      "sha256": "7350C67DA74F6CF16E121E425DDA43F4D6CCF1EF3B806939CC993379CBC0B2D9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/developer.py",
+      "exists": true,
+      "length": 5353,
+      "mtime_ns": 1787752274337946400,
+      "sha256": "573686F4E79FB708C260AAF30A24B8701E814DE4350E531D2217216EF66019B4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/git.py",
+      "exists": true,
+      "length": 2264,
+      "mtime_ns": 1787752274338952500,
+      "sha256": "ADD1B3FB682B3879046699647909D2CD0D35A28EF33005FA8B34281B13C08F24",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/git_context.py",
+      "exists": true,
+      "length": 3180,
+      "mtime_ns": 1787752274339947100,
+      "sha256": "2D38CF945BC3B929B34C854E869945057A32054055CCC00E4F538E679070868D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/io.py",
+      "exists": true,
+      "length": 1741,
+      "mtime_ns": 1787752274339947100,
+      "sha256": "B75D53BD2E56C175C42169C6DCA9021D6CB4053CD780929FC74854350122D3C9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/log.py",
+      "exists": true,
+      "length": 1164,
+      "mtime_ns": 1787752274340947200,
+      "sha256": "6BC674C028D51A3F0BCCE11DC19B25CF905398688CA12416FE5ADC6CC75B1041",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/packages_context.py",
+      "exists": true,
+      "length": 8106,
+      "mtime_ns": 1787752274340947200,
+      "sha256": "4EB92E4F5BA229B1162EA83326B3968F719F318166E30D120EBC1CF32F39EA2F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/paths.py",
+      "exists": true,
+      "length": 12905,
+      "mtime_ns": 1787752274343061400,
+      "sha256": "6ECF5E1EFA38E8C66B97A4F60F14678E91EE0FB7CFB7685D39AF5C5AF0AB3093",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/safe_commit.py",
+      "exists": true,
+      "length": 11692,
+      "mtime_ns": 1787752274344068300,
+      "sha256": "CC36874043CAA3A951B4B2DBA8426523C86F90AE4BA2D058AD9D0821548DE354",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/session_context.py",
+      "exists": true,
+      "length": 26851,
+      "mtime_ns": 1787752274345067400,
+      "sha256": "5505E1BFC7EF2D1095F13F5AF03EF7586A0225C5732E57AA2CBDA49D38E1A6C8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/task_context.py",
+      "exists": true,
+      "length": 11078,
+      "mtime_ns": 1787752274346067200,
+      "sha256": "6EAD5E4BF5FB347CB81D226AB8687F2EA4C5393FB3E21CD10E7C0FD59D5EDF8C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/task_queue.py",
+      "exists": true,
+      "length": 5197,
+      "mtime_ns": 1787752274347067400,
+      "sha256": "68A047C88A281C6933B2C039ABAEBBA141F3A97245567F0B79FDDAAFFCA9730E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/task_store.py",
+      "exists": true,
+      "length": 35662,
+      "mtime_ns": 1787752274348067800,
+      "sha256": "ABF3609B230B613917525727B935F7B86EE0CA9E44781CC3C1F2EE49B4E83FA3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/task_utils.py",
+      "exists": true,
+      "length": 9975,
+      "mtime_ns": 1787752274349068700,
+      "sha256": "F8A75B3962FB443D174ACC92942AA83BDD685971BEE1F105C042B458256AADC2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/tasks.py",
+      "exists": true,
+      "length": 3290,
+      "mtime_ns": 1787752274350118700,
+      "sha256": "219E7C7F00466AE372123D1932F11BD3C94260B8A5ACF12C4CF040C79A075C90",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/trellis_config.py",
+      "exists": true,
+      "length": 4189,
+      "mtime_ns": 1787752274351119400,
+      "sha256": "9A14EB1B6DC44E885FDCA8FB8B77F3E6BD0434C6030405BED41834169A0287FB",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/types.py",
+      "exists": true,
+      "length": 3061,
+      "mtime_ns": 1787752274352119800,
+      "sha256": "BA596AC3EE9F56A4411D6BE507A9BF6AB4063828B7678EFA910E243E23FCD182",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/common/workflow_phase.py",
+      "exists": true,
+      "length": 7208,
+      "mtime_ns": 1787752274353121100,
+      "sha256": "8070F3E260507DA60C5F3BB04C82EDDBDFAD82E73C72FB9D96B3A2EC2DEC4E08",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/get_context.py",
+      "exists": true,
+      "length": 334,
+      "mtime_ns": 1787752274354119300,
+      "sha256": "A41E97DE2A456BE978F39032870FA20DDAF029E4F8A9E2506708ECDFC2CB6E4A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/get_developer.py",
+      "exists": true,
+      "length": 472,
+      "mtime_ns": 1787752274355121500,
+      "sha256": "748B6102C30647FE2C93CAEEF632239C1414F066A3CD38F1AA5D7BA7FF16C5EB",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/hooks/linear_sync.py",
+      "exists": true,
+      "length": 7919,
+      "mtime_ns": 1787752274357118000,
+      "sha256": "43D1F2B41ED981A24F12704E825AC56ACA3B25C22646DE303658DFF65A98B560",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/init_developer.py",
+      "exists": true,
+      "length": 1105,
+      "mtime_ns": 1787752274358119700,
+      "sha256": "2A2A338B50C44D1AE42BD0520DE09E0DC1BF186BC955D93F8ABF65DF90233993",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/scripts/task.py",
+      "exists": true,
+      "length": 23657,
+      "mtime_ns": 1787752274358119700,
+      "sha256": "1010B52E98AC5C173C0BC78536DA9524A29E3D62D8A7CBA05E183A78FB419402",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/architecture-overview.md",
+      "exists": true,
+      "length": 17205,
+      "mtime_ns": 1788278221228403900,
+      "sha256": "3AEA1F7DB3512B365F6AAE6AE494371C81A016386674C31E7ED466F0330D037A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/database-guidelines.md",
+      "exists": true,
+      "length": 9339,
+      "mtime_ns": 1788277529949955700,
+      "sha256": "BF592433F980175C8EC1435B811108674948DD4A0D5F7F79DF06E761829154F7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/directory-structure.md",
+      "exists": true,
+      "length": 6319,
+      "mtime_ns": 1788277330455492600,
+      "sha256": "ED20A446DACBB1A1D0B8BDCA2B2086A1A0528C83DA767CE24FF6CFB4622B6958",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/error-handling-guidelines.md",
+      "exists": true,
+      "length": 9638,
+      "mtime_ns": 1788277666278261600,
+      "sha256": "CBF5B1E0A6EC32EE76EA428B1EA5FC7D440F55715AF5A09D9D5CBEB0DDED01C3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/error-handling.md",
+      "exists": true,
+      "length": 771,
+      "mtime_ns": 1787752274362370700,
+      "sha256": "9867A6559B4B7753FFC80236AE9100EF8F9A79ABD0C0011D97467EC24D2ABD2B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/index.md",
+      "exists": true,
+      "length": 1261,
+      "mtime_ns": 1787752274363369800,
+      "sha256": "C73F8867DFFBAE93202455099577D6C8CB1E8D680A9F9BED29C88475FEF46614",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/kiro-websearch-feature.md",
+      "exists": true,
+      "length": 18586,
+      "mtime_ns": 1788277867908001500,
+      "sha256": "DC0FB2B07B11ACA55571C6E48DE4AB9B1B6D0DA10F09DE45F4D15B3200879FD1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/logging-guidelines.md",
+      "exists": true,
+      "length": 768,
+      "mtime_ns": 1787752274364369700,
+      "sha256": "38C9483F37DC8812CBEC2BB22592EF50B7D0B6C5A277B504AA3B2EF238407151",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/backend/quality-guidelines.md",
+      "exists": true,
+      "length": 798,
+      "mtime_ns": 1787752274364369700,
+      "sha256": "FDBB494B57BCB9D034B1E269A3C046E3903C64D2E500E1EE103031E118CC7381",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/component-guidelines.md",
+      "exists": true,
+      "length": 937,
+      "mtime_ns": 1787752274365369900,
+      "sha256": "B6C7D41486FC3A7B501ECC6C13941C45AAC3E99700F7AFD63AE4D3F339C0A67B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/directory-structure.md",
+      "exists": true,
+      "length": 799,
+      "mtime_ns": 1787752274367375100,
+      "sha256": "5CFA60D7FCADF249BF979E3B79C6596BF3C2560677DDAD28C0E6154A11353B86",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/hook-guidelines.md",
+      "exists": true,
+      "length": 796,
+      "mtime_ns": 1787752274368376400,
+      "sha256": "D2DB38FAF545403386A6A3BFDEDE30B6F1E139796CCC66FE1ACE3AC7C0961CB8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/index.md",
+      "exists": true,
+      "length": 1357,
+      "mtime_ns": 1787752274369375700,
+      "sha256": "DA69420EB4AA777A3E21234602D58B2FC5EA117FA330E03C07D73A785E5447A5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/quality-guidelines.md",
+      "exists": true,
+      "length": 799,
+      "mtime_ns": 1787752274370373900,
+      "sha256": "1E9046A97FC85080C9B5DEE9B1A738D90CA089714F1DEE6A6C055FDEDB3C55D5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/state-management.md",
+      "exists": true,
+      "length": 847,
+      "mtime_ns": 1787752274371377000,
+      "sha256": "AF4C5531BE475477D2B731B8F46051DE810F092D519EFF9B9F4BC343D3CBCAE3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/frontend/type-safety.md",
+      "exists": true,
+      "length": 792,
+      "mtime_ns": 1787752274372377200,
+      "sha256": "D0AA0F766E94CFAEFC6141D82A03B16A8559BA6545AFCF136345C6B07EDB2782",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/guides/code-reuse-thinking-guide.md",
+      "exists": true,
+      "length": 7604,
+      "mtime_ns": 1787752274373374300,
+      "sha256": "21044B97BA03682BE2F3A6496FF75AC475211878D065F54823BC784DC6F6D961",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/guides/cross-layer-thinking-guide.md",
+      "exists": true,
+      "length": 15306,
+      "mtime_ns": 1787752274374375300,
+      "sha256": "0FD2F944C9AB679682FDD5D7F23E90B81DF252FB8E0FD28DF1D994A6A0F30735",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/guides/index.md",
+      "exists": true,
+      "length": 3777,
+      "mtime_ns": 1787752274375374300,
+      "sha256": "5E87F7EE825C0D53B2066FDA879D692C7618DE0E3D8CE4506270725B2E1059EF",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/infra/docker-deployment.md",
+      "exists": true,
+      "length": 5392,
+      "mtime_ns": 1787752274376375800,
+      "sha256": "E2A7268184B0066B93B73230E86AC0BA934A84A75E08E5B493B89F00D6C69939",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/spec/infra/index.md",
+      "exists": true,
+      "length": 406,
+      "mtime_ns": 1787752274377374700,
+      "sha256": "6E670257ACD7FA13C71B6796C041D6D027B07CA5E0CC19D95AA30600B21E8A0A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/00-bootstrap-guidelines/prd.md",
+      "exists": true,
+      "length": 5657,
+      "mtime_ns": 1787752274378373900,
+      "sha256": "3AAA9A23DE6C477F4DD12453042FD6CD3E63DCFE6B40705A12EC4D7AD7B0B002",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/00-bootstrap-guidelines/task.json",
+      "exists": true,
+      "length": 757,
+      "mtime_ns": 1787752274379374200,
+      "sha256": "3AE50AD1B2412366A1B612358E9FB572DA1863D8EE9BFF7137736B5772A9BCD4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/check.jsonl",
+      "exists": true,
+      "length": 898,
+      "mtime_ns": 1789641053607493400,
+      "sha256": "FBCA49EE2F7FC6CAD27C8975CB81D920850529B8A5E125A29D558F3A5756F399",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/design.md",
+      "exists": true,
+      "length": 3382,
+      "mtime_ns": 1789641053605493700,
+      "sha256": "6DCE9F82823BA4644051B94CF1668AE280A96D5B333B67F3DE399239889F1FBC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/implement.jsonl",
+      "exists": true,
+      "length": 1114,
+      "mtime_ns": 1789641053606494400,
+      "sha256": "7720266909CABF1789503FE2BDEE926FB11AD2517FD6111CC4AC8AB9A37837B1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/implement.md",
+      "exists": true,
+      "length": 1708,
+      "mtime_ns": 1789640259017993000,
+      "sha256": "3F6FDB16BB16BFC9E7FD4FFCE3BC20B3D164C110322348D703694F15CF34C6EE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/prd.md",
+      "exists": true,
+      "length": 4557,
+      "mtime_ns": 1789641053604494800,
+      "sha256": "A49E4E545BD6E1128E179DCE1069EAAF69A6DAF8AB136BB327F3081AD2BE2E8D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/research/effective-runtime.md",
+      "exists": true,
+      "length": 1908,
+      "mtime_ns": 1789640995914656300,
+      "sha256": "EC137970A4A3AC85B4D83A0477A9384BA309FF1CF7BEE007420DF623D9C89FB7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/research/semantic-integrity.md",
+      "exists": true,
+      "length": 2206,
+      "mtime_ns": 1789641053603494900,
+      "sha256": "D56483DFDB5506D50F967D7338B5B100C51B86DA726CB759A8BF4CA86ACD3A61",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-absorb-observability-features/task.json",
+      "exists": true,
+      "length": 673,
+      "mtime_ns": 1789640724060112400,
+      "sha256": "98CAD516068F155673385099302E35EB7EC20C5B8E9C401A9B5DBE7D247E3BC2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-account-control-suite/design.md",
+      "exists": true,
+      "length": 3119,
+      "mtime_ns": 1789654681737339500,
+      "sha256": "A91AC57B12F5AF402C467841E44667404016F0C77D33A932240078F3AB201E3E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-account-control-suite/implement.md",
+      "exists": true,
+      "length": 2421,
+      "mtime_ns": 1789654681766866300,
+      "sha256": "142500E21AA3A37669739F7E5DDB26836C1B755273DB0B950D560117637DDEF3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-account-control-suite/prd.md",
+      "exists": true,
+      "length": 4123,
+      "mtime_ns": 1789654681737339500,
+      "sha256": "DB0F482F50CC709425AD6A9E239465DDD0550A6DF79D2E2FF418C2C45F3F9703",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-account-control-suite/task.json",
+      "exists": true,
+      "length": 874,
+      "mtime_ns": 1789654681767870600,
+      "sha256": "B4C8CA17E6968B9215615413A8196F51AE5BF5146254C0D10F0FA08996A7F8F3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-import-newsite-features/check.jsonl",
+      "exists": true,
+      "length": 254,
+      "mtime_ns": 1789624642257042500,
+      "sha256": "B07D08D236963962B98F02165F5C31EAAF15C70072B474458F952F1421887F6B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-import-newsite-features/implement.jsonl",
+      "exists": true,
+      "length": 254,
+      "mtime_ns": 1789624642256041800,
+      "sha256": "B07D08D236963962B98F02165F5C31EAAF15C70072B474458F952F1421887F6B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-import-newsite-features/prd.md",
+      "exists": true,
+      "length": 1557,
+      "mtime_ns": 1789624862500114700,
+      "sha256": "937B1668F0E44149B3A0ECE7B9A1D548B6FBF6FD618C7F4F964FAF64DBEE9F70",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-17-import-newsite-features/task.json",
+      "exists": true,
+      "length": 677,
+      "mtime_ns": 1789833743585045700,
+      "sha256": "52F198DC005A170FF053D12E7DF4E38EF391E5E593CF3AE1E28CE193F88C66D5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/check.jsonl",
+      "exists": true,
+      "length": 254,
+      "mtime_ns": 1790507441710458900,
+      "sha256": "B07D08D236963962B98F02165F5C31EAAF15C70072B474458F952F1421887F6B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/deploy-handoff.md",
+      "exists": true,
+      "length": 2385,
+      "mtime_ns": 1790513968921983400,
+      "sha256": "A6D70D4F71212D8DFEC65AD0A016F9591005244DC5DFAB195946212DD96FBB77",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/deploy_release.py",
+      "exists": true,
+      "length": 13472,
+      "mtime_ns": 1790562366171786700,
+      "sha256": "D7257E212DB400981C51838B0952A16F3312CDFCC5C25692C3DAE6448EB0BA5D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/implement.jsonl",
+      "exists": true,
+      "length": 254,
+      "mtime_ns": 1790507441709457500,
+      "sha256": "B07D08D236963962B98F02165F5C31EAAF15C70072B474458F952F1421887F6B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/package_image.sh",
+      "exists": true,
+      "length": 1454,
+      "mtime_ns": 1790509012182517800,
+      "sha256": "5139D46F24AF45DB1AD45FB7AB02FBD2E53DB08F5B6F848B1D146371DE25A049",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/prd.md",
+      "exists": true,
+      "length": 2044,
+      "mtime_ns": 1790513968920985000,
+      "sha256": "E835FFDF2C4976A195D3328CAF3BDECF242EB569BBC644CBDEF23071BBA62DD3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-27-upstream-deploy-20260927/task.json",
+      "exists": true,
+      "length": 615,
+      "mtime_ns": 1790507593857034100,
+      "sha256": "F028BA1230B8C6C6C9EA57FD8DB1CC68F7F68FF1AE4AA0D8240A370386695DD3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-28-upstream-deploy-20260928/deploy-handoff.md",
+      "exists": true,
+      "length": 2083,
+      "mtime_ns": 1790563283505856600,
+      "sha256": "AFCBE29895996457570C297774C70B33534B6959251E9BCCA2F43D5F202A4770",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-28-upstream-deploy-20260928/prd.md",
+      "exists": true,
+      "length": 1865,
+      "mtime_ns": 1790563283449667100,
+      "sha256": "06652A12D01940E7E0AB1E4673F8E6193B3413A1A20FD03E44B90AA8860EA6BD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/09-28-upstream-deploy-20260928/remote_preflight.py",
+      "exists": true,
+      "length": 2298,
+      "mtime_ns": 1790562366170539500,
+      "sha256": "07325CFCCA528E6EA544DF57F15288CFEB109F1B525330557DF32FA4560CACCA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/check.jsonl",
+      "exists": true,
+      "length": 329,
+      "mtime_ns": 1791809459237469800,
+      "sha256": "94DD9A18AB67C8D52E94C9547450A36A6F1D1EF883150E58B6C9EA513B846BB9",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/design.md",
+      "exists": true,
+      "length": 2840,
+      "mtime_ns": 1791809381428448600,
+      "sha256": "193F287B5F8C655D0DC2ED255CBFF7D45735E18FAE09A322A3E98EB5C9D75EB2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/implement.jsonl",
+      "exists": true,
+      "length": 481,
+      "mtime_ns": 1791809459121862500,
+      "sha256": "687EBFA57C75333D16045A34F55D55AE581A7C1E4A7B79C51A6F17F5A13BFA20",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/implement.md",
+      "exists": true,
+      "length": 3521,
+      "mtime_ns": 1791818042501348700,
+      "sha256": "D2AD3668AEBAFB72465ADF01041B2F082D29CDE26247CAC8C9C5AC64CF670838",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/prd.md",
+      "exists": true,
+      "length": 1855,
+      "mtime_ns": 1791809381419968000,
+      "sha256": "6564BC4C421584450E1DA80D5302F84C976080C91622F2F5C1E0330D303647DA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/research/merge-compatibility-contracts.md",
+      "exists": true,
+      "length": 3458,
+      "mtime_ns": 1791818042575621600,
+      "sha256": "30C3EAB146DAAE2717D40E67D312535C7AA91CCE2FC56322F3E942262BE4DFB8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/tasks/archive/2026-10/10-12-sync-fork-origin-20261012/task.json",
+      "exists": true,
+      "length": 937,
+      "mtime_ns": 1791818129981068600,
+      "sha256": "858B5EC6DFCF2D146CD887C211BC9000FAA393306F0B7EC8F5CC1ABFDF826AE7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workflow.md",
+      "exists": true,
+      "length": 38963,
+      "mtime_ns": 1787752274386648500,
+      "sha256": "ED432BA4FC12066E591AD3E8A96893B126C73046C407A3949B398DAA23F60019",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/codex/index.md",
+      "exists": true,
+      "length": 796,
+      "mtime_ns": 1789624641927360400,
+      "sha256": "1BB8C525C2BE559A25397CB7157838C5A7C5806CEF42441256D80EA136379AD4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/codex/journal-1.md",
+      "exists": true,
+      "length": 96,
+      "mtime_ns": 1789624641926357000,
+      "sha256": "B16FB15A1703C53323B9062FB4234AD2BC995DFF48AAD5A301854FCF8F04D60E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/codex/upstream-merge-20261012-session.md",
+      "exists": true,
+      "length": 2107,
+      "mtime_ns": 1791818042627760200,
+      "sha256": "39DC6F410637C696D82E38CD85416D0D519C3D156755E2954B81CD0C58B3BAC6",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/index.md",
+      "exists": true,
+      "length": 2432,
+      "mtime_ns": 1787752274387640900,
+      "sha256": "6209BCFD24F9117C31EDB97BBC17ADE6B3805B038535041C32C6AED1697456D0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/w286554018/index.md",
+      "exists": true,
+      "length": 801,
+      "mtime_ns": 1787752274388640500,
+      "sha256": "B68BEAA5418C7F0E770233697C1A5E8AF75E70192C291E84DBDFC1708CF9FA9D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": ".trellis/workspace/w286554018/journal-1.md",
+      "exists": true,
+      "length": 101,
+      "mtime_ns": 1787752274389642700,
+      "sha256": "0AAA5C1319D8F3A8E07C38F0B9A3BA2B6E638FCE7CFFDF8138C28DE6D3C281AC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "exists": true,
+      "length": 26585,
+      "mtime_ns": 1788278946567839500,
+      "sha256": "0795CB8A08CF64C5937178E8E33DA19FACB78EFD6621B3CA8FD8CADE43301915",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "TECH_STACK.md",
+      "exists": true,
+      "length": 14331,
+      "mtime_ns": 1788279032162558900,
+      "sha256": "1715B88B737E9C4B01F1DFBA4117A91D9B6FCC71BEF17A3859513F3986827C6D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "article.txt",
+      "exists": true,
+      "length": 20308,
+      "mtime_ns": 1787752274390640000,
+      "sha256": "9CC02130565964D97B4DA3D57D2C330C9D2968B05C3150004C59FB5F14785041",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.codebase-memory/.gitattributes",
+      "exists": true,
+      "length": 123,
+      "mtime_ns": 1788278009191717700,
+      "sha256": "171DFF1F95B0159FC8F862C6F62B9BDA4318017D59878EFE018662B463D3C370",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.codebase-memory/artifact.json",
+      "exists": true,
+      "length": 257,
+      "mtime_ns": 1788278009190714500,
+      "sha256": "C2C2DF637EB6D2C7D360F19F1501F7ECC0701021CB0608B628025DB4262F5DBA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.codebase-memory/graph.db.zst",
+      "exists": true,
+      "length": 28938475,
+      "mtime_ns": 1788278009145108700,
+      "sha256": "0F5BF42C51B732C4A2CE2C981BFD8D7750482C800F1ED1E033CE093289A13520",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/agent-replay-26803a00-b220-4f24-94fa-b30a58e99451.jsonl",
+      "exists": true,
+      "length": 540,
+      "mtime_ns": 1788282000692320200,
+      "sha256": "127C488BDED7FDBF4E7595740E750FA530C3FB33577C2EAF89D5B81E3E4208A1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/idle-notif-cooldown.json",
+      "exists": true,
+      "length": 46,
+      "mtime_ns": 1788281808818268300,
+      "sha256": "E95A109DFC7568D3C122564D0646768D693A39639513C2A2A252149F4C7BEBA5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/last-tool-error.json",
+      "exists": true,
+      "length": 357,
+      "mtime_ns": 1788281718387796500,
+      "sha256": "07420C3F82FF5756B1A46BE922163DC3AFDA7D8A1E724CAC057DE01A1A22404A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/.last-tool-error-state.json.tmp.02ddce05-ed45-4f00-86fe-d61de9f559f4",
+      "exists": true,
+      "length": 825,
+      "mtime_ns": 1788249162472214500,
+      "sha256": "18440A48B35A0BB93061E3C7302E42D5635BEF07296C9C13D05A78035B8A419A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/.last-tool-error-state.json.tmp.66d73aee-b260-4e94-9cb2-3b96604fa5d8",
+      "exists": true,
+      "length": 655,
+      "mtime_ns": 1788249093112590200,
+      "sha256": "983BF864ACF5E7BA62048FECA551D3ABAEE8893E626759FDA3ED6772BFF44D8B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/last-tool-error-state.json",
+      "exists": true,
+      "length": 347,
+      "mtime_ns": 1788278783710041800,
+      "sha256": "BC3BFE95567DDAC09AB14BA96D06CFF74FE010D957EAD58EC9CF90502E5ACD76",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/pre-tool-advisory-throttle.json",
+      "exists": true,
+      "length": 342,
+      "mtime_ns": 1788281718021429700,
+      "sha256": "6244552591C3042B603400FA58B45854CABD62D94D4BAA5C27F7697579DA46A3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/.omc/state/sessions/26803a00-b220-4f24-94fa-b30a58e99451/subagent-tracking-state.json",
+      "exists": true,
+      "length": 1043,
+      "mtime_ns": 1788282000602084900,
+      "sha256": "142E6FC71330261DA37B30C73BA3C8D704236B6DE73A93D3CDAA6BD19113B30E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "backend/migrations/user_platform_quota_migration_test.go",
+      "exists": true,
+      "length": 410,
+      "mtime_ns": 1787752274391642800,
+      "sha256": "75D81C5959015DA8DF5F9587E5FD646B29AA03206EECA9EFE70192E867236048",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "deploy/Dockerfile.fast",
+      "exists": true,
+      "length": 1554,
+      "mtime_ns": 1788283328524947400,
+      "sha256": "15ED4CE7B8D4E600AF78CDB89021CEF6F12C641A2AFFE8C6B8093966DE39E0B4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "deploy/build_image_fast.sh",
+      "exists": true,
+      "length": 1320,
+      "mtime_ns": 1788285087612714600,
+      "sha256": "F813C508D400D7C40F9333AA479369F282B7A8F4548FB1DE3B2A5D7A2E32A5AE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "deploy/tests/docker-update-permissions-test.sh",
+      "exists": true,
+      "length": 673,
+      "mtime_ns": 1787752274392644800,
+      "sha256": "AEBCA85161FBB1C265EF4E261C595D395DE181F4442C8558AEB4B5E84DCEB5A2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "parse_arch.py",
+      "exists": true,
+      "length": 1511,
+      "mtime_ns": 1788278109533246200,
+      "sha256": "DD948F14E7E4F1C28F45F1717508A41EB16B351E1FF87C651B58CAEDDBD428D5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/DIFF_FILE.patch",
+      "exists": true,
+      "length": 1404357,
+      "mtime_ns": 1791817038748797200,
+      "sha256": "9ED4D042C23C74479453DB34BFDEBE3A20B92E3781325BA85E28FC925853DDF8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/MODIFIED_FILE.bundle",
+      "exists": true,
+      "length": 110622498,
+      "mtime_ns": 1791817038453999700,
+      "sha256": "ADF64FE2A70837FBDDA62375F94445760FAB5BCA6232A15827EB1AA59A5D64BD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/ROLLBACK.sh",
+      "exists": true,
+      "length": 2292,
+      "mtime_ns": 1791816970781078300,
+      "sha256": "6CD872B0A3B63B6BA9161D33296B2EE75DFC6EC75188854F2E405D4A7C45C105",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/VERIFICATION.txt",
+      "exists": true,
+      "length": 9327,
+      "mtime_ns": 1791817908002966800,
+      "sha256": "615EBD01E2BCE5B847C8D15C5A1AE007CC49E58ACF6E372B0B339305B230135F",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/artifact-checks.json",
+      "exists": true,
+      "length": 957,
+      "mtime_ns": 1791818137287208200,
+      "sha256": "4795A0E21D446A0BFEEE3B40108306E021CE863F6A1CB61A90AD067D6BFE8F3A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/attempt-before-catalog-sync/full-go.json",
+      "exists": true,
+      "length": 688,
+      "mtime_ns": 1791815207912093600,
+      "sha256": "57009A35559E965883D610DA86C179CC9010B80CD891ACF4339A249C52945FAD",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/attempt-before-frontend-assertion-sync/frontend-vitest.json",
+      "exists": true,
+      "length": 80236,
+      "mtime_ns": 1791816159151135800,
+      "sha256": "2DACF70B425B8EE24055EEC841D875BC80CCAA89753E86D198D6BE074AFE7CE0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/attempt-initial-go/modified-go.json",
+      "exists": true,
+      "length": 603,
+      "mtime_ns": 1791812189622160300,
+      "sha256": "3B1D5101A3C42A025E362EF77BFA75A66DD5FE24D47408A498E4B71CE11D1F05",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/baseline/frontend-lint.result.json",
+      "exists": true,
+      "length": 478,
+      "mtime_ns": 1791811190320371300,
+      "sha256": "C6E3EF31F40635FD95EED50E5A553B681E600C16104C026FAEA285E84E489573",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/baseline/frontend-typecheck.result.json",
+      "exists": true,
+      "length": 487,
+      "mtime_ns": 1791811723775682900,
+      "sha256": "56B5FCA52BF6B9E93BECE57E61C263E86D92F90901DFBB3F70E55D2531716D65",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/baseline/frontend-vitest.json",
+      "exists": true,
+      "length": 513,
+      "mtime_ns": 1791811674462054400,
+      "sha256": "58BB55003B7E58B5F9C1EA9D8BFF7611F9725C22403EA0571E953B780CFAB6F0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/baseline/go.json",
+      "exists": true,
+      "length": 476,
+      "mtime_ns": 1791811325963433300,
+      "sha256": "164FF3EEDDFA3BEB056936AB4ECF3F8FFF12912A9BA95C0949805205A2AB0CC1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/artifacts-created.json",
+      "exists": true,
+      "length": 867,
+      "mtime_ns": 1791817039402418200,
+      "sha256": "F61805989C8E7C49760158EEA717DA146BA50B5ECD130422D8F7AEADC247FB77",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/build-artifacts.json",
+      "exists": true,
+      "length": 513,
+      "mtime_ns": 1791816784065585200,
+      "sha256": "742AF20C3E6717F92E37571E4D29420007A8BE97E93DCBBA2C306ECF2E22D6D8",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/closure.json",
+      "exists": true,
+      "length": 396,
+      "mtime_ns": 1791818136743145300,
+      "sha256": "5A7A3CAC42B3980E97217FECC8CCE1030B136555D1039617EF0A1AD9488332AC",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/embedded-build.json",
+      "exists": true,
+      "length": 791,
+      "mtime_ns": 1791816442859255000,
+      "sha256": "69CEB0B67F44D146963854A6B94FC122B7D8C059AB0B4BABB18EE6B4E2A9FBC3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/embedded-web-tests.json",
+      "exists": true,
+      "length": 559,
+      "mtime_ns": 1791816448190379300,
+      "sha256": "EFF11EACCAF1F56BB5B7374015A59D5F5DAE92446B51B482B91A2D022472EAE7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/fast-forward.json",
+      "exists": true,
+      "length": 808,
+      "mtime_ns": 1791817581498877400,
+      "sha256": "4FCF598DB4C760688D5AD5E0EE4C89577BFCC36A006957EEAC5FF97AB9FCF04B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/frontend-vitest.json",
+      "exists": true,
+      "length": 79636,
+      "mtime_ns": 1791816648975714100,
+      "sha256": "41716F21F479648F6CBE221DEA2567C6458D26D5A2D7079C4A49CE122C6F5C59",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/full-go.json",
+      "exists": true,
+      "length": 532,
+      "mtime_ns": 1791816339928661200,
+      "sha256": "4CFCE957EC7D94A642B2FAFB0B2C329623CAB8433F6FD3518E6FA06AB532736B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/merge-commit.json",
+      "exists": true,
+      "length": 1248,
+      "mtime_ns": 1791816856726479300,
+      "sha256": "BE3381CD5905FAFD499946D5CAF56E843D6BBAD2DFDCDB54336A69F3BBFB9905",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/platforms-eslint.json",
+      "exists": true,
+      "length": 558,
+      "mtime_ns": 1791816345973241900,
+      "sha256": "33949F1E73AF55880A794ACF0E28B99B562C7E7761729B324E5F84B98ACB9A09",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/platforms-focused.json",
+      "exists": true,
+      "length": 593,
+      "mtime_ns": 1791816343172657200,
+      "sha256": "94814A81A96F2FB9A01AA3D9F451C0A3909F8B4E3393B041B1374271169E2E28",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/rollback-frontend-regressions.json",
+      "exists": true,
+      "length": 864,
+      "mtime_ns": 1791817363810684100,
+      "sha256": "57E09EABA93ECD371465CCFC39A2E60C97703910473449FA2C16F4EA2A5E6697",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/rollback-go-regressions.json",
+      "exists": true,
+      "length": 872,
+      "mtime_ns": 1791817405098608600,
+      "sha256": "3AFEEF314AEF03ED790B6B564E4A333549684DF8F62086BC586B867C18DA49EE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-and-rollback/rollback.json",
+      "exists": true,
+      "length": 1038,
+      "mtime_ns": 1791817167556837400,
+      "sha256": "EA61E6E2F2D8DCBE70CD7B68F422A1EDA3CC992FDDD8258DDC25121F59A8BF27",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-checks-before-test-only-change/focused-regressions.json",
+      "exists": true,
+      "length": 952,
+      "mtime_ns": 1791815517024615300,
+      "sha256": "66D79EE4CA8AC8C08DD0529C31181D1049337AB6BEA7DC19FB1B839FB38C55E4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-checks-before-test-only-change/frontend-build.json",
+      "exists": true,
+      "length": 49268,
+      "mtime_ns": 1791816159165680900,
+      "sha256": "C412BFAE9F292E0ACB6096054840731CF6ADBEB804490B2913EC2D6DB2205487",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-checks-before-test-only-change/frontend-lint.json",
+      "exists": true,
+      "length": 1209,
+      "mtime_ns": 1791816159111130600,
+      "sha256": "E955F501E411736AF609FD1961B47813F61E7C4A16C8A458E3A7C78738AAF2D2",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-checks-before-test-only-change/frontend-typecheck.json",
+      "exists": true,
+      "length": 1178,
+      "mtime_ns": 1791816159128130500,
+      "sha256": "37156972750605B458607E68E3EEF9830EB0ED451B3EA79FC981F6B1729D7448",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/modified-checks-before-test-only-change/full-go.json",
+      "exists": true,
+      "length": 776,
+      "mtime_ns": 1791815902818156200,
+      "sha256": "FDD338653383D714D0841B7DA407439B7D03D5C0F249BDDDCEAFF6C141A53278",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/workspace/untracked-before.json",
+      "exists": true,
+      "length": 41195,
+      "mtime_ns": 1791809460095806200,
+      "sha256": "DDB08C6B8AF0496BC5144EC512D6B43A2B2C70DE635BFB6A796EC7F8A7740039",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/workspace/untracked-post-ff-verified.json",
+      "exists": true,
+      "length": 15025,
+      "mtime_ns": 1791818136391376100,
+      "sha256": "4A1D7200B79F102344B581042708F7E8E115FF0FD7D4D28723CCCA2A6BE1DA0E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "reports/upstream-merge-20261012/evidence/workspace/untracked-pre-ff-hashes.json",
+      "exists": true,
+      "length": 67712,
+      "mtime_ns": 1791815892022447900,
+      "sha256": "B7A795C18A9DA14D6746EE204839862FB9C80EFDF93773C823176A05F97974C1",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-09aedf0f2-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102372987,
+      "mtime_ns": 1790510080107943500,
+      "sha256": "F154A10BC80E3B52C28BB93B54846DB4EA9062F619AD70159180262C45EF74CE",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-09aedf0f2-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1790510082840154300,
+      "sha256": "2FF19D93B743DA4BF0E1E7A5A824BF8DC8234265741B5D13DA1E5B3EB55FB4C0",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-24f717f21-linux-amd64.tar",
+      "exists": true,
+      "length": 152130048,
+      "mtime_ns": 1789895124152133400,
+      "sha256": "4C95D599A04851AD9C08FC5B010960C014BC82C853C14C6106099228A2DB882E",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-5440712a3-linux-amd64.tar",
+      "exists": true,
+      "length": 284696064,
+      "mtime_ns": 1790216696717704000,
+      "sha256": "E35168612060073906BF09D25FE219FFD1C52845E41ABC0F2D273341C782BB1B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-60c24f4f7-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1791537220048938600,
+      "sha256": "DCE3AE376069AD232D4F011678C59C8775821DB8574BA9AE3EDCEBF4DEED5EC7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-60c24f4f7-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102793795,
+      "mtime_ns": 1791536680016210200,
+      "sha256": "F00F8D6286C71B62E18B140A2408D574CF5847DA8F66DAE13DC2EB659384A4D3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-60c24f4f7-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1791536682939501900,
+      "sha256": "CEC41E18415FE525948850D6D51A2B2F0C987353B604CC134B8ADC553A203FB5",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-679598b68-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1791010827506113800,
+      "sha256": "62EF864B0B346FA60B7370E8D151B16C846730768817F1CED221C437B53FF939",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-679598b68-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102634608,
+      "mtime_ns": 1791009654339533200,
+      "sha256": "AE9D88FA50A889E7A9CC9EE2DE63B89B83FDF81E8145FF566847B7442BCC2E1A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-679598b68-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1791009657426724200,
+      "sha256": "AF3E0B6D1DD4441EF3CFFB9A396A97E208D8E97FCECBD7F1E05F2405B1C55EBB",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-86b2bbb05-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1790785018298306600,
+      "sha256": "CB71378F7A33BB24EF50093CFA5A38048E6DFF83450ED2E1389157081231149A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-86b2bbb05-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 98529299,
+      "mtime_ns": 1790783283120696000,
+      "sha256": "59BDEAD6F34211ED9A2E8EC18FB6987FDD74909E1A35D1A89537B2ABF3917276",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-86b2bbb05-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1790783285807573500,
+      "sha256": "927979C9E863E713AB714EB75EF866F89A9493163744A80A950EB80DFCDACC4C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-87f39a562-linux-amd64.tar",
+      "exists": true,
+      "length": 152152064,
+      "mtime_ns": 1790135798684038400,
+      "sha256": "81BAF6E9EF3CD6DBED1A725413BCF528233B06828DFC49504AC4568C3467138A",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-b731b40e2-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1790513623558484900,
+      "sha256": "7DD9882BC946B81488C82B7F410555484C75F36A707CD47DAACE85B444A316C7",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-b731b40e2-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102379311,
+      "mtime_ns": 1790513077589946000,
+      "sha256": "F77F617DA902FD53FB1466D3B0B9DCD7FE775A2ECAC1884BC1E3FF0E89FB9772",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-b731b40e2-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1790513080403226100,
+      "sha256": "8548D8EA43808F1C22387FCCE5C1DBD392A41A9E40A158C7E45D7DD9E9270172",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-d65051602-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1790562793411484500,
+      "sha256": "70FFE52262C2896B6A6E461B34AF611045F57480C612170BBB14F5087DE6065D",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-d65051602-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102406815,
+      "mtime_ns": 1790562369510178700,
+      "sha256": "6A28B9BD5964DC4B3D5CB09AD67160CEDCEF076274177A5258128608A4F43A66",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-d65051602-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1790562372295786400,
+      "sha256": "A70B17D7BA4747B89BE9B56F45E18004961EB45EB7ED77CFFCBBCED59740BA6B",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-ebdb3b55a-linux-amd64.tar.backup-SHA256SUMS",
+      "exists": true,
+      "length": 678,
+      "mtime_ns": 1790786140722362100,
+      "sha256": "7F9A1C83E4A53C26FF2E4753198ADAE068A761EB3FE3A8C38C2989AF1A9B13B3",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-ebdb3b55a-linux-amd64.tar.gz",
+      "exists": true,
+      "length": 102647679,
+      "mtime_ns": 1790785978688472900,
+      "sha256": "47999453DC9BFC6AB9AE91CE5CA140F4CE10A6A293C0B48C784000C038401931",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-ebdb3b55a-linux-amd64.tar.gz.sha256",
+      "exists": true,
+      "length": 118,
+      "mtime_ns": 1790785981634153900,
+      "sha256": "1C04DFD27759DB407BA20AC788D9FB06BAA66F1E35CA0799C49C7FD98AE4FCE4",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-local-028c94bf6-v0.2.4.tar",
+      "exists": true,
+      "length": 272771584,
+      "mtime_ns": 1789234098607632700,
+      "sha256": "EC41EDFBD5C191888CB56459A27ABA90382E81ADCE34B50D1025A835A0BC3B00",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-local-3578da5f2-v0.2.4.tar",
+      "exists": true,
+      "length": 272042496,
+      "mtime_ns": 1789090637552961300,
+      "sha256": "80125897125BACC75E064BD18A4CA05F21DA5B435323B50839BE71442FBB5AAA",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-local-8c5440b65-v0.2.4.tar",
+      "exists": true,
+      "length": 399964160,
+      "mtime_ns": 1789719214428883000,
+      "sha256": "C50523DAD4996859447820C0331879DE9859D6725BCB0EA0022F1A5056675C9C",
+      "dynamic": false,
+      "unchanged": true
+    },
+    {
+      "path": "sub2api-local-da2d16560-v0.2.4.tar",
+      "exists": true,
+      "length": 273771008,
+      "mtime_ns": 1789697310033652200,
+      "sha256": "DBB46DF6A2E98F4BEC663AFD83A9F73D8D9CA15DD3DBD6AFAABA262631829764",
+      "dynamic": false,
+      "unchanged": true
+    }
+  ],
+  "new_path_collisions": [],
+  "published_sql_count": 310,
+  "published_sql_changes": [],
+  "missing_baseline_schema_fields": [],
+  "formal_head": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+  "formal_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "formal_expected_state": true,
+  "passed": true
+}

@@ -1,0 +1,33 @@
+{
+  "id": "absorb-ranxi-production-20261013",
+  "name": "absorb-ranxi-production-20261013",
+  "title": "吸收 ranxi production 功能并保留 fork 契约",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "codex",
+  "assignee": "codex",
+  "createdAt": "2026-10-13",
+  "completedAt": "2026-10-13",
+  "branch": "codex/import-newsite-features",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "完整Go/前端/构建、最终Linux实测、隔离升级、文件保留和独立源码回退通过；源码已普通原子推送开发分支/main并核验默认HEAD。后续仅封存报告和任务文档；所有后续编译在F盘。",
+  "meta": {
+    "source_sha": "1d2ed630e292eaaac95454c1786bf3b7e5ed0828",
+    "baseline_sha": "1f08460552fbac66106baa97d0e3841f93057d58",
+    "integration_sha": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+    "validated_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+    "build_root": "F:\\sub2api\\.task-cache\\ranxi-20261013",
+    "verification": "reports/ranxi-integration-20261013/VERIFICATION.txt"
+  }
+}

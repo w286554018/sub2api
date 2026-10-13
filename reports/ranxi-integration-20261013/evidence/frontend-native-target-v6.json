@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/c",
+    "pnpm.cmd exec vitest run src/__tests__/nativeControls.spec.ts src/components/account/__tests__/CreateAccountModal.autoBPS.spec.ts src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts src/components/account/__tests__/NewAPIUpstreamConfigDialog.spec.ts src/components/account/__tests__/OpenAITOTPDialog.spec.ts src/components/admin/__tests__/HarvestManualConsole.spec.ts src/components/admin/__tests__/HarvestPolicyPanel.spec.ts src/components/admin/__tests__/HarvestPoolSchedulingPanel.spec.ts src/components/admin/operations/__tests__/AccountOpsBatchRuleDialog.spec.ts src/components/admin/operations/__tests__/AutoConfigHistory.spec.ts src/components/admin/operations/__tests__/QualityProbeSchedule.spec.ts src/features/channel-monitor-v2/__tests__/MonitorCandySettings.spec.ts src/features/channel-monitor-v2/__tests__/MonitorSettingsPanel.platforms.spec.ts src/features/channel-monitor-v3/__tests__/IdleProbeSettings.spec.ts src/views/admin/__tests__/AccountQualityView.spec.ts src/views/admin/__tests__/AutoConfigView.spec.ts src/views/admin/__tests__/ControlledExperimentsView.spec.ts src/views/admin/__tests__/GroupCacheTestView.spec.ts src/views/admin/__tests__/HarvestControls.spec.ts src/views/admin/__tests__/PrioritySchedulingView.spec.ts src/views/admin/__tests__/RequestCaptureView.spec.ts src/views/admin/__tests__/SettingsView.spec.ts src/views/admin/ops/__tests__/TokenGuardV2View.spec.ts src/views/admin/settings/MihomoCountryFilter.spec.ts src/views/admin/settings/MihomoSettings.spec.ts --maxWorkers=2 --minWorkers=1"
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\frontend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5b3c27f65977dda133ad10acde7be8202dd18993",
+  "environment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "started_at": "2026-10-13T14:38:49.939653+08:00",
+  "runner_pid": 58544,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\frontend-native-target-v6.log",
+  "exit_code": 0,
+  "command_pid": 52424,
+  "ended_at": "2026-10-13T14:39:34.384843+08:00",
+  "elapsed_seconds": 44.442,
+  "log_bytes": 61309,
+  "log_sha256": "e99335f40a16ef36ed65ab86bbbe6ef61573d7d0719ad304f11e0e85eccaea59"
+}

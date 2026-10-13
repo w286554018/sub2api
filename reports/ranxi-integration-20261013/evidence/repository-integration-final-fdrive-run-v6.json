@@ -1,0 +1,25 @@
+{
+  "status": "completed",
+  "command": [
+    "python",
+    "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-wsl-pipe-long.py",
+    "/bin/bash",
+    "/mnt/c/Users/2023/.pi-desktop/scratch/3a228026-a80c-4cd9-bdb7-73559aa1e94c/ranxi-isolated-docker-integration-final-v9.sh",
+    "/mnt/f/sub2api/.task-cache/ranxi-20261013/bin/ranxi-repository-integration-final-v4.test"
+  ],
+  "cwd": "F:\\sub2api\\.task-cache\\ranxi-20261013\\source\\backend",
+  "input_head": "47b31b459e01abf4e57b7093a6f203dfcfe92799",
+  "input_index_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "environment": {
+    "WSL_PIPE_TIMEOUT": "2200"
+  },
+  "started_at": "2026-10-13T18:39:16.295056+08:00",
+  "runner_pid": 28968,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\repository-integration-final-fdrive-run-v6.log",
+  "exit_code": 0,
+  "command_pid": 43032,
+  "ended_at": "2026-10-13T18:42:42.215295+08:00",
+  "elapsed_seconds": 205.918,
+  "log_bytes": 329690,
+  "log_sha256": "0e5b3e4ace1e70e8fdfd82ba90787bbdd8ea37a55aecb3de82b24d9a846e09c5"
+}

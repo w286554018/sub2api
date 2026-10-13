@@ -1,0 +1,55 @@
+WSL_PIPE_COMMAND=['wsl.exe', '-d', 'Ubuntu-20.04', '--cd', '/tmp', '--exec', 'env', 'TMPDIR=/mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp', 'python3', '-B', '/mnt/f/sub2api/.task-cache/ranxi-20261013/k3s-validation/deploy/tests/test_upgrade_k3s.py', '-v']
+WSL_PIPE_TIMEOUT_SETTING=140
+WSL_STDOUT_BEGIN
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp9xifp0f3/v2.9.6-36dnh8a6
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp_yncc9lj/v2.9.6-xgj_fke0
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmpq0kjkqgn/v2.9.6-8ehssje4
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp432b7xom/v2.9.6-29rswox3
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp5s5d_c9j/v2.9.6-p0lrnqbd
+Verified v2.9.6 at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; backup=/mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp5s5d_c9j/v2.9.6-p0lrnqbd
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp292yejbo/v2.9.6-9a2lbzex
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp52uzeuwx/v2.9.6-11l43su8
+{"tag": "v2.9.6", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "image": "ghcr.io/w286554018/sub2api@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "namespace": "sub2api", "deployment": "sub2api"}
+Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmpp0benapd/v2.9.6-67y75ggu
+Verified v2.9.6 at aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; backup=/mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmpp0benapd/v2.9.6-67y75ggu
+
+WSL_STDERR_BEGIN
+test_concurrent_change_is_not_overwritten_during_rollback (__main__.RolloutTests) ... Concurrent change: rollback refused. Backup: /mnt/f/sub2api/.task-cache/ranxi-20261013/go-tmp/tmp9xifp0f3/v2.9.6-36dnh8a6
+ok
+test_failed_rollout_or_wrong_binary_restores_original_template (__main__.RolloutTests) ... Verification failed; restoring saved template
+Previous deployment is available again
+Verification failed; restoring saved template
+Previous deployment is available again
+Verification failed; restoring saved template
+Previous deployment is available again
+ok
+test_noop_does_not_restart (__main__.RolloutTests) ... ok
+test_pull_and_admission_failure_do_not_mutate_workload (__main__.RolloutTests) ... ok
+test_successful_rollout_preserves_template_configuration (__main__.RolloutTests) ... ok
+test_annotated_tag_resolves_to_commit (__main__.UpgradeTests) ... ok
+test_concurrent_template_change_blocks_rollback (__main__.UpgradeTests) ... ok
+test_different_application_init_image_rejected (__main__.UpgradeTests) ... ok
+test_init_args_checksum_supported (__main__.UpgradeTests) ... ok
+test_missing_verification_checksum_rejected (__main__.UpgradeTests) ... ok
+test_registry_digest_mismatch_rejected (__main__.UpgradeTests) ... ok
+test_registry_image_revision_mismatch_rejected (__main__.UpgradeTests) ... ok
+test_release_and_templates_use_fork_repository (__main__.UpgradeTests) ... ok
+test_rollback_uses_current_resource_version (__main__.UpgradeTests) ... ok
+test_same_release_is_idempotent (__main__.UpgradeTests) ... ok
+test_unpublished_release_rejected (__main__.UpgradeTests) ... ok
+test_updates_image_and_init_checksum_without_changing_configuration (__main__.UpgradeTests) ... ok
+test_version_matches_exact_commit (__main__.UpgradeTests) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 1.813s
+
+OK
+
+WSL_EXIT=0

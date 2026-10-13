@@ -1,0 +1,30 @@
+{
+  "status": "completed",
+  "command": [
+    "go",
+    "test",
+    "-tags=unit",
+    "-p",
+    "2",
+    "-timeout=15m",
+    "./..."
+  ],
+  "cwd": "F:\\sub2api\\backend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "ddd6dbeacfb34579b51c7162256ef0107de367bd",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "GOMEMLIMIT": "2GiB",
+    "GOGC": "50",
+    "GOFLAGS": "-p=2"
+  },
+  "started_at": "2026-10-13T12:46:39.424844+08:00",
+  "runner_pid": 60268,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\baseline-go-correct-cwd-v4.log",
+  "exit_code": 0,
+  "command_pid": 60600,
+  "ended_at": "2026-10-13T12:52:59.236053+08:00",
+  "elapsed_seconds": 379.809,
+  "log_bytes": 7537,
+  "log_sha256": "6ebed4d300005a177009bd41595c0d06560c9e8130e6a6230aeb01e4df563bde"
+}

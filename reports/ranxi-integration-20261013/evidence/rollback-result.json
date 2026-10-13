@@ -1,0 +1,77 @@
+{
+  "records": [
+    {
+      "phase": "create",
+      "command": [
+        "git",
+        "-C",
+        "F:\\sub2api",
+        "worktree",
+        "add",
+        "--detach",
+        "F:\\sub2api\\.task-cache\\ranxi-20261013\\rollback-source",
+        "0e98a5faf664f21302ab069f3afc90f3dc4c4447"
+      ],
+      "exit_code": 0,
+      "stdout": "HEAD is now at 0e98a5faf 合并 ranxi production 功能并保留现有 fork 契约\n",
+      "stderr": "Preparing worktree (detached HEAD 0e98a5faf)\nUpdating files:   2% (170/6460)\nUpdating files:   3% (194/6460)\nUpdating files:   4% (259/6460)\nUpdating files:   5% (323/6460)\nUpdating files:   6% (388/6460)\nUpdating files:   7% (453/6460)\nUpdating files:   8% (517/6460)\nUpdating files:   9% (582/6460)\nUpdating files:   9% (624/6460)\nUpdating files:  10% (646/6460)\nUpdating files:  11% (711/6460)\nUpdating files:  11% (767/6460)\nUpdating files:  12% (776/6460)\nUpdating files:  12% (787/6460)\nUpdating files:  13% (840/6460)\nUpdating files:  13% (871/6460)\nUpdating files:  14% (905/6460)\nUpdating files:  14% (934/6460)\nUpdating files:  15% (969/6460)\nUpdating files:  16% (1034/6460)\nUpdating files:  17% (1099/6460)\nUpdating files:  18% (1163/6460)\nUpdating files:  19% (1228/6460)\nUpdating files:  19% (1275/6460)\nUpdating files:  20% (1292/6460)\nUpdating files:  20% (1303/6460)\nUpdating files:  20% (1348/6460)\nUpdating files:  21% (1357/6460)\nUpdating files:  22% (1422/6460)\nUpdating files:  23% (1486/6460)\nUpdating files:  24% (1551/6460)\nUpdating files:  25% (1615/6460)\nUpdating files:  26% (1680/6460)\nUpdating files:  27% (1745/6460)\nUpdating files:  28% (1809/6460)\nUpdating files:  28% (1849/6460)\nUpdating files:  29% (1874/6460)\nUpdating files:  30% (1938/6460)\nUpdating files:  31% (2003/6460)\nUpdating files:  32% (2068/6460)\nUpdating files:  33% (2132/6460)\nUpdating files:  34% (2197/6460)\nUpdating files:  35% (2261/6460)\nUpdating files:  36% (2326/6460)\nUpdating files:  37% (2391/6460)\nUpdating files:  37% (2416/6460)\nUpdating files:  38% (2455/6460)\nUpdating files:  39% (2520/6460)\nUpdating files:  40% (2584/6460)\nUpdating files:  40% (2590/6460)\nUpdating files:  40% (2635/6460)\nUpdating files:  40% (2644/6460)\nUpdating files:  41% (2649/6460)\nUpdating files:  42% (2714/6460)\nUpdating files:  43% (2778/6460)\nUpdating files:  44% (2843/6460)\nUpdating files:  45% (2907/6460)\nUpdating files:  46% (2972/6460)\nUpdating files:  47% (3037/6460)\nUpdating files:  47% (3046/6460)\nUpdating files:  48% (3101/6460)\nUpdating files:  49% (3166/6460)\nUpdating files:  50% (3230/6460)\nUpdating files:  51% (3295/6460)\nUpdating files:  52% (3360/6460)\nUpdating files:  53% (3424/6460)\nUpdating files:  54% (3489/6460)\nUpdating files:  54% (3523/6460)\nUpdating files:  55% (3553/6460)\nUpdating files:  56% (3618/6460)\nUpdating files:  57% (3683/6460)\nUpdating files:  58% (3747/6460)\nUpdating files:  58% (3755/6460)\nUpdating files:  59% (3812/6460)\nUpdating files:  60% (3876/6460)\nUpdating files:  61% (3941/6460)\nUpdating files:  62% (4006/6460)\nUpdating files:  63% (4070/6460)\nUpdating files:  64% (4135/6460)\nUpdating files:  64% (4182/6460)\nUpdating files:  65% (4199/6460)\nUpdating files:  66% (4264/6460)\nUpdating files:  67% (4329/6460)\nUpdating files:  68% (4393/6460)\nUpdating files:  69% (4458/6460)\nUpdating files:  70% (4522/6460)\nUpdating files:  71% (4587/6460)\nUpdating files:  72% (4652/6460)\nUpdating files:  73% (4716/6460)\nUpdating files:  74% (4781/6460)\nUpdating files:  75% (4845/6460)\nUpdating files:  76% (4910/6460)\nUpdating files:  76% (4959/6460)\nUpdating files:  77% (4975/6460)\nUpdating files:  78% (5039/6460)\nUpdating files:  79% (5104/6460)\nUpdating files:  80% (5168/6460)\nUpdating files:  81% (5233/6460)\nUpdating files:  82% (5298/6460)\nUpdating files:  83% (5362/6460)\nUpdating files:  84% (5427/6460)\nUpdating files:  85% (5491/6460)\nUpdating files:  86% (5556/6460)\nUpdating files:  87% (5621/6460)\nUpdating files:  88% (5685/6460)\nUpdating files:  89% (5750/6460)\nUpdating files:  90% (5814/6460)\nUpdating files:  90% (5823/6460)\nUpdating files:  91% (5879/6460)\nUpdating files:  92% (5944/6460)\nUpdating files:  93% (6008/6460)\nUpdating files:  94% (6073/6460)\nUpdating files:  95% (6137/6460)\nUpdating files:  96% (6202/6460)\nUpdating files:  97% (6267/6460)\nUpdating files:  98% (6331/6460)\nUpdating files:  99% (6396/6460)\nUpdating files: 100% (6460/6460)\nUpdating files: 100% (6460/6460), done.\n"
+    },
+    {
+      "phase": "reject-wrong-head",
+      "command": [
+        "C:\\Program Files\\Git\\bin\\bash.exe",
+        "F:/sub2api/reports/ranxi-integration-20261013/ROLLBACK.sh",
+        "F:/sub2api/.task-cache/ranxi-20261013/rollback-source",
+        "1f08460552fbac66106baa97d0e3841f93057d58",
+        "DETACHED"
+      ],
+      "cwd": "F:\\sub2api\\.task-cache\\ranxi-20261013\\rollback-source",
+      "input_head": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+      "input_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+      "exit_code": 3,
+      "stdout": "",
+      "stderr": "回退检查失败: 当前HEAD与明确传入的预期提交不同\n"
+    },
+    {
+      "phase": "reject-wrong-branch",
+      "command": [
+        "C:\\Program Files\\Git\\bin\\bash.exe",
+        "F:/sub2api/reports/ranxi-integration-20261013/ROLLBACK.sh",
+        "F:/sub2api/.task-cache/ranxi-20261013/rollback-source",
+        "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+        "main"
+      ],
+      "cwd": "F:\\sub2api\\.task-cache\\ranxi-20261013\\rollback-source",
+      "input_head": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+      "input_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+      "exit_code": 3,
+      "stdout": "",
+      "stderr": "回退检查失败: 当前分支与预期不同\n"
+    },
+    {
+      "phase": "restore",
+      "command": [
+        "C:\\Program Files\\Git\\bin\\bash.exe",
+        "F:/sub2api/reports/ranxi-integration-20261013/ROLLBACK.sh",
+        "F:/sub2api/.task-cache/ranxi-20261013/rollback-source",
+        "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+        "DETACHED"
+      ],
+      "cwd": "F:\\sub2api\\.task-cache\\ranxi-20261013\\rollback-source",
+      "input_head": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+      "input_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+      "exit_code": 0,
+      "stdout": "ROLLBACK_INPUT_HEAD=0e98a5faf664f21302ab069f3afc90f3dc4c4447\nROLLBACK_INPUT_BRANCH=DETACHED\nROLLBACK_HEAD=1f08460552fbac66106baa97d0e3841f93057d58\nROLLBACK_TREE=ddd6dbeacfb34579b51c7162256ef0107de367bd\nTRACKED_CLEAN=1\nROLLBACK_EXIT=0\n",
+      "stderr": "Updating files:  45% (1082/2365)\nUpdating files:  46% (1088/2365)\nUpdating files:  47% (1112/2365)\nUpdating files:  47% (1114/2365)\nUpdating files:  48% (1136/2365)\nUpdating files:  48% (1151/2365)\nUpdating files:  49% (1159/2365)\nUpdating files:  50% (1183/2365)\nUpdating files:  50% (1189/2365)\nUpdating files:  51% (1207/2365)\nUpdating files:  51% (1215/2365)\nUpdating files:  52% (1230/2365)\nUpdating files:  52% (1253/2365)\nUpdating files:  53% (1254/2365)\nUpdating files:  54% (1278/2365)\nUpdating files:  54% (1300/2365)\nUpdating files:  55% (1301/2365)\nUpdating files:  56% (1325/2365)\nUpdating files:  56% (1342/2365)\nUpdating files:  57% (1349/2365)\nUpdating files:  58% (1372/2365)\nUpdating files:  59% (1396/2365)\nUpdating files:  60% (1419/2365)\nUpdating files:  61% (1443/2365)\nUpdating files:  62% (1467/2365)\nUpdating files:  63% (1490/2365)\nUpdating files:  64% (1514/2365)\nUpdating files:  65% (1538/2365)\nUpdating files:  66% (1561/2365)\nUpdating files:  67% (1585/2365)\nUpdating files:  68% (1609/2365)\nUpdating files:  69% (1632/2365)\nUpdating files:  70% (1656/2365)\nUpdating files:  70% (1676/2365)\nUpdating files:  71% (1680/2365)\nUpdating files:  72% (1703/2365)\nUpdating files:  73% (1727/2365)\nUpdating files:  74% (1751/2365)\nUpdating files:  75% (1774/2365)\nUpdating files:  76% (1798/2365)\nUpdating files:  77% (1822/2365)\nUpdating files:  78% (1845/2365)\nUpdating files:  78% (1848/2365)\nUpdating files:  79% (1869/2365)\nUpdating files:  80% (1892/2365)\nUpdating files:  81% (1916/2365)\nUpdating files:  82% (1940/2365)\nUpdating files:  83% (1963/2365)\nUpdating files:  84% (1987/2365)\nUpdating files:  85% (2011/2365)\nUpdating files:  86% (2034/2365)\nUpdating files:  87% (2058/2365)\nUpdating files:  88% (2082/2365)\nUpdating files:  89% (2105/2365)\nUpdating files:  90% (2129/2365)\nUpdating files:  91% (2153/2365)\nUpdating files:  92% (2176/2365)\nUpdating files:  93% (2200/2365)\nUpdating files:  94% (2224/2365)\nUpdating files:  95% (2247/2365)\nUpdating files:  96% (2271/2365)\nUpdating files:  97% (2295/2365)\nUpdating files:  98% (2318/2365)\nUpdating files:  99% (2342/2365)\nUpdating files: 100% (2365/2365)\nUpdating files: 100% (2365/2365), done.\n"
+    }
+  ],
+  "baseline": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "restored_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "restored_tree": "ddd6dbeacfb34579b51c7162256ef0107de367bd",
+  "sentinel_sha256_before": "95cea009ef63e01ebfb99eb2c050cc2b9650dcb9bf99c4d9677a300e23d469d2",
+  "sentinel_sha256_after": "95cea009ef63e01ebfb99eb2c050cc2b9650dcb9bf99c4d9677a300e23d469d2",
+  "sentinel_preserved": true,
+  "tracked_clean": true,
+  "formal_head_unchanged": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "integration_ref_unchanged": "0e98a5faf664f21302ab069f3afc90f3dc4c4447"
+}

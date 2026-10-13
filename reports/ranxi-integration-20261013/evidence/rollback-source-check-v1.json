@@ -1,0 +1,20 @@
+{
+  "status": "completed",
+  "command": [
+    "python",
+    "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-rollback-verify.py"
+  ],
+  "cwd": "F:\\sub2api",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "ddd6dbeacfb34579b51c7162256ef0107de367bd",
+  "environment": {},
+  "started_at": "2026-10-13T18:51:48.136798+08:00",
+  "runner_pid": 624,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\rollback-source-check-v1.log",
+  "exit_code": 0,
+  "command_pid": 44352,
+  "ended_at": "2026-10-13T18:52:27.649066+08:00",
+  "elapsed_seconds": 39.51,
+  "log_bytes": 832,
+  "log_sha256": "3c6d6176c5105d1326581f62c861ec3ecc4a5a31097d0424b5680e2cdbb37567"
+}

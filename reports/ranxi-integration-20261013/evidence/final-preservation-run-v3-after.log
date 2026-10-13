@@ -1,0 +1,47 @@
+{
+  "phase": "after",
+  "baseline": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "final_input_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "fdrive_validation_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "unchanged_validation_subtrees": {
+    "backend": {
+      "final": "ff01aa1de2c630d5ccc507daf9e11516a35fa9cc",
+      "validated": "ff01aa1de2c630d5ccc507daf9e11516a35fa9cc"
+    },
+    "frontend": {
+      "final": "9e07e133b5d7aedfcbd884e239cc6f0d22e4ea6d",
+      "validated": "9e07e133b5d7aedfcbd884e239cc6f0d22e4ea6d"
+    }
+  },
+  "original_untracked_count": 302,
+  "original_untracked_unchanged_count": 300,
+  "original_untracked_unexpected_changes": [],
+  "preserved_dynamic_updates": [
+    {
+      "path": ".omx/state/native-stop-state.json",
+      "exists": true,
+      "length": 121835,
+      "mtime_ns": 1791884524401805500,
+      "sha256": "ABFADA511ED81C7018024FBCDC913E6DEFA79DD3CE566DBC34D9AE2F3AD04859",
+      "dynamic": true,
+      "unchanged": false
+    },
+    {
+      "path": ".omx/state/session.json",
+      "exists": true,
+      "length": 228,
+      "mtime_ns": 1791880989081860300,
+      "sha256": "CC84158F60B37AC321ACBC832B871B2CC66D7D13BF3F2AB337999EAF3E959F2E",
+      "dynamic": true,
+      "unchanged": false
+    }
+  ],
+  "new_path_collisions": [],
+  "published_sql_count": 310,
+  "published_sql_changes": [],
+  "missing_baseline_schema_fields": [],
+  "formal_head": "0e98a5faf664f21302ab069f3afc90f3dc4c4447",
+  "formal_tree": "20cb925d7fcce7bd172649eb1228c1ecf1991d31",
+  "formal_expected_state": true,
+  "passed": true
+}

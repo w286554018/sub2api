@@ -1,0 +1,24 @@
+{
+  "status": "completed",
+  "command": [
+    "cmd.exe",
+    "/d",
+    "/c",
+    "pnpm.cmd run lint:check"
+  ],
+  "cwd": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration-worktree\\frontend",
+  "input_head": "1f08460552fbac66106baa97d0e3841f93057d58",
+  "input_index_tree": "5b3c27f65977dda133ad10acde7be8202dd18993",
+  "environment": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
+  "started_at": "2026-10-13T14:53:00.670953+08:00",
+  "runner_pid": 53960,
+  "log_path": "C:\\Users\\2023\\.pi-desktop\\scratch\\3a228026-a80c-4cd9-bdb7-73559aa1e94c\\ranxi-integration\\frontend-lint-v2.log",
+  "exit_code": 0,
+  "command_pid": 21496,
+  "ended_at": "2026-10-13T14:53:49.458259+08:00",
+  "elapsed_seconds": 48.785,
+  "log_bytes": 205,
+  "log_sha256": "cb7b305e27e02bc45af915aaed2f2ff3fb2b9bd66fb1bd0ac69f604b3a36f466"
+}

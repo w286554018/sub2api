@@ -1,0 +1,126 @@
+ok  	github.com/Wei-Shaw/sub2api/cmd/cleanup-ingress-reject-logs	0.219s
+?   	github.com/Wei-Shaw/sub2api/cmd/jwtgen	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/cmd/profit-preview	0.168s
+ok  	github.com/Wei-Shaw/sub2api/cmd/server	2.470s
+?   	github.com/Wei-Shaw/sub2api/ent	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/account	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/accountgroup	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/announcement	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/announcementread	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/apikey	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/authidentity	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/authidentitychannel	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/batchimageevent	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/batchimageitem	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/batchimagejob	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/channelmonitor	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/compositemodelroute	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/enttest	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/group	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/hook	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/idempotencyrecord	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/intercept	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/ent/migrate	0.116s
+?   	github.com/Wei-Shaw/sub2api/ent/paymentauditlog	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/paymentorder	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/pendingauthsession	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/predicate	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/promocode	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/promocodeusage	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/promptrule	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/proxy	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/redeemcode	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/runtime	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/ent/schema	4.380s
+?   	github.com/Wei-Shaw/sub2api/ent/schema/mixins	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/securitysecret	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/setting	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/subscriptionplan	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/usagecleanuptask	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/usagelog	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/user	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/userallowedgroup	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/userattributedefinition	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/userattributevalue	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/userplatformquota	[no test files]
+?   	github.com/Wei-Shaw/sub2api/ent/usersubscription	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/config	1.415s
+ok  	github.com/Wei-Shaw/sub2api/internal/domain	0.218s
+ok  	github.com/Wei-Shaw/sub2api/internal/handler	69.937s
+ok  	github.com/Wei-Shaw/sub2api/internal/handler/admin	6.300s
+?   	github.com/Wei-Shaw/sub2api/internal/handler/billingparams	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/handler/dto	0.215s
+ok  	github.com/Wei-Shaw/sub2api/internal/handler/quotaview	0.162s
+ok  	github.com/Wei-Shaw/sub2api/internal/middleware	10.604s
+ok  	github.com/Wei-Shaw/sub2api/internal/mihomo	79.316s
+ok  	github.com/Wei-Shaw/sub2api/internal/model	0.102s
+ok  	github.com/Wei-Shaw/sub2api/internal/payment	0.157s
+ok  	github.com/Wei-Shaw/sub2api/internal/payment/provider	1.621s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/adobe	2.334s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/anthropicfp	0.096s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/anthropictokenizer	0.113s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/antigravity	2.431s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/apicompat	0.133s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/claude	0.117s
+?   	github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/errors	0.105s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/gemini	0.104s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/geminicli	0.100s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/googleapi	0.153s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/httpclient	0.163s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/httputil	0.334s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/ip	0.115s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/kiro	2.847s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/kirocooldown	0.126s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/logger	0.171s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/oauth	0.085s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/openai	0.122s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat	0.084s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/pagination	0.093s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/prismbridge	0.080s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl	0.092s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil	0.096s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/qualityqueue	0.175s
+?   	github.com/Wei-Shaw/sub2api/internal/pkg/qualityqueue/queuetest	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/redissession	0.161s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/requestmodel	0.086s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming	0.141s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/response	0.103s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/servertiming	0.137s
+?   	github.com/Wei-Shaw/sub2api/internal/pkg/sysutil	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/timezone	0.083s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint	0.219s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/typesafe	0.994s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/upstreamroute	0.092s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/usagestats	0.073s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/websearch	0.516s
+ok  	github.com/Wei-Shaw/sub2api/internal/pkg/xai	0.204s
+ok  	github.com/Wei-Shaw/sub2api/internal/platform/liveattestation	0.076s
+ok  	github.com/Wei-Shaw/sub2api/internal/reauthruntime	0.108s
+ok  	github.com/Wei-Shaw/sub2api/internal/repository	32.662s
+ok  	github.com/Wei-Shaw/sub2api/internal/requestcapture	5.677s
+ok  	github.com/Wei-Shaw/sub2api/internal/securityaudit	1.263s
+ok  	github.com/Wei-Shaw/sub2api/internal/server	9.887s
+ok  	github.com/Wei-Shaw/sub2api/internal/server/middleware	6.930s
+ok  	github.com/Wei-Shaw/sub2api/internal/server/routes	16.342s
+ok  	github.com/Wei-Shaw/sub2api/internal/serverless	1.411s
+ok  	github.com/Wei-Shaw/sub2api/internal/service	374.979s
+ok  	github.com/Wei-Shaw/sub2api/internal/service/basispoints	2.296s
+ok  	github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2	6.100s
+ok  	github.com/Wei-Shaw/sub2api/internal/setup	0.229s
+?   	github.com/Wei-Shaw/sub2api/internal/testutil	[no test files]
+?   	github.com/Wei-Shaw/sub2api/internal/util/httputil	[no test files]
+ok  	github.com/Wei-Shaw/sub2api/internal/util/logredact	0.084s
+ok  	github.com/Wei-Shaw/sub2api/internal/util/responseheaders	0.104s
+ok  	github.com/Wei-Shaw/sub2api/internal/util/transportdiag	0.090s
+ok  	github.com/Wei-Shaw/sub2api/internal/util/urlvalidator	0.075s
+ok  	github.com/Wei-Shaw/sub2api/internal/web	0.092s
+ok  	github.com/Wei-Shaw/sub2api/migrations	0.099s
+ok  	github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1	0.131s

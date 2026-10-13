@@ -1,0 +1,1022 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/2023/.pi-desktop/scratch/3a228026-a80c-4cd9-bdb7-73559aa1e94c/ranxi-integration-worktree/frontend[39m
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits the Codex ticket harvest toggle
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads the masked Codex harvest proxy and submits a replacement URL
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mopens the risk settings from a deep link after loading without changing switches
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mpoints to Smart Ops for the Pelican showcase and never saves its settings
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mleaves the monitor mode alone unless it was changed here
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2medits the support ticket card and sends a cleaned config
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msaves expanded image capacity and rejects values above each ceiling
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msaves Excel BPS image relay from the feature switches tab
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msaves the BPS and Prism protocol switches
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdefaults to native image uploads without a public origin and reloads the mode
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdefaults to native image uploads without a public origin and reloads the mode
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mpreserves explicitly disabled BPS image support
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdefaults the image policy off and saves auto compaction
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mvalidates warning margins and reloads the policy
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads saved Excel BPS image settings and preserves the address when disabled
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrejects inconsistent image limits and preserves saved limits when disabling
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrejects missing or unsafe Excel BPS image origins before saving
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrejects out-of-range image relay capacity before saving
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and toggles request timezone binding from false
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and toggles request timezone binding from true
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mkeeps advanced harvest policy and exit settings in their dedicated pages
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and saves the open button visibility for each custom menu
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits the compact home page toggle
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrenders panel rate limit card and saves settings
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdoes not render legacy visible payment method controls
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mshows valid passkey RP configuration and persists the sign-in toggle
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2m人机验证切换到腾讯天御并保存四项配置
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2m腾讯天御切换到国际站后保存站点并更新控制台入口
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [32m✓[39m src/views/admin/__tests__/AccountQualityView.spec.ts [2m([22m[2m65 tests[22m[2m)[22m[33m 8525[2mms[22m[39m
+   [33m[2m✓[22m[39m quality operations[2m > [22msaves multiple quality models and displays them on the rule card [33m389[2mms[22m[39m
+   [33m[2m✓[22m[39m quality operations[2m > [22midentifies a non-probe rule in a 13-rule BPS batch and saves after explicitly changing the test method [33m372[2mms[22m[39m
+   [33m[2m✓[22m[39m quality operations[2m > [22mdefaults BPS auto-disable only for new rules and places the toggle where the BPS settings are [33m319[2mms[22m[39m
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2m人机验证切换到阿里云并保存配置
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2m关闭人机验证总开关会同时关闭所有服务商
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdisables passkey sign-in when the RP configuration is unavailable
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads, edits, validates, and saves forwarded client-IP headers
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads, edits, and saves recharge bonus tiers and the notice
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdrops incomplete recharge bonus rows and submits an empty list when cleared
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mlinks payment guidance to README sections instead of removed payment docs
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mdoes not submit legacy visible payment method settings
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits the admin recharge affiliate rebate setting
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits Anthropic cache TTL injection gateway setting
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits Anthropic cache TTL injection gateway setting
+[22m[39mError: AggregateError
+    at Object.dispatchError (C:\Users\2023\.pi-desktop\scratch\3a228026-a80c-4cd9-bdb7-73559aa1e94c\ranxi-integration-worktree\frontend\node_modules\.pnpm\jsdom@24.1.3\node_modules\jsdom\lib\jsdom\living\xhr\xhr-utils.js:63:19)
+    at Request.<anonymous> (C:\Users\2023\.pi-desktop\scratch\3a228026-a80c-4cd9-bdb7-73559aa1e94c\ranxi-integration-worktree\frontend\node_modules\.pnpm\jsdom@24.1.3\node_modules\jsdom\lib\jsdom\living\xhr\XMLHttpRequest-impl.js:655:18)
+    at Request.emit (node:events:520:35)
+    at ClientRequest.<anonymous> (C:\Users\2023\.pi-desktop\scratch\3a228026-a80c-4cd9-bdb7-73559aa1e94c\ranxi-integration-worktree\frontend\node_modules\.pnpm\jsdom@24.1.3\node_modules\jsdom\lib\jsdom\living\helpers\http-request.js:127:14)
+    at ClientRequest.emit (node:events:508:28)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:508:28)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3) [90mundefined[39m
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits message cache_control rewrite gateway setting
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits Claude OAuth system prompt injection gateway settings
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msubmits Antigravity user agent version gateway setting
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mupdates provider enablement immediately and reloads providers
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [32m✓[39m src/views/admin/settings/MihomoSettings.spec.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 869[2mms[22m[39m
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrenders advanced scheduler copy as local experimental gateway policy
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2msummarizes target and other-model actions, then switches to all models
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and saves upstream billing probe settings from the gateway tab
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and saves configurable Grok cross-client model mapping
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and saves the Grok video source URL switch
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and saves the OpenAI Responses first-token metric mode
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads fail-safe-off Ollama Cloud usage refresh settings and saves an explicit opt-in
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mclears the OAuth rate without losing zero (weighted=false)
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mclears the OAuth rate without losing zero (weighted=true)
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mloads and preserves an explicitly cleared OAuth rate
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mplaces and explains rate controls for both scheduling modes
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mpasses translated upload and remove labels to the payment help image uploader
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mnormalizes null supported_types from API so provider card stays visible
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView payment visible method controls[2m > [22m[2mrenders all Grok default base URL mode options and saves the picked value
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView wechat connect controls[2m > [22m[2mloads and echoes WeChat Connect fields from the backend payload
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView wechat connect controls[2m > [22m[2mlinks GitHub OAuth Apps guide to GitHub developer settings
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView wechat connect controls[2m > [22m[2msaves WeChat Connect fields using the backend contract and clears the secret after save
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView wechat connect controls[2m > [22m[2mcollapses auth source defaults until the source is enabled
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [32m✓[39m src/views/admin/ops/__tests__/TokenGuardV2View.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 841[2mms[22m[39m
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView wechat connect controls[2m > [22m[2mpreserves optional OIDC compatibility flags instead of forcing them on save
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2mloads Codex ticket plan length rules and submits normalized updates
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2msubmits an empty Codex plan rules list after removing the last rule
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2m从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 7 平台行
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2m保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 7 平台）
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2m加载后 form.default_platform_quotas 含全 7 平台，从嵌套 JSON 正确读取数值
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/views/admin/__tests__/SettingsView.spec.ts[2m > [22m[2madmin SettingsView platform quota matrix[2m > [22m[2m空输入（v-model.number 产出 ""）在提交时清洗为 null 而非空字符串
+[22m[39m[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <SettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [32m✓[39m src/views/admin/__tests__/SettingsView.spec.ts [2m([22m[2m67 tests[22m[2m)[22m[33m 14336[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22msubmits the Codex ticket harvest toggle [33m370[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22msaves expanded image capacity and rejects values above each ceiling [33m575[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22mdefaults to native image uploads without a public origin and reloads the mode [33m350[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22mvalidates warning margins and reloads the policy [33m362[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22mrejects inconsistent image limits and preserves saved limits when disabling [33m373[2mms[22m[39m
+   [33m[2m✓[22m[39m admin SettingsView payment visible method controls[2m > [22mrejects out-of-range image relay capacity before saving [33m328[2mms[22m[39m
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mhides BPS and Prism account settings when the global switches are off
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mpersists the Prism switch while preserving unrelated extra fields
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: { fixture_flag: [33mtrue[39m },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mremoves the flag when disabled
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {
+    openai_prism_browser: [33mtrue[39m,
+    openai_prism_browser_models: [ [32m'gpt-6.1-sol'[39m ]
+  },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mlimits legacy accounts to the four supported models and persists a subset
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: { openai_prism_browser: [33mtrue[39m },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mdoes not widen an empty or invalid scope: %j
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: { openai_prism_browser: [33mtrue[39m, openai_prism_browser_models: [] },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mdoes not widen an empty or invalid scope: "gpt-4o-audio-preview"
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {
+    openai_prism_browser: [33mtrue[39m,
+    openai_prism_browser_models: [ [32m'gpt-4o-audio-preview'[39m ]
+  },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mdoes not widen an empty or invalid scope: "malformed"
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {
+    openai_prism_browser: [33mtrue[39m,
+    openai_prism_browser_models: [32m'malformed'[39m
+  },
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal Prism OAuth switch[2m > [22m[2mhides Prism for API-key accounts
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'apikey'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mshows the running rule and pauses it when switched off
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mcreates BPS alongside a group/scheduling rule, enabled=true
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mcreates BPS alongside a group/scheduling rule, enabled=false
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2medits only the BPS rule when both rule types exist
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mleaves the rule alone when nothing about it changed
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mcreates a rule for the account when switched on
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mupdates the probe interval and selected options on the same rule
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+ [32m✓[39m src/views/admin/__tests__/AutoConfigView.spec.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 679[2mms[22m[39m
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mkeeps an existing custom schedule and explicit false options when editing a condition
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mrejects an empty custom schedule before saving the account
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mblocks saving when the BPS trigger is empty
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mlocks the switch and keeps the rule when it cannot be loaded
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mstill saves the account when the rule cannot be saved
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mhides the switch for PAT accounts
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'pat'[39m, auth_mode: [32m'personalaccesstoken'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mhides the switch for Agent Identity accounts
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'x'[39m, auth_mode: [32m'agentIdentity'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mhides the switch for spark shadow accounts
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'oauth'[39m,
+  credentials: { access_token: [32m'oauth-token'[39m, chatgpt_account_id: [32m'acc'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [33m1[39m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts[2m > [22m[2mEditAccountModal auto BPS switch[2m > [22m[2mhides the switch for API key accounts
+[22m[39m[Vue warn]: Failed to resolve component: ProxyAdBanner
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EditAccountModal show=true account= {
+  id: [33m7[39m,
+  name: [32m'OpenAI OAuth'[39m,
+  notes: [32m''[39m,
+  platform: [32m'openai'[39m,
+  type: [32m'apikey'[39m,
+  credentials: { api_key: [32m'sk-test'[39m },
+  extra: {},
+  proxy_id: [1mnull[22m,
+  concurrency: [33m1[39m,
+  priority: [33m1[39m,
+  rate_multiplier: [33m1[39m,
+  status: [32m'active'[39m,
+  group_ids: [],
+  expires_at: [1mnull[22m,
+  auto_pause_on_expired: [33mfalse[39m,
+  parent_account_id: [1mnull[22m
+} proxies= []  ... > 
+  at <VTUROOT>
+
+ [32m✓[39m src/components/account/__tests__/EditAccountModal.autoBPS.spec.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 1667[2mms[22m[39m
+ [32m✓[39m src/components/admin/operations/__tests__/AccountOpsBatchRuleDialog.spec.ts [2m([22m[2m20 tests[22m[2m)[22m[90m 286[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/HarvestControls.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 319[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/PrioritySchedulingView.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 275[2mms[22m[39m
+ [32m✓[39m src/components/account/__tests__/CreateAccountModal.autoBPS.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 703[2mms[22m[39m
+ [32m✓[39m src/components/account/__tests__/NewAPIUpstreamConfigDialog.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[90m 258[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/ControlledExperimentsView.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 267[2mms[22m[39m
+ [32m✓[39m src/components/admin/operations/__tests__/AutoConfigHistory.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[90m 184[2mms[22m[39m
+ [32m✓[39m src/components/admin/__tests__/HarvestPolicyPanel.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 233[2mms[22m[39m
+ [32m✓[39m src/features/channel-monitor-v3/__tests__/IdleProbeSettings.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 153[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/GroupCacheTestView.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 392[2mms[22m[39m
+ [32m✓[39m src/components/admin/__tests__/HarvestManualConsole.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[90m 285[2mms[22m[39m
+ [32m✓[39m src/features/channel-monitor-v2/__tests__/MonitorCandySettings.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 216[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/RequestCaptureView.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 229[2mms[22m[39m
+ [32m✓[39m src/components/account/__tests__/OpenAITOTPDialog.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 133[2mms[22m[39m
+ [32m✓[39m src/features/channel-monitor-v2/__tests__/MonitorSettingsPanel.platforms.spec.ts [2m([22m[2m1 test[22m[2m)[22m[90m 138[2mms[22m[39m
+ [32m✓[39m src/views/admin/settings/MihomoCountryFilter.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 111[2mms[22m[39m
+ [32m✓[39m src/components/admin/__tests__/HarvestPoolSchedulingPanel.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 139[2mms[22m[39m
+ [32m✓[39m src/components/admin/operations/__tests__/QualityProbeSchedule.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 112[2mms[22m[39m
+ [32m✓[39m src/__tests__/nativeControls.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 252[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m25 passed[39m[22m[90m (25)[39m
+[2m      Tests [22m [1m[32m365 passed[39m[22m[90m (365)[39m
+[2m   Start at [22m 14:38:51
+[2m   Duration [22m 42.48s[2m (transform 8.04s, setup 3.50s, collect 13.22s, tests 31.60s, environment 22.45s, prepare 3.83s)[22m
+

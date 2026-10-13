@@ -1,0 +1,14 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/2023/.pi-desktop/scratch/3a228026-a80c-4cd9-bdb7-73559aa1e94c/ranxi-integration-worktree/frontend[39m
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ [32m✓[39m src/views/admin/settings/MihomoSettings.spec.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 987[2mms[22m[39m
+ [32m✓[39m src/views/admin/__tests__/ControlledExperimentsView.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 322[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m39 passed[39m[22m[90m (39)[39m
+[2m   Start at [22m 15:55:49
+[2m   Duration [22m 4.70s[2m (transform 2.33s, setup 322ms, collect 3.70s, tests 1.31s, environment 2.68s, prepare 298ms)[22m
+

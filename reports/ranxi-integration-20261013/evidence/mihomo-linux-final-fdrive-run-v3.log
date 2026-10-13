@@ -1,0 +1,356 @@
+WSL_PIPE_COMMAND=['wsl.exe', '-d', 'Ubuntu-20.04', '--cd', '/tmp', '--exec', '/bin/bash', '/mnt/c/Users/2023/.pi-desktop/scratch/3a228026-a80c-4cd9-bdb7-73559aa1e94c/ranxi-mihomo-final-v3-run.sh']
+WSL_PIPE_TIMEOUT_SETTING=1100
+WSL_STDOUT_BEGIN
+/mnt/f/sub2api/.task-cache/ranxi-20261013/bin/ranxi-mihomo-final-v2.test: OK
+MIHOMO_BINARY_SHA256=487de020541aba290267ea6b52dee352e17696f9d18baac67144abedf484c093  /var/tmp/ranxi-mihomo-final-v3/bin/mihomo.test
+MIHOMO_SOURCE=/mnt/f/sub2api/.task-cache/ranxi-20261013/source/backend/internal/mihomo
+=== RUN   TestAstraNodesRespectCountryStateAndDynamicBoundaries
+--- PASS: TestAstraNodesRespectCountryStateAndDynamicBoundaries (0.00s)
+=== RUN   TestAstraNodeLeasesIsolateTrafficAndFenceReload
+--- PASS: TestAstraNodeLeasesIsolateTrafficAndFenceReload (0.06s)
+=== RUN   TestAstraListenersArePrivateAndInitiallyReject
+--- PASS: TestAstraListenersArePrivateAndInitiallyReject (0.00s)
+=== RUN   TestBPSDynamicSourceUsesConfiguredOutbound
+--- PASS: TestBPSDynamicSourceUsesConfiguredOutbound (0.00s)
+=== RUN   TestBPSDynamicWindowReassessesOnlyIdleDynamicBindings
+--- PASS: TestBPSDynamicWindowReassessesOnlyIdleDynamicBindings (0.00s)
+=== RUN   TestBPSDynamicCooldownAndWindowRequireFreshProbe
+--- PASS: TestBPSDynamicCooldownAndWindowRequireFreshProbe (0.00s)
+=== RUN   TestBPSDynamicLateFeedbackDoesNotAffectNewWindow
+=== RUN   TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/completed
+=== RUN   TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/upstream-5xx
+=== RUN   TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/transport
+=== RUN   TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/stream
+--- PASS: TestBPSDynamicLateFeedbackDoesNotAffectNewWindow (0.00s)
+    --- PASS: TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/completed (0.00s)
+    --- PASS: TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/upstream-5xx (0.00s)
+    --- PASS: TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/transport (0.00s)
+    --- PASS: TestBPSDynamicLateFeedbackDoesNotAffectNewWindow/stream (0.00s)
+=== RUN   TestBPSDynamicProbeCannotValidateNextWindow
+--- PASS: TestBPSDynamicProbeCannotValidateNextWindow (0.00s)
+=== RUN   TestBPSDynamicWindowDoesNotBypassAdmission
+=== RUN   TestBPSDynamicWindowDoesNotBypassAdmission/country
+=== RUN   TestBPSDynamicWindowDoesNotBypassAdmission/disabled
+=== RUN   TestBPSDynamicWindowDoesNotBypassAdmission/excluded
+=== RUN   TestBPSDynamicWindowDoesNotBypassAdmission/probe-fails
+--- PASS: TestBPSDynamicWindowDoesNotBypassAdmission (0.00s)
+    --- PASS: TestBPSDynamicWindowDoesNotBypassAdmission/country (0.00s)
+    --- PASS: TestBPSDynamicWindowDoesNotBypassAdmission/disabled (0.00s)
+    --- PASS: TestBPSDynamicWindowDoesNotBypassAdmission/excluded (0.00s)
+    --- PASS: TestBPSDynamicWindowDoesNotBypassAdmission/probe-fails (0.00s)
+=== RUN   TestBPSHealthQuarantineAndRecovery
+--- PASS: TestBPSHealthQuarantineAndRecovery (0.00s)
+=== RUN   TestBPSHealthPreflightFailoverAndNoDirectFallback
+--- PASS: TestBPSHealthPreflightFailoverAndNoDirectFallback (0.00s)
+=== RUN   TestBPSHealthActiveRequestsDrainBeforeRebind
+--- PASS: TestBPSHealthActiveRequestsDrainBeforeRebind (0.00s)
+=== RUN   TestBPSHealthSingleFlight
+--- PASS: TestBPSHealthSingleFlight (0.00s)
+=== RUN   TestBPSHealthStaleProbeCannotClearNewFailure
+--- PASS: TestBPSHealthStaleProbeCannotClearNewFailure (0.00s)
+=== RUN   TestBPSHealthCanceledProbeDoesNotQuarantine
+--- PASS: TestBPSHealthCanceledProbeDoesNotQuarantine (0.00s)
+=== RUN   TestBPSHealthCountryFilterStillFailsClosed
+--- PASS: TestBPSHealthCountryFilterStillFailsClosed (0.00s)
+=== RUN   TestBPSHealthProbeUsesExplicitProxyWithoutCredentials
+--- PASS: TestBPSHealthProbeUsesExplicitProxyWithoutCredentials (0.00s)
+=== RUN   TestBPSHealthBoundsConsecutiveBadExits
+--- PASS: TestBPSHealthBoundsConsecutiveBadExits (0.00s)
+=== RUN   TestBPSHealthPoolChangesDuringProbe
+--- PASS: TestBPSHealthPoolChangesDuringProbe (0.00s)
+=== RUN   TestBPSHealthFailedRecoveryStaysQuarantined
+--- PASS: TestBPSHealthFailedRecoveryStaysQuarantined (0.00s)
+=== RUN   TestBPSBrokenStreamsDoNotBounceBetweenNodes
+--- PASS: TestBPSBrokenStreamsDoNotBounceBetweenNodes (0.00s)
+=== RUN   TestBPSTransientLeasesReleaseSessionCapacity
+--- PASS: TestBPSTransientLeasesReleaseSessionCapacity (0.06s)
+=== RUN   TestBPSWarmPoolReusesIPManagementSourcesAndStatus
+--- PASS: TestBPSWarmPoolReusesIPManagementSourcesAndStatus (0.18s)
+=== RUN   TestBPSParallelSelectionDoesNotWaitForSlowPreferredNode
+--- PASS: TestBPSParallelSelectionDoesNotWaitForSlowPreferredNode (0.00s)
+=== RUN   TestBPSParallelSelectionRefillsBeforeOtherProbesTimeout
+--- PASS: TestBPSParallelSelectionRefillsBeforeOtherProbesTimeout (0.00s)
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/real_auth_challenge
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/root_not_found
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/blocked
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/challenge_html
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/proxy_auth
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/redirect
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/rate_limited
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/empty_error
+=== RUN   TestBPSQualificationRejectsBlockedAndCaptiveResponses/fake_success
+--- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/real_auth_challenge (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/root_not_found (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/blocked (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/challenge_html (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/proxy_auth (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/redirect (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/rate_limited (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/empty_error (0.00s)
+    --- PASS: TestBPSQualificationRejectsBlockedAndCaptiveResponses/fake_success (0.00s)
+=== RUN   TestBPSQualityDecayAndBoundedHistory
+--- PASS: TestBPSQualityDecayAndBoundedHistory (0.00s)
+=== RUN   TestBPSQualitySelectionAndAffinity
+--- PASS: TestBPSQualitySelectionAndAffinity (0.00s)
+=== RUN   TestBPSQualityFeedbackDeduplicatedAndCacheHitsExcluded
+--- PASS: TestBPSQualityFeedbackDeduplicatedAndCacheHitsExcluded (0.00s)
+=== RUN   TestBPSHealthSlowCandidatesLeaveTimeForHealthyExit
+--- PASS: TestBPSHealthSlowCandidatesLeaveTimeForHealthyExit (0.00s)
+=== RUN   TestBPSHealthAllSlowCandidatesAreBoundedAndDiagnosed
+--- PASS: TestBPSHealthAllSlowCandidatesAreBoundedAndDiagnosed (0.00s)
+=== RUN   TestBPSHealthRecoveryMustFitCandidateBudget
+--- PASS: TestBPSHealthRecoveryMustFitCandidateBudget (0.00s)
+=== RUN   TestBPSHealthTransportFailureQuarantinesForOtherSessions
+--- PASS: TestBPSHealthTransportFailureQuarantinesForOtherSessions (0.00s)
+=== RUN   TestBPSHealthProbeConfirmationsProduceOneWarning
+--- PASS: TestBPSHealthProbeConfirmationsProduceOneWarning (0.00s)
+=== RUN   TestBPSHealthCallerDeadlineDoesNotPenalizeNode
+--- PASS: TestBPSHealthCallerDeadlineDoesNotPenalizeNode (0.00s)
+=== RUN   TestReadySubscriptionPriorityPreservesExistingDynamicAffinity
+--- PASS: TestReadySubscriptionPriorityPreservesExistingDynamicAffinity (0.00s)
+=== RUN   TestWarmSubscriptionPriorityDoesNotProbeDynamicWhenTargetIsSatisfied
+--- PASS: TestWarmSubscriptionPriorityDoesNotProbeDynamicWhenTargetIsSatisfied (0.00s)
+=== RUN   TestWarmReplenishesSubscriptionsEvenWhenDynamicCapacityIsReady
+--- PASS: TestWarmReplenishesSubscriptionsEvenWhenDynamicCapacityIsReady (0.00s)
+=== RUN   TestBPSStaticPoolBindsSessionsToAdminProxies
+--- PASS: TestBPSStaticPoolBindsSessionsToAdminProxies (0.00s)
+=== RUN   TestBPSStaticPoolExcludesFailedExitAndEmptyPoolFails
+--- PASS: TestBPSStaticPoolExcludesFailedExitAndEmptyPoolFails (0.00s)
+=== RUN   TestBPSStaticPoolSkipsUnreachableExit
+--- PASS: TestBPSStaticPoolSkipsUnreachableExit (0.00s)
+=== RUN   TestBPSStaticPoolRebindsAfterExitRemoved
+--- PASS: TestBPSStaticPoolRebindsAfterExitRemoved (0.00s)
+=== RUN   TestBPSStaticProxyLogValueHidesURL
+--- PASS: TestBPSStaticProxyLogValueHidesURL (0.00s)
+=== RUN   TestBPSStaticProbeClientRejectsInvalidProxy
+--- PASS: TestBPSStaticProbeClientRejectsInvalidProxy (0.00s)
+=== RUN   TestBPSWarmSubscriptionTierBeforeDynamic
+--- PASS: TestBPSWarmSubscriptionTierBeforeDynamic (0.00s)
+=== RUN   TestBPSSubscriptionPreferenceKeepsHealthyAffinity
+--- PASS: TestBPSSubscriptionPreferenceKeepsHealthyAffinity (0.00s)
+=== RUN   TestBPSDynamicRemainsFallbackAfterSubscriptionsFail
+--- PASS: TestBPSDynamicRemainsFallbackAfterSubscriptionsFail (0.00s)
+=== RUN   TestBPSCanceledSubscriptionProbeRetainsPriority
+--- PASS: TestBPSCanceledSubscriptionProbeRetainsPriority (0.00s)
+=== RUN   TestBPSWarmRetriesEligibleSubscriptionBeforeDynamic
+--- PASS: TestBPSWarmRetriesEligibleSubscriptionBeforeDynamic (0.00s)
+=== RUN   TestBPSSessionsConcurrentAndSticky
+--- PASS: TestBPSSessionsConcurrentAndSticky (0.00s)
+=== RUN   TestBPSSessionsDistribute200Sessions
+--- PASS: TestBPSSessionsDistribute200Sessions (0.01s)
+=== RUN   TestBPSSessionUnavailableNodeRebinds
+--- PASS: TestBPSSessionUnavailableNodeRebinds (0.00s)
+=== RUN   TestBPSSessionIdleExpiryAndCapacity
+--- PASS: TestBPSSessionIdleExpiryAndCapacity (0.00s)
+=== RUN   TestBPSSessionCountryFilterAndIdentityChanges
+--- PASS: TestBPSSessionCountryFilterAndIdentityChanges (0.00s)
+=== RUN   TestBPSColdPoolNeverProbesOnUserRequest
+--- PASS: TestBPSColdPoolNeverProbesOnUserRequest (0.00s)
+=== RUN   TestBPSWarmPoolTargetsAndReusesScarceReadyNodes
+--- PASS: TestBPSWarmPoolTargetsAndReusesScarceReadyNodes (0.00s)
+=== RUN   TestBPSWarmFailureCannotReenterUntilBackgroundRecovery
+--- PASS: TestBPSWarmFailureCannotReenterUntilBackgroundRecovery (0.00s)
+=== RUN   TestBPSWarmCancelStopsProbes
+--- PASS: TestBPSWarmCancelStopsProbes (0.00s)
+=== RUN   TestCollectionWithOfficialKernel
+    collection_smoke_test.go:22: opt-in official kernel download
+--- SKIP: TestCollectionWithOfficialKernel (0.00s)
+=== RUN   TestCollectionIsolatesLanesAndPersistsReservations
+--- PASS: TestCollectionIsolatesLanesAndPersistsReservations (0.26s)
+=== RUN   TestCollectionConfigRejectsUnselectedLanesAndHonorsCountryFilter
+--- PASS: TestCollectionConfigRejectsUnselectedLanesAndHonorsCountryFilter (0.00s)
+=== RUN   TestCollectionResumesAcrossTasksAndRestart
+--- PASS: TestCollectionResumesAcrossTasksAndRestart (86.64s)
+=== RUN   TestCollectionProvisionsRequestedLanesAndRestoresConfig
+--- PASS: TestCollectionProvisionsRequestedLanesAndRestoresConfig (7.91s)
+=== RUN   TestCollectionFiltersResumedPoolAndCancellation
+--- PASS: TestCollectionFiltersResumedPoolAndCancellation (0.12s)
+=== RUN   TestCollectionFailedProvisionRestoresAndReleasesGate
+--- PASS: TestCollectionFailedProvisionRestoresAndReleasesGate (0.33s)
+=== RUN   TestManagedControllerUsesManagerSecret
+--- PASS: TestManagedControllerUsesManagerSecret (0.00s)
+=== RUN   TestCountryProbeWithOfficialKernel
+    country_smoke_test.go:22: opt-in official kernel: set MIHOMO_INSTALL_SMOKE=1 or MIHOMO_KERNEL_BINARY
+--- SKIP: TestCountryProbeWithOfficialKernel (0.00s)
+=== RUN   TestCountryFilterRules
+=== RUN   TestCountryFilterRules/off
+=== RUN   TestCountryFilterRules/excludeHK
+=== RUN   TestCountryFilterRules/excludeUS
+=== RUN   TestCountryFilterRules/exclude
+=== RUN   TestCountryFilterRules/exclude#01
+=== RUN   TestCountryFilterRules/includeHK
+=== RUN   TestCountryFilterRules/includeUS
+=== RUN   TestCountryFilterRules/include
+=== RUN   TestCountryFilterRules/include#01
+--- PASS: TestCountryFilterRules (0.00s)
+    --- PASS: TestCountryFilterRules/off (0.00s)
+    --- PASS: TestCountryFilterRules/excludeHK (0.00s)
+    --- PASS: TestCountryFilterRules/excludeUS (0.00s)
+    --- PASS: TestCountryFilterRules/exclude (0.00s)
+    --- PASS: TestCountryFilterRules/exclude#01 (0.00s)
+    --- PASS: TestCountryFilterRules/includeHK (0.00s)
+    --- PASS: TestCountryFilterRules/includeUS (0.00s)
+    --- PASS: TestCountryFilterRules/include (0.00s)
+    --- PASS: TestCountryFilterRules/include#01 (0.00s)
+=== RUN   TestDynamicCountryPolicyIgnoresStaleMeasurements
+--- PASS: TestDynamicCountryPolicyIgnoresStaleMeasurements (0.00s)
+=== RUN   TestCountryFilterPersistsAndCannotBeBypassedByRecovery
+--- PASS: TestCountryFilterPersistsAndCannotBeBypassedByRecovery (0.24s)
+=== RUN   TestCountryFilterDoesNotChangeManualNodeState
+--- PASS: TestCountryFilterDoesNotChangeManualNodeState (0.00s)
+=== RUN   TestDynamicProxyNodesAcceptBareHTTPURLsAndRedactStatus
+--- PASS: TestDynamicProxyNodesAcceptBareHTTPURLsAndRedactStatus (0.00s)
+=== RUN   TestDynamicProxyValidationRejectsUnsupportedOrCredentiallessInput
+--- PASS: TestDynamicProxyValidationRejectsUnsupportedOrCredentiallessInput (0.00s)
+=== RUN   TestDynamicClashSubscriptionContainsOnlyProxyNodes
+--- PASS: TestDynamicClashSubscriptionContainsOnlyProxyNodes (0.00s)
+=== RUN   TestProviderColonFormatPreservesCredentialsAndDeduplicates
+--- PASS: TestProviderColonFormatPreservesCredentialsAndDeduplicates (0.00s)
+=== RUN   TestDynamicProxyFourFormatsAndProtocols
+=== RUN   TestDynamicProxyFourFormatsAndProtocols/http
+=== RUN   TestDynamicProxyFourFormatsAndProtocols/https
+=== RUN   TestDynamicProxyFourFormatsAndProtocols/socks5
+=== RUN   TestDynamicProxyFourFormatsAndProtocols/socks5h
+--- PASS: TestDynamicProxyFourFormatsAndProtocols (0.00s)
+    --- PASS: TestDynamicProxyFourFormatsAndProtocols/http (0.00s)
+    --- PASS: TestDynamicProxyFourFormatsAndProtocols/https (0.00s)
+    --- PASS: TestDynamicProxyFourFormatsAndProtocols/socks5 (0.00s)
+    --- PASS: TestDynamicProxyFourFormatsAndProtocols/socks5h (0.00s)
+=== RUN   TestDynamicProxyNormalizationHasNoCountCap
+--- PASS: TestDynamicProxyNormalizationHasNoCountCap (0.02s)
+=== RUN   TestDirectedIdentityPersistsButFencesKernelReload
+--- PASS: TestDirectedIdentityPersistsButFencesKernelReload (0.03s)
+=== RUN   TestDirectedLeaseCancellationAndIdempotentRelease
+--- PASS: TestDirectedLeaseCancellationAndIdempotentRelease (0.02s)
+=== RUN   TestLoadDirectedSidecarAcceptsDirectedListener
+--- PASS: TestLoadDirectedSidecarAcceptsDirectedListener (0.00s)
+=== RUN   TestDirectedLookupByStableIdentity
+--- PASS: TestDirectedLookupByStableIdentity (0.02s)
+=== RUN   TestManagedDirectedHarvest
+=== RUN   TestManagedDirectedHarvest/rotation
+=== RUN   TestManagedDirectedHarvest/use_once
+--- PASS: TestManagedDirectedHarvest (0.16s)
+    --- PASS: TestManagedDirectedHarvest/rotation (0.02s)
+    --- PASS: TestManagedDirectedHarvest/use_once (0.14s)
+=== RUN   TestUseOnceLeasePersistsReservationAndSerializesProbes
+--- PASS: TestUseOnceLeasePersistsReservationAndSerializesProbes (0.41s)
+=== RUN   TestSubscriptionsDeduplicateAndRedact
+--- PASS: TestSubscriptionsDeduplicateAndRedact (0.00s)
+=== RUN   TestSubscriptionImportsOnlyNodes
+--- PASS: TestSubscriptionImportsOnlyNodes (0.00s)
+=== RUN   TestSubscriptionDownloadCanUseManagedProxy
+--- PASS: TestSubscriptionDownloadCanUseManagedProxy (0.01s)
+=== RUN   TestSubscriptionDirectFallbackWithDynamicExit
+--- PASS: TestSubscriptionDirectFallbackWithDynamicExit (0.02s)
+=== RUN   TestFailedSubscriptionPreservesSavedConfiguration
+--- PASS: TestFailedSubscriptionPreservesSavedConfiguration (0.01s)
+=== RUN   TestFailedSubscriptionKeepsRunningPhase
+--- PASS: TestFailedSubscriptionKeepsRunningPhase (0.02s)
+=== RUN   TestTasksSerializeAndCancel
+--- PASS: TestTasksSerializeAndCancel (0.00s)
+=== RUN   TestAtomicWritePermissions
+--- PASS: TestAtomicWritePermissions (0.10s)
+=== RUN   TestDownloadBoundedAndTimeout
+--- PASS: TestDownloadBoundedAndTimeout (0.00s)
+=== RUN   TestOfficialKernelInstallation
+    manager_test.go:178: set MIHOMO_INSTALL_SMOKE=1 to verify official download
+--- SKIP: TestOfficialKernelInstallation (0.00s)
+=== RUN   TestDisabledNodesAreExcludedFromRotation
+--- PASS: TestDisabledNodesAreExcludedFromRotation (0.00s)
+=== RUN   TestLegacyMigrationIsStagedAndPreservesSource
+--- PASS: TestLegacyMigrationIsStagedAndPreservesSource (0.15s)
+=== RUN   TestLegacyMigrationInvalidCacheDoesNotClaimTarget
+--- PASS: TestLegacyMigrationInvalidCacheDoesNotClaimTarget (0.00s)
+=== RUN   TestSubscriptionLabelsKeepNodeIdentityAndState
+--- PASS: TestSubscriptionLabelsKeepNodeIdentityAndState (0.05s)
+=== RUN   TestNodeLabelRedactsURLAndCredentials
+--- PASS: TestNodeLabelRedactsURLAndCredentials (0.00s)
+=== RUN   TestFakeIsolatedKernel
+    node_probe_test.go:33: helper process for ProbeNode tests
+--- SKIP: TestFakeIsolatedKernel (0.00s)
+=== RUN   TestProbeNodeIsolatesOneNodeWithoutChangingState
+--- PASS: TestProbeNodeIsolatesOneNodeWithoutChangingState (0.10s)
+=== RUN   TestProbeNodeRejectsUnknownNodesAndMissingKernel
+--- PASS: TestProbeNodeRejectsUnknownNodesAndMissingKernel (0.00s)
+=== RUN   TestProbeNodeWaitsForAFreeKernelSlot
+--- PASS: TestProbeNodeWaitsForAFreeKernelSlot (0.21s)
+=== RUN   TestProbeNodeReportsKernelExitWithoutCredentials
+--- PASS: TestProbeNodeReportsKernelExitWithoutCredentials (0.05s)
+=== RUN   TestRecordNodeCheckKeepsQualityAndDropsRemovedNodes
+--- PASS: TestRecordNodeCheckKeepsQualityAndDropsRemovedNodes (0.00s)
+=== RUN   TestProbeNodeWithOfficialKernel
+    node_probe_test.go:275: opt-in official kernel: set MIHOMO_INSTALL_SMOKE=1 or MIHOMO_KERNEL_BINARY
+--- SKIP: TestProbeNodeWithOfficialKernel (0.00s)
+=== RUN   TestIsolatedKernelErrorsAreFixedText
+--- PASS: TestIsolatedKernelErrorsAreFixedText (0.00s)
+=== RUN   TestSourceRemovalPreservesCachedPeersDynamicAndSharedNodes
+--- PASS: TestSourceRemovalPreservesCachedPeersDynamicAndSharedNodes (0.09s)
+=== RUN   TestSourceLastRemovalRejectsTrafficAndPersistsEmpty
+--- PASS: TestSourceLastRemovalRejectsTrafficAndPersistsEmpty (0.10s)
+=== RUN   TestSourceIndividualRefreshFailureRetainsPriorConfiguration
+--- PASS: TestSourceIndividualRefreshFailureRetainsPriorConfiguration (0.02s)
+=== RUN   TestSourceLegacyRemovalFetchesOnlyRemainingSource
+--- PASS: TestSourceLegacyRemovalFetchesOnlyRemainingSource (0.12s)
+=== RUN   TestSourceDisableEnableAndRenameDoNotFetch
+--- PASS: TestSourceDisableEnableAndRenameDoNotFetch (0.26s)
+=== RUN   TestSourceValidationDoesNotMutateSavedState
+--- PASS: TestSourceValidationDoesNotMutateSavedState (0.00s)
+=== RUN   TestSourceDynamicAppendAndRemovePreserveSubscriptions
+--- PASS: TestSourceDynamicAppendAndRemovePreserveSubscriptions (0.35s)
+=== RUN   TestSourceApplyRollbackWhenControllerRejects
+--- PASS: TestSourceApplyRollbackWhenControllerRejects (0.07s)
+=== RUN   TestSubscriptionLifecyclePreservesExisting1024DynamicProxies
+--- PASS: TestSubscriptionLifecyclePreservesExisting1024DynamicProxies (1.52s)
+=== RUN   TestStaticNodeBindingsPersistDeduplicateAndNeverRotate
+--- PASS: TestStaticNodeBindingsPersistDeduplicateAndNeverRotate (0.15s)
+=== RUN   TestStaticNodeBindingsRejectUnavailableAndDoNotReassignPorts
+--- PASS: TestStaticNodeBindingsRejectUnavailableAndDoNotReassignPorts (0.33s)
+=== RUN   TestStaticNodeBindingsValidateWholeBatchAndRollbackRejectedConfig
+--- PASS: TestStaticNodeBindingsValidateWholeBatchAndRollbackRejectedConfig (0.08s)
+=== RUN   TestStaticNodeBindingsRejectInvalidSavedPorts
+--- PASS: TestStaticNodeBindingsRejectInvalidSavedPorts (0.00s)
+=== RUN   TestStaticNodeBindingsWithOfficialKernel
+    static_bindings_test.go:141: opt-in official kernel: set MIHOMO_INSTALL_SMOKE=1 or MIHOMO_KERNEL_BINARY
+--- SKIP: TestStaticNodeBindingsWithOfficialKernel (0.00s)
+=== RUN   TestSubscriptionDownloadModeRoutesAndFallback
+=== RUN   TestSubscriptionDownloadModeRoutesAndFallback/direct_bypasses_running_proxy
+=== RUN   TestSubscriptionDownloadModeRoutesAndFallback/proxy_only_success
+=== RUN   TestSubscriptionDownloadModeRoutesAndFallback/proxy_only_invalid_body
+=== RUN   TestSubscriptionDownloadModeRoutesAndFallback/auto_falls_back_on_empty_body
+--- PASS: TestSubscriptionDownloadModeRoutesAndFallback (0.08s)
+    --- PASS: TestSubscriptionDownloadModeRoutesAndFallback/direct_bypasses_running_proxy (0.02s)
+    --- PASS: TestSubscriptionDownloadModeRoutesAndFallback/proxy_only_success (0.02s)
+    --- PASS: TestSubscriptionDownloadModeRoutesAndFallback/proxy_only_invalid_body (0.02s)
+    --- PASS: TestSubscriptionDownloadModeRoutesAndFallback/auto_falls_back_on_empty_body (0.02s)
+=== RUN   TestSubscriptionProxyModeFailsClosedWhenStopped
+--- PASS: TestSubscriptionProxyModeFailsClosedWhenStopped (0.01s)
+=== RUN   TestSubscriptionDownloadModePersistsWithoutChangingSources
+--- PASS: TestSubscriptionDownloadModePersistsWithoutChangingSources (0.05s)
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/auto_valid
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/auto_invalid_YAML
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/auto_empty
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/proxy_valid
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/proxy_invalid
+=== RUN   TestSubscriptionDownloadModesUseChosenRoute/direct
+--- PASS: TestSubscriptionDownloadModesUseChosenRoute (0.12s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/auto_valid (0.01s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/auto_invalid_YAML (0.02s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/auto_empty (0.02s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/proxy_valid (0.02s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/proxy_invalid (0.02s)
+    --- PASS: TestSubscriptionDownloadModesUseChosenRoute/direct (0.02s)
+=== RUN   TestSubscriptionProxyOnlyNeverFallsBackWithoutKernel
+--- PASS: TestSubscriptionProxyOnlyNeverFallsBackWithoutKernel (0.06s)
+=== RUN   TestDedicatedDownloadModePersistsWithoutInstallingOrFetching
+--- PASS: TestDedicatedDownloadModePersistsWithoutInstallingOrFetching (0.05s)
+=== RUN   TestSubscriptionManagerUsesDedicatedDownloadMode
+--- PASS: TestSubscriptionManagerUsesDedicatedDownloadMode (0.23s)
+PASS
+MIHOMO_EXIT=0
+
+WSL_STDERR_BEGIN
+
+WSL_EXIT=0
