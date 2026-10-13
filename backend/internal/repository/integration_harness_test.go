@@ -35,9 +35,10 @@ const (
 )
 
 var (
-	integrationDB        *sql.DB
-	integrationEntClient *dbent.Client
-	integrationRedis     *redisclient.Client
+	integrationDB          *sql.DB
+	integrationEntClient   *dbent.Client
+	integrationRedis       *redisclient.Client
+	integrationDatabaseDSN string
 
 	redisNamespaceSeq uint64
 )
@@ -90,6 +91,7 @@ func TestMain(m *testing.M) {
 		log.Printf("failed to get postgres dsn: %v", err)
 		os.Exit(1)
 	}
+	integrationDatabaseDSN = dsn
 
 	integrationDB, err = openSQLWithRetry(ctx, dsn, 30*time.Second)
 	if err != nil {
@@ -123,6 +125,16 @@ func TestMain(m *testing.M) {
 	if err := integrationRedis.Ping(ctx).Err(); err != nil {
 		log.Printf("failed to ping redis: %v", err)
 		os.Exit(1)
+	}
+
+	// Opt-in persistence tests use this disposable server, never an application DB.
+	for _, name := range []string{"SUB2API_UPGRADE_TEST_POSTGRES_URL", "HARVEST_TEST_POSTGRES_DSN", "SUB2API_EXPERIMENT_TEST_DSN"} {
+		if os.Getenv(name) == "" {
+			if err := os.Setenv(name, dsn); err != nil {
+				log.Printf("failed to configure disposable test connection: %v", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	code := m.Run()

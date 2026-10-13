@@ -1,10 +1,14 @@
 package openai
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSessionStore_Stop_Idempotent(t *testing.T) {
@@ -99,4 +103,25 @@ func TestBuildAuthorizationURLIdentityEncoding(t *testing.T) {
 	if parsed.Query().Get("originator") != "codex-tui" || parsed.Query().Get("redirect_uri") != DefaultRedirectURI {
 		t.Fatal("default wrapper lost identity or redirect")
 	}
+}
+
+func TestParseIDTokenSupportsCurrentCodexIdentityClaims(t *testing.T) {
+	payload, err := json.Marshal(map[string]any{
+		"sid":   "account-from-sid",
+		"sub":   "user-from-sub",
+		"email": "user@example.com",
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"https://api.openai.com/auth": map[string]any{
+			"user_id": "user-from-auth",
+		},
+	})
+	require.NoError(t, err)
+	token := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`)) + "." + base64.RawURLEncoding.EncodeToString(payload) + ".signature"
+
+	claims, err := ParseIDToken(token)
+	require.NoError(t, err)
+	info := claims.GetUserInfo()
+	require.Equal(t, "account-from-sid", info.ChatGPTAccountID)
+	require.Equal(t, "user-from-auth", info.ChatGPTUserID)
+	require.Equal(t, "user@example.com", info.Email)
 }

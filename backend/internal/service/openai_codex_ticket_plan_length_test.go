@@ -126,7 +126,7 @@ func TestProbeOpenAICodexTicketHarvestsPerAccountPlanLength(t *testing.T) {
 	upstream := &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
 		h := http.Header{}
 		h.Set(openAICodexTurnStateHeader, fakeCodexTicketState(332))
-		return &http.Response{StatusCode: http.StatusOK, Header: h, Body: io.NopCloser(strings.NewReader("data: {}\n\n"))}, nil
+		return &http.Response{StatusCode: http.StatusOK, Header: h, Body: io.NopCloser(strings.NewReader(`{"status":"completed"}`))}, nil
 	}}
 	settings := NewSettingService(&codexTicketSettingRepo{codexPolicyMigrationRepoStub: &codexPolicyMigrationRepoStub{values: map[string]string{
 		SettingKeyOpenAICodexTicketEnabled:     "true",

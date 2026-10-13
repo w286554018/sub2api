@@ -156,10 +156,14 @@ func TestUpstreamBillingProbeGrokAccountPersistsSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, UpstreamBillingProbeStatusOK, snapshot.Status)
 	require.Equal(t, 0.02, snapshot.Data["resolved_rate_multiplier"])
-	require.Equal(t, "https://relay.example/v1/sub2api/billing", upstream.lastReq.URL.String())
-	require.Equal(t, "Bearer sk-grok-relay", upstream.lastReq.Header.Get("Authorization"))
-	// 非 OpenAI 平台探测使用默认传输画像。
-	require.Equal(t, HTTPUpstreamProfileDefault, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
+	require.Len(t, upstream.requests, 2)
+	require.Equal(t, "https://relay.example/v1/sub2api/billing", upstream.requests[0].URL.String())
+	require.Equal(t, "/v1/usage", upstream.requests[1].URL.Path)
+	for _, req := range upstream.requests {
+		require.Equal(t, "Bearer sk-grok-relay", req.Header.Get("Authorization"))
+		// 非 OpenAI 平台探测使用默认传输画像。
+		require.Equal(t, HTTPUpstreamProfileDefault, HTTPUpstreamProfileFromContext(req.Context()))
+	}
 
 	persisted := decodeUpstreamBillingProbeSnapshot(account.Extra)
 	require.NotNil(t, persisted)
@@ -347,6 +351,19 @@ func TestUpstreamBillingProbeSetAccountEnabledAcceptsSupportedAPIKeys(t *testing
 }
 
 func TestBuildAccountForCreateAcceptsTypeSafeAPIKeyWithProbeEnabled(t *testing.T) {
+	enabled := true
+	account, err := buildAccountForCreate(&CreateAccountInput{
+		Name:         "typesafe",
+		Platform:     PlatformTypeSafe,
+		Type:         AccountTypeAPIKey,
+		Credentials:  map[string]any{"api_key": "ts-key", "base_url": "https://api.typesafe.ai"},
+		ProbeEnabled: &enabled,
+	}, map[string]any{})
+	require.NoError(t, err)
+	require.Equal(t, true, account.Extra[UpstreamBillingProbeEnabledExtraKey])
+}
+
+func TestBuildAccountForCreateAcceptsTypeSafeAPIKeyWithProbeEnabledSource(t *testing.T) {
 	enabled := true
 	account, err := buildAccountForCreate(&CreateAccountInput{
 		Name:         "typesafe",

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/sha256"
 	"net/http"
 	"regexp"
@@ -376,6 +377,22 @@ func applyCodexIdentityToWSPayload(c *gin.Context, account *Account, payload []b
 	stageCodexFingerprintIDs(c, ids)
 	stageCodexConvergenceBodyIdentityRaw(c, source, next)
 	return next, nil
+}
+
+// Keep the fork's per-frame fingerprint/header staging on ordinary WS requests.
+// A bound harvest session has its own pinned identity and must not be scoped twice.
+func (s *OpenAIGatewayService) applyCodexIdentityOrHarvestPinToWSPayload(ctx context.Context, c *gin.Context, account *Account, model string, payload []byte) ([]byte, error) {
+	if s.harvestPinnedSessionForModel(ctx, account, model) == "" {
+		return applyCodexIdentityToWSPayload(c, account, payload)
+	}
+	source := codexAccountIdentitySource(c, account)
+	stageCodexFingerprintIDs(c, nil)
+	stageCodexConvergenceBodyIdentity(c, source, nil)
+	next, err := s.applyCodexAccountIdentityOrHarvestPinRaw(ctx, account, source, getAPIKeyIDFromContext(c), model, payload)
+	if err == nil {
+		stageCodexConvergenceBodyIdentityRaw(c, source, next)
+	}
+	return next, err
 }
 
 func applyCodexFingerprintConvergenceHeaders(c *gin.Context, account *Account, headers http.Header) {

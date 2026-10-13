@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// 以下为 fork 重构前的平台列表 / switch，作为平台清单派生结果的等价基准；
-// 保留 Kiro、Adobe 与 fork 原有顺序，新增 Command Code、Cline 追加在列表末尾。
 var (
 	legacyAllPlatforms = []string{
 		PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformGrok, PlatformAdobe,

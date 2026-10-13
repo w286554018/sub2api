@@ -24,12 +24,18 @@ var ErrSparkShadowResetNotSupported = infraerrors.New(http.StatusConflict, "SPAR
 
 // Endpoints used by the OpenAI/ChatGPT/Codex quota query and reset feature.
 const (
-	chatGPTUsageURL            = "https://chatgpt.com/backend-api/wham/usage"
-	chatGPTRateLimitCreditsURL = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits"
-	chatGPTRateLimitResetURL   = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume"
-	openaiQuotaUpstreamTimeout = 20 * time.Second
-	openaiQuotaResetCreditsKey = "codex_reset_credit_snapshot"
-	openaiQuotaCreditsKey      = "codex_credits_snapshot"
+	chatGPTUsageURL             = "https://chatgpt.com/backend-api/wham/usage"
+	chatGPTRateLimitCreditsURL  = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits"
+	chatGPTRateLimitResetURL    = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume"
+	openaiQuotaUpstreamTimeout  = 20 * time.Second
+	openaiQuotaCodexBeta        = "codex-1"
+	openaiQuotaCodexOriginator  = "Codex Desktop"
+	openaiQuotaCodexLanguageTag = "zh-CN"
+	openaiQuotaSecFetchSite     = "none"
+	openaiQuotaSecFetchMode     = "no-cors"
+	openaiQuotaSecFetchDest     = "empty"
+	openaiQuotaResetCreditsKey  = "codex_reset_credit_snapshot"
+	openaiQuotaCreditsKey       = "codex_credits_snapshot"
 )
 
 // OpenAIRateLimitWindow describes a single rate-limit window returned by
@@ -125,13 +131,14 @@ type OpenAIQuotaResetResult struct {
 // OpenAIQuotaService queries and consumes ChatGPT/Codex rate-limit reset credits
 // for OpenAI OAuth accounts using a dedicated non-browser backend client.
 type OpenAIQuotaService struct {
-	accountRepo         AccountRepository
-	proxyRepo           ProxyRepository
-	tokenProvider       *OpenAITokenProvider
-	codexClientFactory  CodexBackendClientFactory
-	referralClient      OpenAIReferralClient
-	agentIdentityTaskMu sync.Mutex
-	agentIdentityWS     agentIdentityWSConnectionInvalidator
+	accountRepo          AccountRepository
+	proxyRepo            ProxyRepository
+	tokenProvider        *OpenAITokenProvider
+	codexClientFactory   CodexBackendClientFactory
+	privacyClientFactory PrivacyClientFactory
+	referralClient       OpenAIReferralClient
+	agentIdentityTaskMu  sync.Mutex
+	agentIdentityWS      agentIdentityWSConnectionInvalidator
 }
 
 // NewOpenAIQuotaService constructs a quota service. token provider is required —
@@ -142,13 +149,15 @@ func NewOpenAIQuotaService(
 	proxyRepo ProxyRepository,
 	tokenProvider *OpenAITokenProvider,
 	codexClientFactory CodexBackendClientFactory,
+	privacyClientFactory PrivacyClientFactory,
 	referralClients ...OpenAIReferralClient,
 ) *OpenAIQuotaService {
 	svc := &OpenAIQuotaService{
-		accountRepo:        accountRepo,
-		proxyRepo:          proxyRepo,
-		tokenProvider:      tokenProvider,
-		codexClientFactory: codexClientFactory,
+		accountRepo:          accountRepo,
+		proxyRepo:            proxyRepo,
+		tokenProvider:        tokenProvider,
+		codexClientFactory:   codexClientFactory,
+		privacyClientFactory: privacyClientFactory,
 	}
 	if len(referralClients) > 0 {
 		svc.referralClient = referralClients[0]
@@ -173,6 +182,11 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 	callCtx, cancel := context.WithTimeout(ctx, openaiQuotaUpstreamTimeout)
 	defer cancel()
 	agentIdentity := s.isAgentIdentityAccount(ctx, accountID)
+	// Observe before querying upstream; a concurrent 429 must survive recovery.
+	var observed *openAIQuotaRecoveryObservation
+	if account, readErr := s.accountRepo.GetByID(callCtx, accountID); readErr == nil {
+		observed = observeOpenAIQuotaRecovery(account, time.Now())
+	}
 
 	var payload OpenAIQuotaUsage
 	for recovered := false; ; {
@@ -204,6 +218,15 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 			body := truncate(s.redactQuotaErrorBody(ctx, accountID, resp.String()), 240)
 			slog.Warn("openai_quota_query_failed", "account_id", accountID, "status", status, "body", body)
 			return nil, infraerrors.Newf(mapUpstreamStatus(status), "OPENAI_QUOTA_UPSTREAM_ERROR", "upstream returned %d: %s", status, body)
+		}
+		if observed != nil {
+			if updates := openAIQuotaRecoveryUsageUpdates(resp.Bytes(), time.Now()); len(updates) > 0 {
+				if err := s.accountRepo.UpdateExtra(callCtx, accountID, updates); err != nil {
+					slog.Warn("openai_quota_recovery_snapshot_failed", "account_id", accountID, "error", err)
+				} else {
+					recoverOpenAIQuotaRateLimit(callCtx, s.accountRepo, observed, updates)
+				}
+			}
 		}
 		break
 	}

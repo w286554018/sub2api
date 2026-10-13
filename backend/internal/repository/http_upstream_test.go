@@ -521,6 +521,7 @@ func TestApplyGrokCLIProxyHeaders(t *testing.T) {
 		"1.0.47-alpha..1",
 		"1.1",
 		"2",
+		"1",
 		"1.0.47+build.1",
 	} {
 		t.Run("rejects invalid semver "+version, func(t *testing.T) {

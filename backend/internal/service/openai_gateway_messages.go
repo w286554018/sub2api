@@ -36,6 +36,17 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// 遥测回合收尾：覆盖 Grok strip 重试循环与三处尾递归重入。尾递归时内层
 	// frame 先收尾，而内层的返回值就是本回合的最终结果，外层随后是 no-op。
 	defer finishCodexTelemetryTurn(c)
+
+	latest, admissionErr := s.admitOpenAITurn(
+		context.WithoutCancel(ctx),
+		c,
+		account,
+		gjson.GetBytes(body, "model").String(),
+	)
+	if admissionErr != nil {
+		return nil, admissionErr
+	}
+	account = latest
 	// 工具 Schema 清洗必须先于所有分流：下游每条路径（原生 Anthropic 直通、
 	// Chat Completions 转换、Responses 转换）都会把 tools 原样带给上游，而
 	// xAI / Moonshot 等严格校验方会因 input_schema 里的 required:null 或
@@ -268,7 +279,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if account.GetCodexFingerprintMode() == codexFingerprintDevice {
 			fpIDs = resolveCodexFingerprintIDsWithBody(c, account, nil, reqBody["client_metadata"])
 		}
-		applyCodexAccountIdentityClientMetadataMap(reqBody, codexAccountIdentitySource(c, account), apiKeyID)
+		s.applyCodexAccountIdentityOrHarvestPinMap(ctx, account, codexAccountIdentitySource(c, account), apiKeyID, upstreamModel, reqBody)
 		if fpIDs != nil {
 			applyCodexFingerprintClientMetadata(reqBody, fpIDs)
 		}
@@ -387,10 +398,15 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// Override session_id with a deterministic UUID derived from the isolated
 	// session key, ensuring different API keys produce different upstream sessions.
 	if account.Platform != PlatformGrok && promptCacheKey != "" && !codexDeviceWireProfileEnabled(c, account) {
-		isolatedSessionID := generateSessionUUID(isolateOpenAIUpstreamSessionID(apiKeyID, codexAccountIdentitySource(c, account), promptCacheKey))
-		upstreamReq.Header.Set("session_id", isolatedSessionID)
-		if upstreamReq.Header.Get("conversation_id") != "" {
-			upstreamReq.Header.Set("conversation_id", isolatedSessionID)
+		if session := s.harvestPinnedSessionForModel(ctx, account, upstreamModel); session != "" {
+			upstreamReq.Header.Set("session_id", session)
+			upstreamReq.Header.Del("conversation_id")
+		} else {
+			isolatedSessionID := generateSessionUUID(isolateOpenAIUpstreamSessionID(apiKeyID, codexAccountIdentitySource(c, account), promptCacheKey))
+			upstreamReq.Header.Set("session_id", isolatedSessionID)
+			if upstreamReq.Header.Get("conversation_id") != "" {
+				upstreamReq.Header.Set("conversation_id", isolatedSessionID)
+			}
 		}
 	}
 	if account.UsesOpenAICodexProtocol() && account.Platform != PlatformGrok {
@@ -415,6 +431,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	if err := s.applyOpenAICodexTicket(ctx, account, upstreamModel, upstreamReq.Header); err != nil {
 		return nil, err
 	}
+	s.pinBoundCodexTicketHarvestIdentity(upstreamReq, account)
 
 	// 7. Send request
 	proxyURL := ""

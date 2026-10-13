@@ -40,7 +40,7 @@ func referralTestService(t *testing.T, plan string, client OpenAIReferralClient)
 		t.Fatal("referral service must use the business interface, not the HTTP factory")
 		return nil, nil
 	}
-	return NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory, client), repo
+	return NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory, nil, client), repo
 }
 
 func TestOpenAIReferralSend(t *testing.T) {

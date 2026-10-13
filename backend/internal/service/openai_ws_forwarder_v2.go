@@ -35,6 +35,11 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	lastFailureReason string,
 	agentTaskRecoveryTried *bool,
 ) (*OpenAIForwardResult, error) {
+	if anchor := codexWSAnchorFromContext(ctx); anchor != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, anchor.expires)
+		defer cancel()
+	}
 	if s == nil || account == nil {
 		return nil, wrapOpenAIWSFallback("invalid_state", errors.New("service or account is nil"))
 	}
@@ -66,6 +71,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	observeOpenAISemanticIntegrityMap(c, account, "ws_v2", reqBody, payload, openAISemanticIntegrityOptions{
 		AllowedFinalModel: mappedModel,
 	})
+	accelerateHTTPSSE := decision.Reason == openAIOAuthWSSSEAccelerationReason
 	payloadStrategy, removedKeys := applyOpenAIWSRetryPayloadStrategy(payload, attempt)
 	turnState := ""
 	turnMetadata := ""
@@ -122,7 +128,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	}
 
 	stateStore := s.getOpenAIWSStateStore()
-	groupID := getOpenAIGroupIDFromContext(c)
+	groupID, enforceGroup := openAITurnAdmissionGroupFromContext(c)
 	sessionHash := s.GenerateSessionHash(c, nil)
 	if sessionHash == "" {
 		var legacySessionHash string
@@ -152,6 +158,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			preferredConnID = connID
 		}
 	}
+	anchor := codexWSAnchorFromContext(ctx)
+	if anchor != nil && anchor.previousID != "" {
+		preferredConnID = anchor.connID
+	}
 	storeDisabledConnMode := s.openAIWSStoreDisabledConnMode()
 	forceNewConnByPolicy := shouldForceNewConnOnStoreDisabled(storeDisabledConnMode, lastFailureReason)
 	forceNewConn := forceNewConnByPolicy && storeDisabled && previousResponseID == "" && sessionHash != "" && preferredConnID == ""
@@ -178,6 +188,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	if s.codexTelemetryEligible(c, account) {
 		wsPayloadJSON, _ := json.Marshal(payload)
 		telemetryAttempt = s.beginCodexTelemetry(c, account, wsPayloadJSON, wsHeaders)
+	}
+
+	if anchor != nil && anchor.cookie != "" {
+		replaceCodexWSAnchorCookie(wsHeaders, anchor.cookie)
 	}
 	logOpenAIWSModeDebug(
 		"acquire_start account_id=%d account_type=%s transport=%s preferred_conn_id=%s has_previous_response_id=%v session_hash=%s has_turn_state=%v turn_state_len=%d has_turn_metadata=%v turn_metadata_len=%d store_disabled=%v store_disabled_conn_mode=%s retry_last_reason=%s force_new_conn=%v header_user_agent=%s header_openai_beta=%s header_originator=%s header_accept_language=%s header_session_id=%s header_conversation_id=%s session_id_source=%s conversation_id_source=%s has_prompt_cache_key=%v has_chatgpt_account_id=%v has_authorization=%v has_session_id=%v has_conversation_id=%v proxy_enabled=%v",
@@ -213,24 +227,118 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 
 	acquireCtx, acquireCancel := context.WithTimeout(ctx, s.openAIWSAcquireTimeout())
 	defer acquireCancel()
+	if s.boundCodexTicketFromHeader(ctx, wsHeaders, account) != nil {
+		defer s.holdCodexTicketChat(account)()
+	}
 
+	proxyURL, releaseHarvest, pinErr := s.pinCodexTicketWSAcquire(acquireCtx, wsHeaders, account)
+	if pinErr != nil {
+		return nil, wrapOpenAIWSFallback("codex_ticket_unavailable", pinErr)
+	}
+	defer releaseHarvest()
+	// A bound ticket already supplied the complete Cookie pair and pinned exit.
+	// Do not acquire a second lease or overlay a gateway cookie on that bundle.
+	if anchor != nil && anchor.connID == "" && (!s.UnifiedAstraTicketsEnabled(ctx) || s.boundCodexTicketFromHeader(ctx, wsHeaders, account) == nil) {
+		if pool, ok := s.httpUpstream.(interface {
+			CodexGatewayPinWSRequest(context.Context, http.Header, string, int64, int) (string, string, func(), error)
+		}); ok {
+			route, effectiveProxy, releaseRoute, err := pool.CodexGatewayPinWSRequest(ctx, wsHeaders, proxyURL, account.ID, account.Concurrency)
+			if err != nil {
+				return nil, s.astraRouteFailover(ctx, account, err)
+			}
+			defer releaseRoute()
+			proxyURL = effectiveProxy
+			anchor.cookie = route
+			if route != "" {
+				replaceCodexWSAnchorCookie(wsHeaders, route)
+			}
+		}
+	}
+
+	if anchor != nil {
+		if anchor.connID != "" {
+			proxyURL = anchor.proxyURL
+		} else {
+			anchor.proxyURL = proxyURL
+		}
+	}
+
+	anchorScope := ""
+	if anchor != nil {
+		anchorScope = anchor.scope
+	}
 	lease, err := s.getOpenAIWSConnPool().Acquire(acquireCtx, openAIWSAcquireRequest{
-		Account: account,
-		WSURL:   wsURL,
-		Headers: wsHeaders,
+		AnchorScope: anchorScope,
+		Account:     account,
+		WSURL:       wsURL,
+		Headers:     wsHeaders,
 		HeadersFactory: func(factoryCtx context.Context, headers http.Header) (http.Header, error) {
+			latest, err := s.admitOpenAITurnForGroup(factoryCtx, groupID, enforceGroup, account, mappedModel)
+			if err != nil {
+				s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
+					factoryCtx,
+					groupID,
+					sessionHash,
+					previousResponseID,
+					account.ID,
+					err,
+				)
+				return nil, err
+			}
+			if err := s.applyOpenAICodexTicket(factoryCtx, latest, mappedModel, headers, "websocket"); err != nil {
+				s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
+					factoryCtx,
+					groupID,
+					sessionHash,
+					previousResponseID,
+					account.ID,
+					err,
+				)
+				return nil, err
+			}
+			if anchor != nil && anchor.cookie != "" {
+				replaceCodexWSAnchorCookie(headers, anchor.cookie)
+			}
 			return s.refreshOpenAIAgentIdentityHeaders(factoryCtx, account, headers)
 		},
-		PreferredConnID: preferredConnID,
-		ForceNewConn:    forceNewConn,
-		ProxyURL: func() string {
-			if account.ProxyID != nil && account.Proxy != nil {
-				return account.Proxy.URL()
+		BindHandshake: func(headers http.Header) *openAIWSTurnBinding {
+			return s.bindOpenAIWSHandshake(account, mappedModel, headers)
+		},
+		CheckBinding: func(checkCtx context.Context, b *openAIWSTurnBinding) error {
+			latest, err := s.admitOpenAITurnForGroup(checkCtx, groupID, enforceGroup, account, mappedModel)
+			if err != nil {
+				s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
+					checkCtx,
+					groupID,
+					sessionHash,
+					previousResponseID,
+					account.ID,
+					err,
+				)
+				return err
 			}
-			return ""
-		}(),
+			if err := s.checkOpenAIWSBinding(latest, mappedModel, b); err != nil {
+				s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
+					checkCtx,
+					groupID,
+					sessionHash,
+					previousResponseID,
+					account.ID,
+					err,
+				)
+				return err
+			}
+			return nil
+		},
+		PreferredConnID:    preferredConnID,
+		ForceNewConn:       forceNewConn || (anchor != nil && anchor.connID == ""),
+		ForcePreferredConn: anchor != nil && anchor.connID != "",
+		ProxyURL:           proxyURL,
 	})
 	if err != nil {
+		if IsOpenAITurnAdmissionError(err) {
+			return nil, err
+		}
 		var agentDialErr *openAIWSDialError
 		if s.isAgentIdentityAccount(ctx, account) && errors.As(err, &agentDialErr) && isAgentIdentityTaskInvalidWSDialError(agentDialErr) && agentTaskRecoveryTried != nil && !*agentTaskRecoveryTried {
 			*agentTaskRecoveryTried = true
@@ -268,7 +376,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 		return nil, wrapOpenAIWSFallback(classifyOpenAIWSAcquireError(err), err)
 	}
-	// cleanExit 标记正常终端事件退出，此时上游不会再发送帧，连接可安全归还复用。
+	// cleanExit 标记正常终态或尚未发送消息的本地拒绝，连接可安全归还复用。
 	// 所有异常路径（读写错误、error 事件等）已在各自分支中提前调用 MarkBroken，
 	// 因此 defer 中只需处理正常退出时不 MarkBroken 即可。
 	cleanExit := false
@@ -279,6 +387,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		lease.Release()
 	}()
 	connID := strings.TrimSpace(lease.ConnID())
+	if anchor != nil {
+		anchor.connID = connID
+		lease.conn.anchorUntilNano.Store(anchor.expires.UnixNano())
+	}
 	logOpenAIWSModeDebug(
 		"connected account_id=%d account_type=%s transport=%s conn_id=%s conn_reused=%v conn_idle_ms=%d conn_age_ms=%d upstream_pings=%d conn_pick_ms=%d queue_wait_ms=%d has_previous_response_id=%v",
 		account.ID,
@@ -341,39 +453,101 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 	}
 
-	if err := s.performOpenAIWSGeneratePrewarm(
-		ctx,
-		c,
-		lease,
-		decision,
-		payload,
-		previousResponseID,
-		clientTurnState,
-		reqBody,
-		account,
-		stateStore,
-		groupID,
-	); err != nil {
+	checkBeforeWrite := func() error {
+		latest, err := s.admitOpenAITurn(ctx, c, account, mappedModel)
+		if err == nil {
+			err = s.checkOpenAIWSBinding(latest, mappedModel, lease.conn.turnBinding)
+		}
+		if err != nil {
+			s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
+				ctx,
+				groupID,
+				sessionHash,
+				previousResponseID,
+				account.ID,
+				err,
+			)
+			lease.MarkBroken()
+		}
+		return err
+	}
+	if err := checkBeforeWrite(); err != nil {
+		return nil, err
+	}
+	// Only the optional cold-prewarm path needs a separate size preflight.
+	// Release its encoder buffer before awaiting the prewarm response. The
+	// usual path still encodes once, directly into the synchronous write.
+	preflightBeforePrewarm := accelerateHTTPSSE && s.isOpenAIWSGeneratePrewarmEnabled() &&
+		previousResponseID == "" && !lease.IsPrewarmed() && !NeedsToolContinuation(reqBody)
+	if preflightBeforePrewarm {
+		err = encodeOpenAIWSSSEPayload(payload, s.openAIWSSSEMaxPayloadBytes(), func(encoded []byte) error {
+			payloadBytes = len(encoded)
+			return nil
+		})
+		if err != nil {
+			cleanExit = errors.Is(err, errOpenAIWSSSEPayloadTooLarge)
+			return nil, err
+		}
+	}
+	if !isControlledExperiment(ctx) {
+		if err := s.performOpenAIWSGeneratePrewarm(ctx, c, lease, decision, payload, previousResponseID, clientTurnState, reqBody, account, stateStore, groupID); err != nil {
+			cleanExit = errors.Is(err, errOpenAIWSSSEPayloadTooLarge)
+			return nil, err
+		}
+	}
+	if err := checkBeforeWrite(); err != nil {
+		return nil, err
+	}
+	sendRequest := func(value any) error {
+		if err := s.acquireOpenAIRPMForSend(ctx, account); err != nil {
+			return err
+		}
+		if err := controlledSubmission(ctx, "native_ws"); err != nil {
+			return err
+		}
+		var raw []byte
+		var marshalErr error
+		if encoded, ok := value.(openAIWSPreparedJSON); ok {
+			// Prepared JSON is already an encoded frame; marshaling its byte slice
+			// again would send a Base64 JSON string rather than response.create.
+			raw = append([]byte(nil), encoded...)
+		} else {
+			raw, marshalErr = marshalOpenAIUpstreamJSON(value)
+		}
+		if marshalErr != nil {
+			return wrapOpenAIWSFallback("write_request", marshalErr)
+		}
+		raw = s.guardOpenAICodexWSFrameTurnState(c, account, raw)
+		raw = applyCodexWSFrameWireProfile(c, account, raw, clientTurnState)
+		if err := writeCodexWSFrame(ctx, c, account, lease, raw, s.openAIWSWriteTimeout()); err != nil {
+			lease.MarkBroken()
+			logOpenAIWSModeInfo(
+				"write_request_fail account_id=%d conn_id=%s cause=%s payload_bytes=%d",
+				account.ID,
+				connID,
+				truncateOpenAIWSLogValue(err.Error(), openAIWSLogValueMaxLen),
+				resolvePayloadBytes(),
+			)
+			return wrapOpenAIWSFallback("write_request", err)
+		}
+		return nil
+	}
+	if accelerateHTTPSSE && !preflightBeforePrewarm {
+		err = encodeOpenAIWSSSEPayload(payload, s.openAIWSSSEMaxPayloadBytes(), func(encoded []byte) error {
+			payloadBytes = len(encoded)
+			return sendRequest(openAIWSPreparedJSON(encoded))
+		})
+		if errors.Is(err, errOpenAIWSSSEPayloadTooLarge) {
+			// No prewarm, send quota, or frame write occurred. Preserve the healthy lease.
+			cleanExit = true
+		}
+	} else {
+		err = sendRequest(payload)
+	}
+	if err != nil {
 		return nil, err
 	}
 
-	raw, marshalErr := marshalOpenAIUpstreamJSON(payload)
-	if marshalErr != nil {
-		return nil, wrapOpenAIWSFallback("write_request", marshalErr)
-	}
-	raw = s.guardOpenAICodexWSFrameTurnState(c, account, raw)
-	raw = applyCodexWSFrameWireProfile(c, account, raw, clientTurnState)
-	if err := writeCodexWSFrame(ctx, c, account, lease, raw, s.openAIWSWriteTimeout()); err != nil {
-		lease.MarkBroken()
-		logOpenAIWSModeInfo(
-			"write_request_fail account_id=%d conn_id=%s cause=%s payload_bytes=%d",
-			account.ID,
-			connID,
-			truncateOpenAIWSLogValue(err.Error(), openAIWSLogValueMaxLen),
-			resolvePayloadBytes(),
-		)
-		return nil, wrapOpenAIWSFallback("write_request", err)
-	}
 	if debugEnabled {
 		logOpenAIWSModeDebug(
 			"write_request_sent account_id=%d conn_id=%s stream=%v payload_bytes=%d previous_response_id=%s",
@@ -397,6 +571,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		mappedModelBytes = []byte(mappedModel)
 	}
 	bufferedStreamEvents := make([][]byte, 0, 4)
+	flushEarlyEvents := reqStream && decision.Reason == openAIOAuthWSSSEAccelerationReason
 	eventCount := 0
 	tokenEventCount := 0
 	terminalEventCount := 0
@@ -742,6 +917,11 @@ readLoop:
 			}
 			// error 事件后连接不再可复用，避免回池后污染下一请求。
 			lease.MarkBroken()
+			if !wroteDownstream && (errCodeRaw == "server_is_overloaded" || errCodeRaw == "slow_down") {
+				failover := newOpenAIUpstreamFailoverError(http.StatusServiceUnavailable, lease.HandshakeHeaders(), message, errMsg, false)
+				failover.RetryableOnSameAccount = false
+				return nil, failover
+			}
 			if !wroteDownstream && canFallback {
 				return nil, wrapOpenAIWSFallback(fallbackReason, errors.New(errMsg))
 			}
@@ -763,9 +943,9 @@ readLoop:
 		}
 
 		if reqStream {
-			// 在首个 token 前先缓冲事件（如 response.created），
-			// 以便上游早期断连时仍可安全回退到 HTTP，不给下游发送半截流。
-			shouldBuffer := firstTokenMs == nil && !isTokenEvent && !isTerminalEvent
+			// 默认缓冲首 token 前的事件，保留既有的早期错误处理窗口。
+			// 显式开启 HTTP SSE 加速时立即刷出，之后不再重放请求。
+			shouldBuffer := !flushEarlyEvents && firstTokenMs == nil && !isTokenEvent && !isTerminalEvent
 			if shouldBuffer {
 				buffered := make([]byte, len(message))
 				copy(buffered, message)
@@ -784,7 +964,7 @@ readLoop:
 				}
 			} else {
 				flushBufferedStreamEvents(eventType)
-				emitStreamMessage(message, isTerminalEvent)
+				emitStreamMessage(message, isTerminalEvent || flushEarlyEvents)
 			}
 		} else {
 			if responseField.Exists() && responseField.Type == gjson.JSON {
@@ -873,6 +1053,9 @@ readLoop:
 		clientDisconnected,
 	)
 
+	if anchor != nil {
+		anchor.qualified = responseModelObserver.astraCompleted && !responseModelObserver.Conflict()
+	}
 	result := resultWithUsage()
 	result.ImageCount = imageCounter.Count()
 	result.ImageOutputSizes = imageCounter.Sizes()

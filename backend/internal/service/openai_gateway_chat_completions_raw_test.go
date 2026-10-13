@@ -1307,6 +1307,8 @@ func rawChatCompletionsTestAccount() *Account {
 	return &Account{
 		ID:          101,
 		Name:        "raw-openai-apikey",
+		Status:      StatusActive,
+		Schedulable: true,
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,

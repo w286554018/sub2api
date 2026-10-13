@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -831,6 +833,21 @@ func clampRefreshAttemptToLockLease(timeout, lease time.Duration) time.Duration 
 	return timeout
 }
 
+// refreshAttemptTimedOut reports whether the attempt spent its budget. The
+// runtime deadline timer can be delayed on a loaded host, so the wall clock is
+// authoritative: a provider result that appears after the attempt deadline is
+// still an attempt timeout and must not be persisted or counted as a success.
+// A cancelled parent stays a cancellation, not an attempt timeout.
+func refreshAttemptTimedOut(attemptCtx, parent context.Context, deadline time.Time) bool {
+	if parent != nil && parent.Err() != nil {
+		return false
+	}
+	if errors.Is(attemptCtx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	return !time.Now().Before(deadline)
+}
+
 func (s *TokenRefreshService) cycleTimeout() time.Duration {
 	if s.cfg != nil && s.cfg.CycleTimeoutSeconds > 0 {
 		seconds := min(s.cfg.CycleTimeoutSeconds, int(maxTokenRefreshCycleTimeout/time.Second))
@@ -882,7 +899,9 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 				acquireRate = gate.acquire
 			}
 		}
-		attemptCtx, cancelAttempt := context.WithTimeout(ctx, s.attemptTimeout())
+		attemptBudget := s.attemptTimeout()
+		attemptDeadline := time.Now().Add(attemptBudget)
+		attemptCtx, cancelAttempt := context.WithTimeout(ctx, attemptBudget)
 		var newCredentials map[string]any
 		var err error
 		shortCircuit := false
@@ -927,7 +946,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 			if releaseRate != nil {
 				releaseRate()
 			}
-			attemptTimedOut := errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
+			attemptTimedOut := refreshAttemptTimedOut(attemptCtx, ctx, attemptDeadline)
 			if err == nil && newCredentials != nil && !attemptTimedOut {
 				newCredentials["_token_version"] = time.Now().UnixMilli()
 				if saveErr := persistAccountCredentials(attemptCtx, s.accountRepo, account, newCredentials); saveErr != nil {
@@ -937,7 +956,7 @@ func (s *TokenRefreshService) refreshWithRetryWithRateGate(
 				}
 			}
 		}
-		attemptTimedOut := errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
+		attemptTimedOut := refreshAttemptTimedOut(attemptCtx, ctx, attemptDeadline)
 		cancelAttempt()
 		releaseAttempt()
 		persistedAfterAttemptDeadline := attemptTimedOut && credentialsPersisted && err == nil
@@ -1212,8 +1231,9 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 			s.notifyAccountSchedulingBlockCleared(account.ID)
 		}
 	}
-	// 刷新成功后清除临时不可调度状态（处理 OAuth 401 恢复场景）
-	if account.TempUnschedulableUntil != nil && time.Now().Before(*account.TempUnschedulableUntil) {
+	// 刷新成功后只清除凭据型 401 临时不可调度状态。Grok 推理 403 等非凭据
+	// 冷却不能被一次 token refresh 意外解除。
+	if s.grokRefreshClearsTempUnschedulable(ctx, account) {
 		if clearErr := s.accountRepo.ClearTempUnschedulable(ctx, account.ID); clearErr != nil {
 			slog.Warn("token_refresh.clear_temp_unschedulable_failed",
 				"account_id", account.ID,
@@ -1222,14 +1242,15 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 		} else {
 			slog.Info("token_refresh.cleared_temp_unschedulable", "account_id", account.ID)
 			s.notifyAccountSchedulingBlockCleared(account.ID)
-		}
-		// 同步清除 Redis 缓存，避免调度器读到过期的临时不可调度状态
-		if s.tempUnschedCache != nil {
-			if clearErr := s.tempUnschedCache.DeleteTempUnsched(ctx, account.ID); clearErr != nil {
-				slog.Warn("token_refresh.clear_temp_unsched_cache_failed",
-					"account_id", account.ID,
-					"error", clearErr,
-				)
+			// 缓存清理发生在持久状态清理成功之后。现有仓库没有按原因比较的
+			// 条件清理接口，因此这里不能防止清理与并发新 403 写入之间的竞态。
+			if s.tempUnschedCache != nil {
+				if clearErr := s.tempUnschedCache.DeleteTempUnsched(ctx, account.ID); clearErr != nil {
+					slog.Warn("token_refresh.clear_temp_unsched_cache_failed",
+						"account_id", account.ID,
+						"error", clearErr,
+					)
+				}
 			}
 		}
 	}
@@ -1244,6 +1265,36 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 	if account != nil && account.Platform == PlatformGrok && accountGrokNeedsReauth(account) {
 		clearGrokNeedsReauthExtra(ctx, s.accountRepo, account.ID)
 	}
+}
+
+func (s *TokenRefreshService) grokRefreshClearsTempUnschedulable(ctx context.Context, account *Account) bool {
+	if account == nil || account.TempUnschedulableUntil == nil || !time.Now().Before(*account.TempUnschedulableUntil) {
+		return false
+	}
+	if account.Platform != PlatformGrok {
+		return true
+	}
+	current := account
+	if s != nil && s.accountRepo != nil {
+		latest, err := s.accountRepo.GetByID(ctx, account.ID)
+		if err != nil || latest == nil {
+			return false
+		}
+		current = latest
+	}
+	return isGrokCredentialUnauthorizedTempReason(current.TempUnschedulableReason)
+}
+
+func isGrokCredentialUnauthorizedTempReason(reason string) bool {
+	reason = strings.TrimSpace(reason)
+	if reason == "grok credentials unauthorized" || reason == "grok oauth token unauthorized" {
+		return true
+	}
+	var state TempUnschedState
+	if err := json.Unmarshal([]byte(reason), &state); err != nil {
+		return false
+	}
+	return state.StatusCode == http.StatusUnauthorized
 }
 
 func (s *TokenRefreshService) postRefreshStateSyncWithCleanup(parent context.Context, account *Account) {

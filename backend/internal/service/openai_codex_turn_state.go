@@ -197,7 +197,8 @@ func (s *OpenAIGatewayService) openAICodexTurnStateMintedByOther(c *gin.Context,
 // 门控模型的 292 票由 applyOpenAICodexTicket 在守卫之后覆盖写入；
 // 非门控模型保持客户端回带（#5668）。
 // /responses 路径的客户端是真实 Codex，会按自身回合语义自行回带；服务端
-// 注入是 Claude 兼容桥（无法回带的客户端）的专属行为。
+// 注入是 Claude 兼容桥（无法回带的客户端）的专属行为。跨账号剥离之后，
+// applyOpenAICodexTicket 会按 (账号, 模型) 覆盖为已捕获的 292 门票。
 func (s *OpenAIGatewayService) guardOpenAICodexTurnStateEcho(c *gin.Context, account *Account, h http.Header) {
 	if s == nil || h == nil || account == nil {
 		return

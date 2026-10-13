@@ -116,7 +116,7 @@ func TestGetOpenAIUsage_OrdinaryOAuthUsesQuotaEndpoint(t *testing.T) {
 	svc := &AccountUsageService{
 		accountRepo: repo, cache: NewUsageCache(),
 		openAIQuotaService: NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil),
-			factory),
+			factory, nil),
 	}
 	waitForPersistence := func() {
 		t.Helper()
@@ -202,7 +202,7 @@ func TestGetOpenAIUsage_QuotaFailuresKeepSnapshotAndLocalStats(t *testing.T) {
 					account.ID: {Requests: 3, Tokens: 123, KiroCredits: 0.17},
 				}},
 				openAIQuotaService: NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil),
-					factory),
+					factory, nil),
 			}
 			before := shallowCopyMap(account.Extra)
 			usage, err := svc.GetUsage(context.Background(), account.ID, true)
@@ -320,7 +320,7 @@ func TestGetOpenAIUsage_MissingQuotaDataNeverInfers(t *testing.T) {
 			}
 			svc := &AccountUsageService{accountRepo: repo, cache: NewUsageCache()}
 			if mode != "unconfigured" {
-				svc.openAIQuotaService = NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory)
+				svc.openAIQuotaService = NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory, nil)
 			}
 			before := shallowCopyMap(account.Extra)
 			usage, err := svc.GetUsage(context.Background(), account.ID, true)
@@ -362,7 +362,7 @@ func TestGetOpenAIUsage_SparkShadowSelectsSparkQuota(t *testing.T) {
 	}))
 	svc := &AccountUsageService{
 		accountRepo: repo, cache: NewUsageCache(),
-		openAIQuotaService: NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory),
+		openAIQuotaService: NewOpenAIQuotaService(repo, nil, NewOpenAITokenProvider(repo, tokens, nil), factory, nil),
 	}
 	usage, err := svc.GetUsage(context.Background(), shadow.ID, true)
 	require.NoError(t, err)

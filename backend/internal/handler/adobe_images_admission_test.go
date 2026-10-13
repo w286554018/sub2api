@@ -125,7 +125,7 @@ func newAdobeAdmissionFixtureWithUsage(t *testing.T, upstream service.HTTPUpstre
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billingCacheService.Stop)
-	openAI := service.NewOpenAIGatewayService(nil, usageRepo, nil, nil, nil, nil, nil, cfg,
+	openAI := service.NewOpenAIGatewayService(nil, nil, usageRepo, nil, nil, nil, nil, nil, cfg,
 		nil, nil, service.NewBillingService(cfg, nil), nil, nil, upstream, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	slots := &adobeAdmissionSlotsCache{busyAccounts: map[int64]bool{}}

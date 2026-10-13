@@ -15,6 +15,7 @@ const (
 	RoleSuperAdmin = "super_admin"
 	RoleAdmin      = "admin"
 	RoleUser       = "user"
+	RoleObserver   = "observer"
 )
 
 // Platform constants

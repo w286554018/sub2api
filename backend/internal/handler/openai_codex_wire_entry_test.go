@@ -103,17 +103,51 @@ func codexWireAccount(id int64, mode string, enabled, raw bool) service.Account 
 	}
 }
 
+type codexWireEntryRepo struct {
+	*grokCredentialHandlerRepo
+}
+
+func (r *codexWireEntryRepo) GetOpenAITurnAdmission(ctx context.Context, id int64) (*service.Account, *service.Account, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var account, parent *service.Account
+	for _, candidate := range r.accounts {
+		if candidate.ID == id && !r.missingOnGet[id] {
+			copy := candidate
+			copy.Credentials = cloneCredentialMap(candidate.Credentials)
+			copy.Extra = cloneCredentialMap(candidate.Extra)
+			account = &copy
+			break
+		}
+	}
+	if account != nil && account.ParentAccountID != nil {
+		for _, candidate := range r.accounts {
+			if candidate.ID == *account.ParentAccountID {
+				copy := candidate
+				copy.Credentials = cloneCredentialMap(candidate.Credentials)
+				copy.Extra = cloneCredentialMap(candidate.Extra)
+				parent = &copy
+				break
+			}
+		}
+	}
+	return account, parent, nil
+}
+
 func newCodexWireEntry(t *testing.T, accounts ...service.Account) (*codexWireUpstream, *gin.Engine) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	repo := &grokCredentialHandlerRepo{accounts: accounts, missingOnGet: map[int64]bool{}}
+	repo := &codexWireEntryRepo{grokCredentialHandlerRepo: &grokCredentialHandlerRepo{accounts: accounts, missingOnGet: map[int64]bool{}}}
 	upstream := &codexWireUpstream{status: map[int64]int{}}
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	cfg.Gateway.MaxAccountSwitches = 3
 	billingCache := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billingCache.Stop)
 	gateway := service.NewOpenAIGatewayService(
-		repo, nil, nil, nil, nil, nil, nil, cfg, nil, nil,
+		repo, nil, nil, nil, nil, nil, nil, nil, cfg, nil, nil,
 		service.NewBillingService(cfg, nil), nil, billingCache, upstream,
 		&service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil,
 	)

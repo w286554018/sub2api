@@ -9,6 +9,7 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | **Docker Compose** | Quick setup, all-in-one | Not needed (auto-setup) |
 | **Apple container** | Native local stack on macOS 26 | Not needed (auto-setup) |
 | **Binary Install** | Production servers, systemd | Web-based wizard |
+| **[Kubernetes / K3s](kubernetes/README.md)** | Request replicas with a shared primary | Pre-provisioned config / Secrets |
 
 ## Files
 
@@ -27,6 +28,9 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | `sub2api-datamanagementd.service` | datamanagementd systemd service unit file |
 | `DATAMANAGEMENTD_CN.md` | datamanagementd 部署与联动说明（中文） |
 | `config.example.yaml` | Example configuration file |
+| `install-mihomo-codex.sh` | Optional Mihomo sidecar for rotating Codex ticket harvest exits |
+| `mihomo-codex.service` | Systemd unit for the Mihomo ticket proxy |
+| `mihomo-codex.config.example.yaml` | Sanitized Mihomo subscription configuration example |
 | `EDGE_SECURITY.md` | Reverse proxy, CDN/WAF, trusted proxy, and ingress hardening guide |
 
 ---
@@ -269,6 +273,8 @@ docker compose down -v
 | `GEMINI_OAUTH_CLIENT_SECRET` | No | *(builtin)* | Google OAuth client secret (Gemini OAuth). Leave empty to use the built-in Gemini CLI client. |
 | `GEMINI_OAUTH_SCOPES` | No | *(default)* | OAuth scopes (Gemini OAuth) |
 | `GEMINI_QUOTA_POLICY` | No | *(empty)* | JSON overrides for Gemini local quota simulation (Code Assist only). |
+| `GATEWAY_API_KEY_QUEUE_MAX_WAITING` | No | `5` | Extra waiting requests per API key with `concurrency_limit>0`; `0` disables key queueing and restores immediate `429`. Read at process start; recreate the container after changing. |
+| `GATEWAY_API_KEY_QUEUE_TIMEOUT_SECONDS` | No | `30` | Per-request wait budget in seconds for key capacity; must be a positive integer. Read at process start; recreate the container after changing. |
 
 See `.env.example` for all available options.
 
@@ -480,6 +486,40 @@ sudo journalctl -u sub2api -f
 # Enable auto-start on boot
 sudo systemctl enable sub2api
 ```
+
+### Codex 292 ticket proxy
+
+The Codex ticket harvester can use a local Mihomo sidecar backed by an airport
+subscription. This keeps subscription credentials outside the application
+database and limits the proxy listener to localhost. Run the optional installer
+as root on the same server as Sub2API:
+
+```bash
+sudo MIHOMO_CODEX_SUBSCRIPTION_URL='https://provider.example/subscription' \
+  bash deploy/install-mihomo-codex.sh
+```
+
+For a fresh or versioned binary install, the same environment variable makes
+`install.sh` configure the sidecar automatically after downloading the
+release:
+
+```bash
+sudo MIHOMO_CODEX_SUBSCRIPTION_URL='https://provider.example/subscription' \
+  bash deploy/install.sh install -v v2.7.2
+```
+
+Without the variable, the installer detects an already active sidecar and
+leaves it untouched. It cannot provision an airport subscription on your
+behalf; the subscription URL remains the only required provider input.
+
+The installer downloads the pinned compatible Mihomo release, configures the
+`airport` provider with health checks and a `CODEX-ROTATE` round-robin group,
+and listens on `http://127.0.0.1:3101`. Set the admin setting **292 harvest
+proxy** to that local URL. Mihomo rotates only the ticket-harvest traffic;
+normal account requests continue to use their configured residential proxy.
+
+The subscription URL is written only to `/etc/mihomo-codex/config.yaml`
+(`0640`, `root:mihomo-codex`) and must not be committed or printed in logs.
 
 ### Configuration
 

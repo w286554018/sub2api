@@ -333,7 +333,7 @@ func (h *GatewayHandler) admitAdobeImagesRequest(
 	}
 
 	streamStarted := false
-	userRelease, err := h.concurrencyHelper.AcquireUserSlotWithWait(c, subject.UserID, subject.Concurrency, false, &streamStarted)
+	userRelease, err := h.concurrencyHelper.AcquireUserSlotWithWaitForDetachedRequest(c, subject.UserID, subject.Concurrency, apiKey.ID, apiKey.ConcurrencyLimit, false, &streamStarted)
 	if err != nil {
 		reqLog.Warn("adobe_images.user_slot_acquire_failed", zap.Error(err))
 		release()

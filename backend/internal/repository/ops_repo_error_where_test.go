@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -110,7 +111,9 @@ func TestOpsRepositoryDeleteErrorLogs_UsesErrorFacetFilters(t *testing.T) {
 		ErrorTypesAny:  []string{"cyber_policy"},
 	}
 
-	mock.ExpectExec(`(?s)DELETE FROM ops_error_logs e WHERE.*e.error_phase = \$3.*COALESCE\(e.upstream_status_code, e.status_code, 0\) = ANY\(\$4\).*e.error_phase = ANY\(\$5\).*e.error_type = ANY\(\$6\)`).
+	phase := regexp.QuoteMeta(opsEffectivePhaseSQL("e"))
+	errorType := regexp.QuoteMeta(opsEffectiveTypeSQL("e"))
+	mock.ExpectExec(`(?s)DELETE FROM ops_error_logs e WHERE.*`+phase+` = \$3.*COALESCE\(e.upstream_status_code, e.status_code, 0\) = ANY\(\$4\).*`+phase+` = ANY\(\$5\).*`+errorType+` = ANY\(\$6\)`).
 		WithArgs(start, end, "request", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(0, 2))
 

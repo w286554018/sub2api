@@ -27,7 +27,7 @@ func adobeRoutesRouterWithResolver(t *testing.T, group *service.Group, resolver 
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	// 不设上限的话 RequestBodyLimit 会按 0 字节拒收，测试请求进不到 handler。
 	cfg.Gateway.MaxBodySize = 1 << 20
-	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, cfg,
+	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, cfg,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := &handler.Handlers{
 		Gateway: handler.NewGatewayHandler(nil, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -213,7 +213,7 @@ func adobeGeminiV1BetaRouterWithResolver(t *testing.T, group *service.Group, res
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	cfg.Gateway.MaxBodySize = 1 << 20
-	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, cfg,
+	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, cfg,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := handler.NewGatewayHandler(nil, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, service.NewAdobeImageService(nil), cfg, nil)

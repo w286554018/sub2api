@@ -157,6 +157,7 @@ type cachedCodexRestrictionPolicy struct {
 type cachedCyberSessionBlockRuntime struct {
 	allowlistedUsers map[int64]struct{}
 	enabled          bool
+	strict           bool
 	ttl              time.Duration
 	expiresAt        int64 // unix nano
 }
@@ -173,7 +174,7 @@ const openAIQuotaAutoPauseSettingsRefreshKey = "openai_quota_auto_pause_settings
 
 // GetCyberSessionBlockRuntime 返回 (开关, TTL)，进程内缓存 ~60s，
 // 供网关热路径读取时避免 DB 往返。
-// 屏蔽设置与用户白名单在单次 singleflight 中一起读取。
+// 屏蔽开关、TTL、严格身份开关与用户白名单在单次 singleflight 中一起读取。
 // 默认值：开关 false，TTL 1h（与粘性会话对齐）。
 func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool, time.Duration) {
 	if cached, ok := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime); ok && cached != nil {
@@ -194,15 +195,25 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 
 		enabledVal, enabledErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberSessionBlockEnabled)
 		ttlVal, ttlErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberSessionBlockTTLSeconds)
+		strictVal, strictErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberSessionIdentityStrictEnabled)
 
 		previous, _ := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime)
 		cacheTTL := cyberSessionBlockRuntimeCacheTTL
-		if enabledErr != nil && !errors.Is(enabledErr, ErrSettingNotFound) {
+		enabledLoadFailed := enabledErr != nil && !errors.Is(enabledErr, ErrSettingNotFound)
+		if enabledLoadFailed {
 			slog.Warn("failed to get cyber_session_block_enabled setting", "error", enabledErr)
 			cacheTTL = cyberSessionBlockRuntimeErrorTTL
 		}
 
+		if strictErr != nil && !errors.Is(strictErr, ErrSettingNotFound) {
+			slog.Warn("failed to get cyber_session_identity_strict_enabled setting", "error", strictErr)
+			strictVal = "false"
+			cacheTTL = cyberSessionBlockRuntimeErrorTTL
+		}
+
 		enabled := enabledErr == nil && strings.TrimSpace(enabledVal) == "true"
+		// A failed switch read also turns the strict identity gate off.
+		strict := !enabledLoadFailed && strictErr == nil && strings.TrimSpace(strictVal) == "true"
 
 		ttl := time.Hour
 		if ttlErr == nil {
@@ -226,6 +237,7 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 		entry := &cachedCyberSessionBlockRuntime{
 			allowlistedUsers: allowlistedUsers,
 			enabled:          enabled,
+			strict:           strict,
 			ttl:              ttl,
 			expiresAt:        time.Now().Add(cacheTTL).UnixNano(),
 		}
@@ -236,6 +248,20 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 		return entry.enabled, entry.ttl
 	}
 	return false, time.Hour
+}
+
+// GetCyberSessionIdentityStrictEnabled returns the default-off strict identity
+// gate. It shares the cyber runtime cache so the hot path does not add another
+// database round trip.
+func (s *SettingService) GetCyberSessionIdentityStrictEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return false
+	}
+	_, _ = s.GetCyberSessionBlockRuntime(ctx)
+	if cached, ok := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime); ok && cached != nil {
+		return cached.strict
+	}
+	return false
 }
 
 // GetAntigravityUserAgentVersion 返回 Antigravity 上游请求使用的版本号。
@@ -312,7 +338,8 @@ func (s *SettingService) GetOpenAICodexTicketEnabled(ctx context.Context, fallba
 		}
 	}
 	resultCh := s.openAICodexTicketEnabledSF.DoChan(SettingKeyOpenAICodexTicketEnabled, func() (any, error) {
-		if cached, ok := s.openAICodexTicketEnabledCache.Load().(*cachedOpenAICodexTicketEnabled); ok && cached != nil {
+		snapshot := s.openAICodexTicketEnabledCache.Load()
+		if cached, ok := snapshot.(*cachedOpenAICodexTicketEnabled); ok && cached != nil {
 			if time.Now().UnixNano() < cached.expiresAt {
 				return cached.value, nil
 			}
@@ -333,7 +360,9 @@ func (s *SettingService) GetOpenAICodexTicketEnabled(ctx context.Context, fallba
 		if err == nil && strings.TrimSpace(value) != "" {
 			enabled = value == "true"
 		}
-		s.openAICodexTicketEnabledCache.Store(&cachedOpenAICodexTicketEnabled{
+		// An in-flight pre-write read must not overwrite invalidation or a
+		// newer value and make the freshly awakened harvester see stale state.
+		s.openAICodexTicketEnabledCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketEnabled{
 			value:     enabled,
 			expiresAt: time.Now().Add(openAICodexTicketEnabledCacheTTL).UnixNano(),
 		})
@@ -366,8 +395,15 @@ type cachedOpenAICodexTicketFailClosed struct {
 const openAICodexTicketFailClosedCacheTTL = 5 * time.Second
 
 // GetOpenAICodexTicketFailClosed 返回缺票拦截开关（门控模型无票时是否暂停该账号调度）。
-// 设置键存在时以后台为准；缺失则回退 yaml/env（默认 true）。
-func (s *SettingService) GetOpenAICodexTicketFailClosed(ctx context.Context, fallback bool) bool {
+// 设置键存在时以后台为准，兼容两种调用形态：
+//
+//	GetOpenAICodexTicketFailClosed(ctx)                —— 后台缺省即 fail-open（false）
+//	GetOpenAICodexTicketFailClosed(ctx, yamlFallback)  —— fork 语义：缺省回退 yaml 值
+func (s *SettingService) GetOpenAICodexTicketFailClosed(ctx context.Context, fallbackValues ...bool) bool {
+	fallback := false
+	if len(fallbackValues) > 0 {
+		fallback = fallbackValues[0]
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -383,7 +419,8 @@ func (s *SettingService) GetOpenAICodexTicketFailClosed(ctx context.Context, fal
 		}
 	}
 	resultCh := s.openAICodexTicketFailClosedSF.DoChan(SettingKeyOpenAICodexTicketFailClosed, func() (any, error) {
-		if cached, ok := s.openAICodexTicketFailClosedCache.Load().(*cachedOpenAICodexTicketFailClosed); ok && cached != nil {
+		snapshot := s.openAICodexTicketFailClosedCache.Load()
+		if cached, ok := snapshot.(*cachedOpenAICodexTicketFailClosed); ok && cached != nil {
 			if time.Now().UnixNano() < cached.expiresAt {
 				return cached.value, nil
 			}
@@ -404,7 +441,7 @@ func (s *SettingService) GetOpenAICodexTicketFailClosed(ctx context.Context, fal
 		if err == nil && strings.TrimSpace(value) != "" {
 			failClosed = value == "true"
 		}
-		s.openAICodexTicketFailClosedCache.Store(&cachedOpenAICodexTicketFailClosed{
+		s.openAICodexTicketFailClosedCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketFailClosed{
 			value:     failClosed,
 			expiresAt: time.Now().Add(openAICodexTicketFailClosedCacheTTL).UnixNano(),
 		})
@@ -427,6 +464,79 @@ func (s *SettingService) InvalidateOpenAICodexTicketFailClosedCache() {
 	}
 	s.openAICodexTicketFailClosedSF.Forget(SettingKeyOpenAICodexTicketFailClosed)
 	s.openAICodexTicketFailClosedCache.Store(&cachedOpenAICodexTicketFailClosed{expiresAt: 0})
+}
+
+type cachedOpenAICodexTicketModels struct {
+	models     []string
+	configured bool
+	expiresAt  int64
+}
+
+const openAICodexTicketModelsCacheTTL = 5 * time.Second
+
+// GetOpenAICodexTicketModels returns the model list saved by the admin panel.
+// A missing setting falls back to the static config; an explicitly saved empty
+// list remains empty so individual models can be disabled.
+func (s *SettingService) GetOpenAICodexTicketModels(ctx context.Context, fallback []string) []string {
+	if len(fallback) == 0 {
+		fallback = []string{openAICodexTicketDefaultModel, openAICodexTicketDefaultSolModel}
+	}
+	fallback = NormalizeOpenAICodexTicketModels(fallback)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if s == nil || s.settingRepo == nil || ctx.Err() != nil {
+		return fallback
+	}
+	if cached, ok := s.openAICodexTicketModelsCache.Load().(*cachedOpenAICodexTicketModels); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+		if cached.configured {
+			return NormalizeOpenAICodexTicketModels(cached.models)
+		}
+		return fallback
+	}
+	resultCh := s.openAICodexTicketModelsSF.DoChan(SettingKeyOpenAICodexTicketModels, func() (any, error) {
+		snapshot := s.openAICodexTicketModelsCache.Load()
+		dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, SettingKeyOpenAICodexTicketModels)
+		if errors.Is(err, ErrSettingNotFound) {
+			s.openAICodexTicketModelsCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketModels{expiresAt: time.Now().Add(openAICodexTicketModelsCacheTTL).UnixNano()})
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		var models []string
+		if err := json.Unmarshal([]byte(value), &models); err != nil {
+			return nil, err
+		}
+		models = NormalizeOpenAICodexTicketModels(models)
+		s.openAICodexTicketModelsCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketModels{models: models, configured: true, expiresAt: time.Now().Add(openAICodexTicketModelsCacheTTL).UnixNano()})
+		return models, nil
+	})
+	select {
+	case <-ctx.Done():
+		return fallback
+	case result := <-resultCh:
+		if result.Err == nil {
+			if models, ok := result.Val.([]string); ok {
+				return NormalizeOpenAICodexTicketModels(models)
+			}
+			return fallback
+		}
+		if cached, ok := s.openAICodexTicketModelsCache.Load().(*cachedOpenAICodexTicketModels); ok && cached != nil && cached.configured {
+			return NormalizeOpenAICodexTicketModels(cached.models)
+		}
+		return fallback
+	}
+}
+
+func (s *SettingService) InvalidateOpenAICodexTicketModelsCache() {
+	if s == nil {
+		return
+	}
+	s.openAICodexTicketModelsSF.Forget(SettingKeyOpenAICodexTicketModels)
+	s.openAICodexTicketModelsCache.Store(&cachedOpenAICodexTicketModels{expiresAt: 0})
 }
 
 type cachedOpenAICodexTicketHarvestProxy struct {
@@ -453,7 +563,8 @@ func (s *SettingService) GetOpenAICodexTicketHarvestProxyURL(ctx context.Context
 		}
 	}
 	resultCh := s.openAICodexTicketHarvestProxySF.DoChan(SettingKeyOpenAICodexTicketHarvestProxyURL, func() (any, error) {
-		if cached, ok := s.openAICodexTicketHarvestProxyCache.Load().(*cachedOpenAICodexTicketHarvestProxy); ok && cached != nil {
+		snapshot := s.openAICodexTicketHarvestProxyCache.Load()
+		if cached, ok := snapshot.(*cachedOpenAICodexTicketHarvestProxy); ok && cached != nil {
 			if time.Now().UnixNano() < cached.expiresAt {
 				return cached.value, nil
 			}
@@ -465,17 +576,18 @@ func (s *SettingService) GetOpenAICodexTicketHarvestProxyURL(ctx context.Context
 			return nil, ctx.Err()
 		}
 		if err != nil && !errors.Is(err, ErrSettingNotFound) {
+			// Keep the last known proxy during transient storage failures.
 			if cached, ok := s.openAICodexTicketHarvestProxyCache.Load().(*cachedOpenAICodexTicketHarvestProxy); ok && cached != nil {
 				value = cached.value
 			}
-			s.openAICodexTicketHarvestProxyCache.Store(&cachedOpenAICodexTicketHarvestProxy{
+			s.openAICodexTicketHarvestProxyCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketHarvestProxy{
 				value:     value,
 				expiresAt: time.Now().Add(time.Second).UnixNano(),
 			})
 			return value, nil
 		}
 		value = strings.TrimSpace(value)
-		s.openAICodexTicketHarvestProxyCache.Store(&cachedOpenAICodexTicketHarvestProxy{
+		s.openAICodexTicketHarvestProxyCache.CompareAndSwap(snapshot, &cachedOpenAICodexTicketHarvestProxy{
 			value:     value,
 			expiresAt: time.Now().Add(openAICodexTicketHarvestProxyCacheTTL).UnixNano(),
 		})

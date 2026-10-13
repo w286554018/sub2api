@@ -53,7 +53,7 @@ describe('UserCreateModal role permissions', () => {
   it('ordinary administrators can only create normal users', () => {
     const wrapper = mountModal()
 
-    expect(wrapper.get('[data-test="role-options"]').text()).toBe('user')
+    expect(wrapper.get('[data-test="role-options"]').text()).toBe('user,observer')
   })
 
   it('super administrators can create every supported role', () => {
@@ -61,6 +61,6 @@ describe('UserCreateModal role permissions', () => {
 
     const wrapper = mountModal()
 
-    expect(wrapper.get('[data-test="role-options"]').text()).toBe('user,admin,super_admin')
+    expect(wrapper.get('[data-test="role-options"]').text()).toBe('user,observer,admin,super_admin')
   })
 })

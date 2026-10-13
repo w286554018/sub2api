@@ -13,6 +13,7 @@ import type {
   NotifyEmailEntry,
 } from "@/types";
 import type { RechargeBonusTier } from "@/utils/rechargeBonus";
+import type { SupportTicketConfig } from "@/api/supportTickets";
 
 /** Codex 门票订阅档位长度规则：plan 对账号 plan_type 做小写子串匹配，先命中先生效 */
 export interface CodexTicketPlanLengthRule {
@@ -39,6 +40,7 @@ export interface PlatformQuotaLimits {
 
 /** 全平台默认限额 map（key = PlatformType） */
 export type DefaultPlatformQuotasMap = Partial<Record<PlatformType, PlatformQuotaLimits>>
+
 
 export type SchedulingThresholdPlatformType =
   | "openai"
@@ -408,6 +410,10 @@ export function deriveWeChatConnectStoredMode(
  * System settings interface
  */
 export interface SystemSettings {
+	excel_bps_enabled: boolean;
+	prism_browser_enabled: boolean;
+	prism_browser_base_url: string;
+	prism_browser_api_key_configured: boolean;
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
@@ -612,6 +618,7 @@ export interface SystemSettings {
   grok_default_text_model: string;
   grok_cross_client_model_map_enabled: boolean;
   grok_default_base_url_mode: string;
+  grok_video_source_url_enabled: boolean;
 
   // Per-platform account auto-pause thresholds (100 = disabled)
   account_scheduling_thresholds: AccountSchedulingThresholdsMap;
@@ -655,6 +662,13 @@ export interface SystemSettings {
   openai_codex_ticket_harvest_proxy_configured: boolean;
   openai_codex_ticket_default_length: number;
   openai_codex_ticket_plan_lengths: CodexTicketPlanLengthRule[] | null;
+  openai_request_timezone_enabled: boolean;
+  openai_codex_ticket_strategy?: 'fixed' | 'standby';
+  openai_codex_ticket_harvest_scope?: { mode: 'all' | 'selected' | 'selected_accounts'; group_ids: number[]; account_policy: 'schedulable_only' | 'prioritize_schedulable' };
+  openai_codex_ticket_strict_response?: boolean;
+  openai_codex_ticket_candy_observation?: boolean;
+  openai_codex_ticket_static_proxy_url?: string;
+  openai_codex_ticket_models: string[];
   claude_code_client_version: string;
   claude_code_client_version_synced: string;
   claude_code_version_auto_sync_enabled: boolean;
@@ -675,6 +689,7 @@ export interface SystemSettings {
   cyber_policy_user_allowlist: string;
   cyber_session_block_enabled: boolean;
   cyber_session_block_ttl_seconds: number;
+  cyber_session_identity_strict_enabled: boolean;
 
   payment_min_amount: number;
   payment_max_amount: number;
@@ -744,7 +759,7 @@ export interface SystemSettings {
 
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
-  channel_monitor_mode?: 'v1' | 'v2';
+  channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;
@@ -752,6 +767,8 @@ export interface SystemSettings {
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+
+  // The Pelican showcase settings are edited on the Smart Ops page (api/admin/pelicanTests).
 
   // Subscription feature switch (user sidebar "My Subscriptions" entry)
   subscription_enabled: boolean;
@@ -762,6 +779,10 @@ export interface SystemSettings {
   model_plaza_description: string;
   plugin_management_enabled: boolean;
 
+  // Support tickets (网站工单) switch + form config
+  support_ticket_enabled: boolean;
+  support_ticket_config: SupportTicketConfig;
+
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
@@ -770,9 +791,33 @@ export interface SystemSettings {
 
   // Allow user view error requests
   allow_user_view_error_requests: boolean;
+  usage_show_long_context_badge: boolean;
+  request_capture_enabled: boolean;
+  request_capture_quota_mib: number;
+  request_capture_retention_days: number;
+  excel_bps_image_mode: 'relay' | 'native'
+  excel_bps_image_relay_enabled: boolean;
+  excel_bps_image_base_url: string;
+  excel_bps_image_body_limit_mib: number;
+  excel_bps_image_budget_mib: number;
+  excel_bps_image_max_requests: number;
+  excel_bps_image_max_image_mib: number;
+  excel_bps_image_max_images: number;
+  excel_bps_image_limit_policy: "off" | "auto_compact" | "warn";
+  excel_bps_image_warning_remaining: number;
+  excel_bps_image_compact_reserve: number;
+
+  excel_bps_image_max_total_mib: number;
+  excel_bps_image_storage_mib: number;
+  excel_bps_image_storage_entries: number;
+  excel_bps_image_ttl_minutes: number;
 }
 
 export interface UpdateSettingsRequest {
+	excel_bps_enabled?: boolean;
+	prism_browser_enabled?: boolean;
+	prism_browser_base_url?: string;
+	prism_browser_api_key?: string;
   registration_enabled?: boolean;
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
@@ -958,6 +1003,7 @@ export interface UpdateSettingsRequest {
   grok_default_text_model?: string;
   grok_cross_client_model_map_enabled?: boolean;
   grok_default_base_url_mode?: string;
+  grok_video_source_url_enabled?: boolean;
   account_scheduling_thresholds?: AccountSchedulingThresholdsMap;
   enable_identity_patch?: boolean;
   identity_patch_prompt?: string;
@@ -987,6 +1033,13 @@ export interface UpdateSettingsRequest {
   openai_codex_ticket_harvest_proxy_url?: string;
   openai_codex_ticket_default_length?: number;
   openai_codex_ticket_plan_lengths?: CodexTicketPlanLengthRule[];
+  openai_request_timezone_enabled?: boolean;
+  openai_codex_ticket_strategy?: 'fixed' | 'standby';
+  openai_codex_ticket_harvest_scope?: { mode: 'all' | 'selected' | 'selected_accounts'; group_ids: number[]; account_policy: 'schedulable_only' | 'prioritize_schedulable' };
+  openai_codex_ticket_use_saved_static_proxy?: boolean;
+  openai_codex_ticket_strict_response?: boolean;
+  openai_codex_ticket_candy_observation?: boolean;
+  openai_codex_ticket_models?: string[];
   claude_code_client_version?: string;
   claude_code_version_auto_sync_enabled?: boolean;
   // codex_cli_only 加固
@@ -1004,6 +1057,7 @@ export interface UpdateSettingsRequest {
   cyber_policy_user_allowlist?: string;
   cyber_session_block_enabled?: boolean;
   cyber_session_block_ttl_seconds?: number;
+  cyber_session_identity_strict_enabled?: boolean;
 
   payment_min_amount?: number;
   payment_max_amount?: number;
@@ -1061,7 +1115,7 @@ export interface UpdateSettingsRequest {
 
   // Channel Monitor feature switch
   channel_monitor_enabled?: boolean;
-  channel_monitor_mode?: 'v1' | 'v2';
+  channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds?: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;
@@ -1079,6 +1133,10 @@ export interface UpdateSettingsRequest {
   model_plaza_description?: string;
   plugin_management_enabled?: boolean;
 
+  // Support tickets (网站工单) switch + form config
+  support_ticket_enabled?: boolean;
+  support_ticket_config?: SupportTicketConfig;
+
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
 
@@ -1086,6 +1144,26 @@ export interface UpdateSettingsRequest {
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
   allow_user_view_error_requests?: boolean;
+  usage_show_long_context_badge?: boolean;
+  request_capture_enabled?: boolean;
+  request_capture_quota_mib?: number;
+  request_capture_retention_days?: number;
+  excel_bps_image_mode?: 'relay' | 'native'
+  excel_bps_image_relay_enabled?: boolean;
+  excel_bps_image_base_url?: string;
+  excel_bps_image_body_limit_mib?: number;
+  excel_bps_image_budget_mib?: number;
+  excel_bps_image_max_requests?: number;
+  excel_bps_image_max_image_mib?: number;
+  excel_bps_image_max_images?: number;
+  excel_bps_image_limit_policy?: "off" | "auto_compact" | "warn";
+  excel_bps_image_warning_remaining?: number;
+  excel_bps_image_compact_reserve?: number;
+
+  excel_bps_image_max_total_mib?: number;
+  excel_bps_image_storage_mib?: number;
+  excel_bps_image_storage_entries?: number;
+  excel_bps_image_ttl_minutes?: number;
 }
 
 /**

@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      notify_release:
+        description: 'Send the release announcement to Telegram (explicit opt-in)'
+        required: false
+        type: boolean
+        default: false
       dry_run:
         description: 'Build and verify all selected artifacts without publishing'
         required: false
@@ -33,7 +38,6 @@ env:
   DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
 
 jobs:
-
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -41,6 +45,7 @@ jobs:
       owner_lower: ${{ steps.plan.outputs.owner_lower }}
       tag: ${{ steps.plan.outputs.tag }}
       version: ${{ steps.plan.outputs.version }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
       date: ${{ steps.plan.outputs.date }}
       matrix: ${{ steps.plan.outputs.matrix }}
       simple: ${{ steps.plan.outputs.simple }}
@@ -125,7 +130,6 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.sha }}
           fetch-depth: 0
-
       - uses: actions/download-artifact@v8
         with:
           name: release-tooling
@@ -135,7 +139,6 @@ jobs:
           name: version-file
           path: backend/cmd/server/
       - uses: actions/download-artifact@v8
-
         with:
           name: frontend-dist
           path: backend/internal/web/dist/
@@ -288,6 +291,16 @@ jobs:
           GITHUB_REPO_NAME: ${{ github.event.repository.name }}
           GITHUB_REPO_OWNER_LOWER: ${{ needs.prepare.outputs.owner_lower }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || 'skip' }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: reauth-runtime-*
+          path: reauth-output
+          merge-multiple: true
+      - name: Publish verified re-login runtimes
+        if: ${{ env.DRY_RUN != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" reauth-output/*.tar.gz --repo "$GITHUB_REPOSITORY"
       - name: Upload dry-run checksums and metadata
         if: ${{ env.DRY_RUN == 'true' }}
         uses: actions/upload-artifact@v7
@@ -315,7 +328,7 @@ jobs:
 
       # Send Telegram notification
       - name: Send Telegram Notification
-        if: ${{ env.DRY_RUN != 'true' && env.SIMPLE_RELEASE != 'true' }}
+        if: ${{ env.DRY_RUN != 'true' && env.SIMPLE_RELEASE != 'true' && needs.prepare.outputs.prerelease != 'true' && inputs.notify_release == true }}
         env:
           TAG_MESSAGE: ${{ steps.tag_message.outputs.message }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -386,7 +399,7 @@ jobs:
 
   sync-version-file:
     needs: [prepare, release]
-    if: ${{ needs.release.result == 'success' && needs.prepare.outputs.dry_run != 'true' }}
+    if: ${{ needs.release.result == 'success' && needs.prepare.outputs.dry_run != 'true' && needs.prepare.outputs.prerelease != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

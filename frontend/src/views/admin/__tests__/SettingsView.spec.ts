@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, h } from "vue";
-import { flushPromises, mount } from "@vue/test-utils";
+import { excelBPSImageLimits } from "@/utils/excelBPSImageLimits";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h, reactive } from "vue";
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 
 import enCommon from "@/i18n/locales/en/common";
 import enSettings from "@/i18n/locales/en/admin/settings";
@@ -8,6 +9,21 @@ import zhCommon from "@/i18n/locales/zh/common";
 import zhSettings from "@/i18n/locales/zh/admin/settings";
 import Select from "@/components/common/Select.vue";
 import SettingsView from "../SettingsView.vue";
+import { chooseSelectOption, selectModelValue } from "@/__tests__/helpers/select";
+
+enableAutoUnmount(afterEach);
+
+const settingsRoute = reactive({ query: {} as Record<string, unknown>, hash: '' });
+vi.mock('vue-router', async (importOriginal) => ({
+  ...await importOriginal<typeof import('vue-router')>(),
+  useRoute: () => settingsRoute,
+  useRouter: () => ({ replace: vi.fn(async (location) => Object.assign(settingsRoute, location)) }),
+}));
+beforeEach(() => {
+  settingsRoute.query = {};
+  settingsRoute.hash = '';
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 const {
   getSettings,
@@ -340,6 +356,17 @@ const baseSettingsResponse = {
   doc_url: "",
   home_content: "",
   compact_home_enabled: false,
+  excel_bps_enabled: true,
+  excel_bps_image_mode: 'native',
+  excel_bps_image_relay_enabled: true,
+  excel_bps_image_base_url: '',
+  excel_bps_image_max_image_mib: 20,
+  excel_bps_image_max_images: 20,
+  excel_bps_image_max_total_mib: 32,
+  excel_bps_image_storage_mib: 1024,
+  excel_bps_image_storage_entries: 512,
+  excel_bps_image_ttl_minutes: 30,
+
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -407,6 +434,7 @@ const baseSettingsResponse = {
   fallback_model_antigravity: "",
   grok_default_text_model: "grok-4.5",
   grok_cross_client_model_map_enabled: false,
+  grok_video_source_url_enabled: false,
   enable_identity_patch: false,
   identity_patch_prompt: "",
   ops_monitoring_enabled: false,
@@ -520,6 +548,7 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        EmailTemplateEditor: true,
       },
     },
   });
@@ -720,65 +749,403 @@ describe("admin SettingsView payment visible method controls", () => {
     wrapper.unmount();
   });
 
-  it("loads Codex ticket plan length rules and submits normalized updates", async () => {
+  it("opens the risk settings from a deep link after loading without changing switches", async () => {
+    settingsRoute.query = { tab: 'features' };
+    settingsRoute.hash = '#settings-section-features-risk-control';
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, risk_control_enabled: false, cyber_session_block_enabled: false });
+    const wrapper = mountView();
+    document.body.appendChild(wrapper.element);
+    await flushPromises();
+    expect(wrapper.get('#settings-tab-features').attributes('aria-selected')).toBe('true');
+    const heading = wrapper.get('#settings-section-features-risk-control');
+    expect(heading.isVisible()).toBe(true);
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    const vm = wrapper.vm as unknown as { form: { risk_control_enabled: boolean; cyber_session_block_enabled: boolean } };
+    expect(vm.form.risk_control_enabled).toBe(false);
+    expect(vm.form.cyber_session_block_enabled).toBe(false);
+    expect(updateSettings).not.toHaveBeenCalled();
+
+    await wrapper.get('#settings-tab-general').trigger('click');
+    await flushPromises();
+    expect(settingsRoute.hash).toBe('');
+    settingsRoute.query = { tab: 'features' };
+    settingsRoute.hash = '#settings-section-features-risk-control';
+    await flushPromises();
+    expect(heading.isVisible()).toBe(true);
+    expect(document.activeElement).toBe(heading.element);
+
+    settingsRoute.query = { tab: 'invalid' };
+    settingsRoute.hash = '#unknown';
+    await flushPromises();
+    expect(wrapper.get('#settings-tab-general').attributes('aria-selected')).toBe('true');
+    expect(updateSettings).not.toHaveBeenCalled();
+    wrapper.unmount();
+    document.body.innerHTML = '';
+  });
+
+  it("points to Smart Ops for the Pelican showcase and never saves its settings", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
-      openai_codex_ticket_default_length: 292,
-      openai_codex_ticket_plan_lengths: [{ plan: "business", length: 332 }],
+      pelican_showcase_enabled: true,
+      pelican_showcase_config: { max_items: 30, auto_cleanup: true, retention_days: 7 },
     });
     const wrapper = mountView();
     await flushPromises();
-
-    const defaultLength = wrapper.get<HTMLInputElement>("#codex-ticket-default-length");
-    expect(defaultLength.element.value).toBe("292");
-    const planSection = wrapper.get("#codex-ticket-plan-rule-add").element.parentElement?.parentElement;
-    const claudeVersionSection = wrapper.get('input[placeholder="2.1.280"]').element.parentElement;
-    expect(planSection?.parentElement).toBe(claudeVersionSection?.parentElement);
-    expect(planSection?.parentElement?.classList.contains("space-y-5")).toBe(true);
-    let rows = wrapper.findAll('[data-test="codex-ticket-plan-row"]');
-    expect(rows).toHaveLength(1);
-    // plan 用通用 Select 展示：非预设值（business）原样显示，长度仍是数字输入
-    const planSelect = rows[0].getComponent(Select);
-    expect(planSelect.props("creatable")).toBe(true);
-    expect(planSelect.props("options")).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ value: "plus", label: "Plus" }),
-        expect.objectContaining({ value: "team", label: "Business" }),
-        expect.objectContaining({ value: "self_serve_business_prolite", label: "Business Premium" }),
-      ]),
-    );
-    expect(rows[0].get("button.select-trigger").text()).toBe("business");
-    expect(rows[0].get('input[type="number"]').element.value).toBe("332");
-
-    // 修改默认长度，追加一条 team 规则（大小写与空白应被规整）。
-    await defaultLength.setValue(296);
-    await wrapper.get("#codex-ticket-plan-rule-add").trigger("click");
-    rows = wrapper.findAll('[data-test="codex-ticket-plan-row"]');
-    await rows[1].getComponent(Select).vm.$emit("update:modelValue", "  Team ");
-    await rows[1].get('input[type="number"]').setValue(332);
+    const card = wrapper.get('[data-testid="pelican-showcase-moved"]');
+    expect(card.get("router-link").attributes("to")).toBe("/admin/pelican-tests");
 
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
     const payload = updateSettings.mock.calls[0]?.[0];
-    expect(payload.openai_codex_ticket_default_length).toBe(296);
-    expect(payload.openai_codex_ticket_plan_lengths).toEqual([
-      { plan: "business", length: 332 },
-      { plan: "team", length: 332 },
-    ]);
+    expect(payload).toBeDefined();
+    // Saving system settings must not overwrite what the Smart Ops page saved.
+    expect(payload).not.toHaveProperty("pelican_showcase_enabled");
+    expect(payload).not.toHaveProperty("pelican_showcase_config");
     wrapper.unmount();
   });
 
-  it("submits an empty Codex plan rules list after removing the last rule", async () => {
+  it("leaves the monitor mode alone unless it was changed here", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, channel_monitor_enabled: true, channel_monitor_mode: "v3" });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    // The monitor page may have switched the mode since this page loaded.
+    expect(updateSettings.mock.calls[0]?.[0]?.channel_monitor_mode).toBeUndefined();
+
+    const featuresTab = wrapper.findAll("button").find((node) => node.text().includes("admin.settings.tabs.features"));
+    await featuresTab?.trigger("click");
+    await flushPromises();
+    await wrapper.get('[data-testid="settings-monitor-mode-v1"]').trigger("click");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.calls[1]?.[0]).toMatchObject({ channel_monitor_mode: "v1" });
+    wrapper.unmount();
+  });
+
+  it("edits the support ticket card and sends a cleaned config", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
-      openai_codex_ticket_plan_lengths: [{ plan: "team", length: 332 }],
+      support_ticket_enabled: false,
+      support_ticket_config: { categories: ["账户与充值", "其他"], max_open_per_user: 5, notice: "" },
     });
     const wrapper = mountView();
     await flushPromises();
-    await wrapper.find("button.btn-ghost-danger").trigger("click");
+    const card = wrapper.get('[data-testid="support-ticket-settings"]');
+    expect(card.find('[data-testid="support-ticket-categories"]').exists()).toBe(false);
+    await wrapper.get("#support-ticket-enabled").setValue(true);
+    const inputs = () => wrapper.get('[data-testid="support-ticket-categories"]').findAll("input");
+    expect(inputs().map((input) => (input.element as HTMLInputElement).value)).toEqual(["账户与充值", "其他"]);
+    await wrapper.get('[data-testid="support-ticket-add-category"]').trigger("click");
+    await inputs()[2].setValue("  退款  ");
+    await wrapper.get('[data-testid="support-ticket-add-category"]').trigger("click");
+    await wrapper.get("#support-ticket-max-open").setValue("8");
+    await wrapper.get("#support-ticket-notice").setValue("工作时间 9–21 点");
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
-    expect(updateSettings.mock.calls[0]?.[0].openai_codex_ticket_plan_lengths).toEqual([]);
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({
+      support_ticket_enabled: true,
+      support_ticket_config: { categories: ["账户与充值", "其他", "退款"], max_open_per_user: 8, notice: "工作时间 9–21 点" },
+    });
+    wrapper.unmount();
+  });
+
+  it("saves expanded image capacity and rejects values above each ceiling", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay' });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#excel-bps-image-enabled').setValue(true);
+    await wrapper.get('#excel-bps-image-base-url').setValue('https://images.example');
+    const fields = [
+      ['body-limit', 'body_limit_mib', excelBPSImageLimits.bodyMiB],
+      ['budget', 'budget_mib', excelBPSImageLimits.budgetMiB],
+      ['max-requests', 'max_requests', excelBPSImageLimits.requests],
+      ['max-image-mib', 'max_image_mib', excelBPSImageLimits.imageMiB],
+      ['max-total-mib', 'max_total_mib', excelBPSImageLimits.totalMiB],
+      ['max-images', 'max_images', excelBPSImageLimits.images],
+      ['storage-mib', 'storage_mib', excelBPSImageLimits.storageMiB],
+      ['storage-entries', 'storage_entries', excelBPSImageLimits.storageEntries],
+      ['ttl-minutes', 'ttl_minutes', excelBPSImageLimits.ttlMinutes],
+    ] as const;
+    for (const [id, , maximum] of fields) {
+      const input = wrapper.get('#excel-bps-image-' + id);
+      expect(input.attributes('max')).toBe(String(maximum));
+      await input.setValue(String(maximum));
+    }
+    // Check each invalid field independently while all other fields are valid.
+    for (const [id, , maximum] of fields) {
+      const input = wrapper.get('#excel-bps-image-' + id);
+      await input.setValue(String(maximum + 1));
+      await wrapper.find('form').trigger('submit.prevent');
+      await flushPromises();
+      expect(updateSettings).not.toHaveBeenCalled();
+      await input.setValue(String(maximum));
+    }
+    showError.mockClear();
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    for (const [, key, maximum] of fields) {
+      expect(updateSettings.mock.calls[0]?.[0]).toHaveProperty('excel_bps_image_' + key, maximum);
+    }
+    expect(showError).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("saves Excel BPS image relay from the feature switches tab", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay', excel_bps_image_relay_enabled: false });
+    const wrapper = mountView();
+    await flushPromises();
+    const tab = wrapper.findAll('button').find((node) => node.text().includes('admin.settings.tabs.features'));
+    expect(tab).toBeDefined();
+    await tab?.trigger('click');
+    const card = wrapper.get('[data-testid="excel-bps-image-settings"]');
+    expect(card.isVisible()).toBe(true);
+    expect(card.find('#excel-bps-image-base-url').exists()).toBe(false);
+    await card.get('#excel-bps-image-enabled').setValue(true);
+    await card.get('#excel-bps-image-base-url').setValue(' https://images.example/ ');
+    await card.get('#excel-bps-image-body-limit').setValue('32');
+    await card.get('#excel-bps-image-budget').setValue('768');
+    await card.get('#excel-bps-image-max-requests').setValue('512');
+    await card.get('#excel-bps-image-max-image-mib').setValue('30');
+    await card.get('#excel-bps-image-max-images').setValue('100');
+    await card.get('#excel-bps-image-max-total-mib').setValue('64');
+    await card.get('#excel-bps-image-storage-mib').setValue('2048');
+    await card.get('#excel-bps-image-storage-entries').setValue('2048');
+    await card.get('#excel-bps-image-ttl-minutes').setValue('60');
+
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({
+      excel_bps_image_relay_enabled: true,
+      excel_bps_image_base_url: 'https://images.example',
+      excel_bps_image_body_limit_mib: 32,
+      excel_bps_image_budget_mib: 768,
+      excel_bps_image_max_requests: 512,
+      excel_bps_image_max_image_mib: 30,
+      excel_bps_image_max_images: 100,
+      excel_bps_image_max_total_mib: 64,
+      excel_bps_image_storage_mib: 2048,
+      excel_bps_image_storage_entries: 2048,
+      excel_bps_image_ttl_minutes: 60,
+
+    });
+    expect(showError).not.toHaveBeenCalled();
+    expect(showSuccess).toHaveBeenCalledWith('admin.settings.settingsSaved');
+    wrapper.unmount();
+  });
+
+  it("saves the BPS and Prism protocol switches", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    const tab = wrapper.findAll('button').find((node) => node.text().includes('admin.settings.tabs.features'));
+    await tab?.trigger('click');
+    const protocolSwitches = wrapper.get('[data-testid="protocol-feature-switches"]');
+    await protocolSwitches.get('input').setValue(false);
+    await protocolSwitches.findAll('input')[1].setValue(true);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_enabled: false, prism_browser_enabled: true });
+    wrapper.unmount();
+  });
+
+  it("defaults to native image uploads without a public origin and reloads the mode", async () => {
+    const settings: Partial<typeof baseSettingsResponse> = { ...baseSettingsResponse };
+    delete settings.excel_bps_image_mode;
+    delete settings.excel_bps_image_relay_enabled;
+    getSettings.mockResolvedValueOnce(settings);
+    const wrapper = mountView();
+    await flushPromises();
+    expect((wrapper.get('#excel-bps-image-enabled').element as HTMLInputElement).checked).toBe(true);
+    expect(selectModelValue(wrapper, '#excel-bps-image-mode')).toBe('native');
+    expect(wrapper.find('#excel-bps-image-base-url').exists()).toBe(false);
+    expect(wrapper.find('#excel-bps-image-max-images').exists()).toBe(true);
+    expect(wrapper.find('#excel-bps-image-storage-mib').exists()).toBe(false);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_mode: 'native', excel_bps_image_relay_enabled: true, excel_bps_image_base_url: '' });
+    expect(showError).not.toHaveBeenCalled();
+    wrapper.unmount();
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'native', excel_bps_image_relay_enabled: true });
+    const loaded = mountView();
+    await flushPromises();
+    expect(selectModelValue(loaded, '#excel-bps-image-mode')).toBe('native');
+    expect(loaded.find('#excel-bps-image-base-url').exists()).toBe(false);
+    expect(loaded.find('#excel-bps-image-max-images').exists()).toBe(true);
+    await chooseSelectOption(loaded, '#excel-bps-image-mode', 'relay');
+    expect(loaded.find('#excel-bps-image-max-images').exists()).toBe(true);
+    loaded.unmount();
+  });
+
+  it("preserves explicitly disabled BPS image support", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_relay_enabled: false });
+    const wrapper = mountView();
+    await flushPromises();
+    expect((wrapper.get('#excel-bps-image-enabled').element as HTMLInputElement).checked).toBe(false);
+    expect(wrapper.find('#excel-bps-image-mode').exists()).toBe(false);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_relay_enabled: false });
+    wrapper.unmount();
+  });
+
+  it("defaults the image policy off and saves auto compaction", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#excel-bps-image-enabled').setValue(true);
+    await chooseSelectOption(wrapper, '#excel-bps-image-mode', 'native');
+    expect(selectModelValue(wrapper, '#bps-image-limit-policy')).toBe('off');
+    await chooseSelectOption(wrapper, '#bps-image-limit-policy', 'auto_compact');
+    expect(wrapper.find('#bps-image-compact-reserve').exists()).toBe(false);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_limit_policy: 'auto_compact', excel_bps_image_warning_remaining: 8, excel_bps_image_compact_reserve: 3 });
+    expect(showError).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("validates warning margins and reloads the policy", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_relay_enabled: true, excel_bps_image_mode: 'native', excel_bps_image_limit_policy: 'warn', excel_bps_image_warning_remaining: 8, excel_bps_image_compact_reserve: 3 });
+    const wrapper = mountView();
+    await flushPromises();
+    expect(selectModelValue(wrapper, '#bps-image-limit-policy')).toBe('warn');
+    for (const [selector, value, original] of [
+      ['#bps-image-warning-remaining', '20', '8'],
+      ['#bps-image-compact-reserve', '8', '3'],
+      ['#bps-image-compact-reserve', '0', '3'],
+      ['#bps-image-warning-remaining', '8.5', '8'],
+    ]) {
+      await wrapper.get(selector).setValue(value);
+      await wrapper.find('form').trigger('submit.prevent');
+      await flushPromises();
+      expect(updateSettings).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenLastCalledWith('admin.settings.features.excelBpsImages.invalidLimits');
+      await wrapper.get(selector).setValue(original);
+    }
+    await wrapper.get('#bps-image-warning-remaining').setValue('9');
+    await wrapper.get('#bps-image-compact-reserve').setValue('4');
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_limit_policy: 'warn', excel_bps_image_warning_remaining: 9, excel_bps_image_compact_reserve: 4 });
+    wrapper.unmount();
+  });
+
+  it("loads saved Excel BPS image settings and preserves the address when disabled", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay', excel_bps_image_relay_enabled: true, excel_bps_image_base_url: 'https://saved.example', excel_bps_image_body_limit_mib: 24, excel_bps_image_budget_mib: 896, excel_bps_image_max_requests: 40 });
+    const wrapper = mountView();
+    await flushPromises();
+    expect((wrapper.get('#excel-bps-image-base-url').element as HTMLInputElement).value).toBe('https://saved.example');
+    expect((wrapper.get('#excel-bps-image-body-limit').element as HTMLInputElement).value).toBe('24');
+    expect((wrapper.get('#excel-bps-image-budget').element as HTMLInputElement).value).toBe('896');
+    expect((wrapper.get('#excel-bps-image-max-requests').element as HTMLInputElement).value).toBe('40');
+    await wrapper.get('#excel-bps-image-enabled').setValue(false);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_relay_enabled: false, excel_bps_image_base_url: 'https://saved.example', excel_bps_image_body_limit_mib: 24, excel_bps_image_budget_mib: 896, excel_bps_image_max_requests: 40 });
+    wrapper.unmount();
+  });
+
+  it("rejects inconsistent image limits and preserves saved limits when disabling", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay', excel_bps_image_relay_enabled: true, excel_bps_image_base_url: 'https://images.example', excel_bps_image_max_images: 100, excel_bps_image_ttl_minutes: 60 });
+    const wrapper = mountView();
+    await flushPromises();
+    expect((wrapper.get('#excel-bps-image-max-images').element as HTMLInputElement).value).toBe('100');
+    for (const [id, value, original] of [
+      ['max-images', '0', '100'], ['max-images', String(excelBPSImageLimits.images + 1), '100'], ['ttl-minutes', String(excelBPSImageLimits.ttlMinutes + 1), '60'],
+      ['max-total-mib', '1', '32'], ['storage-entries', '99', '512'], ['storage-mib', '1', '1024'],
+    ]) {
+      await wrapper.get(`#excel-bps-image-${id}`).setValue(value);
+      await wrapper.find('form').trigger('submit.prevent');
+      await flushPromises();
+      expect(updateSettings).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenLastCalledWith('admin.settings.features.excelBpsImages.invalidLimits');
+      await wrapper.get(`#excel-bps-image-${id}`).setValue(original);
+    }
+    await wrapper.get('#excel-bps-image-enabled').setValue(false);
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({ excel_bps_image_relay_enabled: false, excel_bps_image_max_images: 100, excel_bps_image_ttl_minutes: 60 });
+    wrapper.unmount();
+  });
+
+  it("rejects missing or unsafe Excel BPS image origins before saving", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay' });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#excel-bps-image-enabled').setValue(true);
+    for (const value of ['', 'http://images.example', 'https://images.example/v1', 'https://user:secret@images.example', 'https://images.example?token=secret', 'https://images.example#']) {
+      await wrapper.get('#excel-bps-image-base-url').setValue(value);
+      await wrapper.find('form').trigger('submit.prevent');
+      await flushPromises();
+      expect(updateSettings).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenLastCalledWith('admin.settings.features.excelBpsImages.invalidBaseUrl');
+    }
+    wrapper.unmount();
+  });
+
+  it("rejects out-of-range image relay capacity before saving", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, excel_bps_image_mode: 'relay' });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('#excel-bps-image-enabled').setValue(true);
+    await wrapper.get('#excel-bps-image-base-url').setValue('https://images.example');
+    for (const [selector, value] of [
+      ['#excel-bps-image-body-limit', String(excelBPSImageLimits.bodyMiB + 1)],
+      ['#excel-bps-image-budget', '511'],
+      ['#excel-bps-image-max-requests', '0'],
+      ['#excel-bps-image-max-requests', String(excelBPSImageLimits.requests + 1)],
+      ['#excel-bps-image-max-requests', '1.5'],
+    ]) {
+      const input = wrapper.get(selector);
+      const original = (input.element as HTMLInputElement).value;
+      await input.setValue(value);
+      await wrapper.find('form').trigger('submit.prevent');
+      await flushPromises();
+      expect(updateSettings).not.toHaveBeenCalled();
+      expect(showError).toHaveBeenLastCalledWith('admin.settings.features.excelBpsImages.invalidCapacity');
+      await input.setValue(original);
+    }
+    await wrapper.get('#excel-bps-image-body-limit').setValue('128');
+    await wrapper.get('#excel-bps-image-budget').setValue('512');
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenLastCalledWith('admin.settings.features.excelBpsImages.invalidCapacity');
+    wrapper.unmount();
+  });
+
+  it.each([false, true])("loads and toggles request timezone binding from %s", async (enabled) => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, openai_request_timezone_enabled: enabled });
+    const wrapper = mountView();
+    await flushPromises();
+    const toggle = wrapper.get<HTMLInputElement>("#request-timezone-enabled");
+    expect(toggle.element.checked).toBe(enabled);
+    await toggle.setValue(!enabled);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0].openai_request_timezone_enabled).toBe(!enabled);
+  });
+
+  it("keeps advanced harvest policy and exit settings in their dedicated pages", async () => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse,
+      openai_codex_ticket_enabled: true,
+      openai_codex_ticket_harvest_proxy_url: "ippool://active",
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    // Advanced harvest scope/strategy/models/exit controls live on the dedicated pages.
+    expect(wrapper.find("#codex-ticket-harvest-scope").exists()).toBe(false);
+    expect(wrapper.find("#codex-ticket-strategy").exists()).toBe(false);
+    expect(wrapper.find('[data-testid="codex-management-links"]').exists()).toBe(true);
+    // Legacy compatibility controls stay editable here.
+    expect(wrapper.find("#codex-ticket-enabled").exists()).toBe(true);
+    expect(wrapper.find("#codex-ticket-harvest-proxy").exists()).toBe(true);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    const payloadKeys = Object.keys(updateSettings.mock.calls[0]?.[0] ?? {});
+    expect(payloadKeys).not.toContain("openai_codex_ticket_models");
+    expect(payloadKeys).not.toContain("openai_codex_ticket_strategy");
+    expect(payloadKeys).not.toContain("openai_codex_ticket_harvest_scope");
     wrapper.unmount();
   });
 
@@ -1544,6 +1911,29 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload.grok_cross_client_model_map_enabled).toBe(false);
   });
 
+  it("loads and saves the Grok video source URL switch", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      grok_video_source_url_enabled: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openGatewayTab(wrapper);
+
+    const sourceURLToggle = wrapper.get(
+      '[data-testid="grok-video-source-url-toggle"]',
+    );
+    expect((sourceURLToggle.element as HTMLInputElement).checked).toBe(true);
+
+    await sourceURLToggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload.grok_video_source_url_enabled).toBe(false);
+  });
+
   it("loads and saves the OpenAI Responses first-token metric mode", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
@@ -1748,8 +2138,10 @@ describe("admin SettingsView payment visible method controls", () => {
         },
       },
       setup(props) {
-        receivedProviders = props.providers as Array<Record<string, unknown>>;
-        return () => h("div", { class: "provider-list-capture" });
+        return () => {
+          receivedProviders = props.providers as Array<Record<string, unknown>>;
+          return h("div", { class: "provider-list-capture" });
+        };
       },
     });
 
@@ -2102,6 +2494,67 @@ describe("admin SettingsView platform quota matrix", () => {
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({ items: [] });
     getProviders.mockResolvedValue({ data: [] });
+  });
+
+  it("loads Codex ticket plan length rules and submits normalized updates", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      openai_codex_ticket_default_length: 292,
+      openai_codex_ticket_plan_lengths: [{ plan: "business", length: 332 }],
+    });
+    const wrapper = mountView();
+    await flushPromises();
+
+    const defaultLength = wrapper.get<HTMLInputElement>("#codex-ticket-default-length");
+    expect(defaultLength.element.value).toBe("292");
+    const planSection = wrapper.get("#codex-ticket-plan-rule-add").element.parentElement?.parentElement;
+    const claudeVersionSection = wrapper.get('input[placeholder="2.1.280"]').element.parentElement;
+    expect(planSection?.parentElement).toBe(claudeVersionSection?.parentElement);
+    expect(planSection?.parentElement?.classList.contains("space-y-5")).toBe(true);
+    let rows = wrapper.findAll('[data-test="codex-ticket-plan-row"]');
+    expect(rows).toHaveLength(1);
+    // plan 用通用 Select 展示：非预设值（business）原样显示，长度仍是数字输入
+    const planSelect = rows[0].getComponent(Select);
+    expect(planSelect.props("creatable")).toBe(true);
+    expect(planSelect.props("options")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "plus", label: "Plus" }),
+        expect.objectContaining({ value: "team", label: "Business" }),
+        expect.objectContaining({ value: "self_serve_business_prolite", label: "Business Premium" }),
+      ]),
+    );
+    expect(rows[0].get("button.select-trigger").text()).toBe("business");
+    expect(rows[0].get('input[type="number"]').element.value).toBe("332");
+
+    // 修改默认长度，追加一条 team 规则（大小写与空白应被规整）。
+    await defaultLength.setValue(296);
+    await wrapper.get("#codex-ticket-plan-rule-add").trigger("click");
+    rows = wrapper.findAll('[data-test="codex-ticket-plan-row"]');
+    await rows[1].getComponent(Select).vm.$emit("update:modelValue", "  Team ");
+    await rows[1].get('input[type="number"]').setValue(332);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    const payload = updateSettings.mock.calls[0]?.[0];
+    expect(payload.openai_codex_ticket_default_length).toBe(296);
+    expect(payload.openai_codex_ticket_plan_lengths).toEqual([
+      { plan: "business", length: 332 },
+      { plan: "team", length: 332 },
+    ]);
+    wrapper.unmount();
+  });
+
+  it("submits an empty Codex plan rules list after removing the last rule", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      openai_codex_ticket_plan_lengths: [{ plan: "team", length: 332 }],
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find("button.btn-ghost-danger").trigger("click");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0].openai_codex_ticket_plan_lengths).toEqual([]);
+    wrapper.unmount();
   });
 
   it("从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 7 平台行", async () => {

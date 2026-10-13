@@ -216,6 +216,8 @@ func TestAdaptResponsesClientToolsForAnthropic_NormalizesBareNamespaceHistoryFor
 	require.Equal(t, []string{"functions__exec", "functions__exec"}, toolUseNames)
 }
 
+// Codex 的 codex_app 工具（如 automation_update）把 parameters 根节点声明成对象
+// 联合；Responses→Anthropic 转换后 input_schema 顶部不能再出现联合关键字。
 func TestAdaptResponsesClientToolsForAnthropic_FlattensRootUnionSchema(t *testing.T) {
 	t.Parallel()
 

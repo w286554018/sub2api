@@ -1834,6 +1834,24 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	defer releaseUpstreamCtx()
 
+	if direct && account.IsExcelBPSImagesEnabledForModel(requestModel) && s.excelBPSGloballyEnabled(ctx) {
+		if reason := excelBPSImagesUnsupportedReason(parsed); reason != "" {
+			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Images request stays on Codex: account_id=%d bps_unsupported=%s", account.ID, reason)
+		} else {
+			result, fallback, err := s.forwardExcelBPSImages(upstreamCtx, c, account, parsed, requestModel, upstreamModel, startTime)
+			if !fallback {
+				return result, err
+			}
+		}
+	}
+
+	credentialAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)
+	if err != nil {
+		return nil, err
+	}
+	if credentialAccount.IsExcelOAuth() {
+		return nil, writeExcelOAuthRouteError(c)
+	}
 	token, _, err := s.GetAccessToken(upstreamCtx, account)
 	if err != nil {
 		return nil, err

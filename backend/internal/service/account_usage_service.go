@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	httppool "github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
+	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
@@ -159,6 +162,9 @@ type WindowStats struct {
 	StandardCost float64 `json:"standard_cost"`
 	UserCost     float64 `json:"user_cost"`
 	KiroCredits  float64 `json:"kiro_credits"`
+	// Lifetime totals (no time filter); only populated by today-stats queries.
+	LifetimeTokens int64   `json:"lifetime_tokens,omitempty"`
+	LifetimeCost   float64 `json:"lifetime_cost,omitempty"`
 }
 
 // UsageProgress 使用量进度
@@ -838,7 +844,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 				if quotaUsage, err := s.openAIQuotaService.QueryUsage(ctx, account.ID); err == nil {
 					if updates := buildCodexSparkWindowExtraUpdates(quotaUsage, now); len(updates) > 0 {
 						mergeAccountExtra(account, updates)
-						s.persistOpenAICodexProbeSnapshot(account.ID, updates)
+						s.persistOpenAICodexProbeSnapshot(account.ID, updates, nil)
 						if account.ParentAccountID != nil {
 							notifyOpenAIAutoReset(*account.ParentAccountID)
 						}
@@ -855,7 +861,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 			if quotaUsage, err := s.openAIQuotaService.QueryUsage(ctx, account.ID); err == nil {
 				if updates := buildCodexPrimaryWindowExtraUpdates(quotaUsage, now); len(updates) > 0 {
 					mergeAccountExtra(account, updates)
-					s.persistOpenAICodexProbeSnapshot(account.ID, updates)
+					s.persistOpenAICodexProbeSnapshot(account.ID, updates, nil)
 					if usage.UpdatedAt == nil {
 						usage.UpdatedAt = &now
 					}
@@ -942,7 +948,99 @@ func nextOpenAIProbeAllowedAt(now time.Time) time.Time {
 	return now.Add(openAIProbeCacheTTL + rand.N(openAIProbeCacheTTLMax-openAIProbeCacheTTL+1))
 }
 
-func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, updates map[string]any) {
+func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, account *Account) (map[string]any, error) {
+	if account == nil || !account.IsOAuth() {
+		return nil, nil
+	}
+	observed := observeOpenAIQuotaRecovery(account, time.Now())
+	accessToken := ""
+	if !account.IsOpenAIAgentIdentity() {
+		accessToken = account.GetOpenAIAccessToken()
+	}
+	if accessToken == "" && !account.IsOpenAIAgentIdentity() {
+		return nil, fmt.Errorf("no access token available")
+	}
+	modelID := openaipkg.CodexUsageProbeModel
+	payload := createOpenAITestPayload(modelID, true)
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal openai probe payload: %w", err)
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create openai probe request: %w", err)
+	}
+	req.Host = "chatgpt.com"
+	req.Header.Set("Content-Type", "application/json")
+	if account.IsOpenAIAgentIdentity() {
+		authHeaders, authErr := buildAgentIdentityAuthenticationHeaders(ctx, s.accountRepo, s.agentIdentityWS, &s.agentIdentityTaskMu, account)
+		if authErr != nil {
+			return nil, fmt.Errorf("build Agent Identity authentication: %w", authErr)
+		}
+		for key, values := range authHeaders {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
+	} else {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("OpenAI-Beta", "responses=experimental")
+	canonical := resolveCodexOutboundIdentity("")
+	req.Header.Set("Originator", canonical.originator)
+	req.Header.Set("Version", canonical.version)
+	req.Header.Set("User-Agent", canonical.userAgent)
+	if s.identityCache != nil {
+		if fp, fpErr := s.identityCache.GetFingerprint(reqCtx, account.ID); fpErr == nil && fp != nil && strings.TrimSpace(fp.UserAgent) != "" {
+			req.Header.Set("User-Agent", strings.TrimSpace(fp.UserAgent))
+		}
+	}
+	enforceCodexIdentityHeadersWithUA(req.Header, account.GetOpenAIUserAgent())
+	setOpenAIChatGPTAccountHeaders(req.Header, account)
+
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	client, err := httppool.GetClient(httppool.Options{
+		ProxyURL:              proxyURL,
+		Timeout:               15 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build openai probe client: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai codex probe request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	return s.persistOpenAICodexProbeResponse(account.ID, resp, observed)
+}
+
+func (s *AccountUsageService) persistOpenAICodexProbeResponse(accountID int64, resp *http.Response, observed *openAIQuotaRecoveryObservation) (map[string]any, error) {
+	updates, err := extractOpenAICodexProbeUpdates(resp)
+	if err != nil {
+		return nil, err
+	}
+	if len(updates) > 0 {
+		// Error responses can carry zero-usage headers too. Keep their display
+		// snapshot, but never use them to undo the account's cooldown.
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			observed = nil
+		}
+		s.persistOpenAICodexProbeSnapshot(accountID, updates, observed)
+		return updates, nil
+	}
+	return nil, nil
+}
+
+func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, updates map[string]any, observed *openAIQuotaRecoveryObservation) {
 	if s == nil || s.accountRepo == nil || accountID <= 0 {
 		return
 	}
@@ -954,6 +1052,7 @@ func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, u
 		updateCtx, updateCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer updateCancel()
 		if err := s.accountRepo.UpdateExtra(updateCtx, accountID, updates); err == nil {
+			recoverOpenAIQuotaRateLimit(updateCtx, s.accountRepo, observed, updates)
 			notifyOpenAIAutoReset(accountID)
 		}
 	}()
@@ -1422,21 +1521,25 @@ func (s *AccountUsageService) addWindowStats(ctx context.Context, account *Accou
 	}
 }
 
-// GetTodayStats 获取账号今日统计
+// GetTodayStats 获取账号今日统计，并附带账号累计 Token/费用。
 func (s *AccountUsageService) GetTodayStats(ctx context.Context, accountID int64) (*WindowStats, error) {
 	stats, err := s.usageLogRepo.GetAccountTodayStats(ctx, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("get today stats failed: %w", err)
 	}
 
-	return &WindowStats{
+	ws := &WindowStats{
 		Requests:     stats.Requests,
 		Tokens:       stats.Tokens,
 		Cost:         stats.Cost,
 		StandardCost: stats.StandardCost,
 		UserCost:     stats.UserCost,
 		KiroCredits:  stats.KiroCredits,
-	}, nil
+	}
+	if lifetime, lerr := s.usageLogRepo.GetAccountWindowStats(ctx, accountID, time.Time{}); lerr == nil {
+		attachLifetimeStats(ws, lifetime)
+	}
+	return ws, nil
 }
 
 // GetTodayStatsBatch 批量获取账号今日统计，优先走批量 SQL，失败时回退单账号查询。
@@ -1463,8 +1566,13 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 	if batchReader, ok := s.usageLogRepo.(accountWindowStatsBatchReader); ok {
 		statsByAccount, err := batchReader.GetAccountWindowStatsBatch(ctx, uniqueIDs, startTime)
 		if err == nil {
+			lifetimeByAccount, lerr := batchReader.GetAccountWindowStatsBatch(ctx, uniqueIDs, time.Time{})
 			for _, accountID := range uniqueIDs {
-				result[accountID] = windowStatsFromAccountStats(statsByAccount[accountID])
+				ws := windowStatsFromAccountStats(statsByAccount[accountID])
+				if lerr == nil {
+					attachLifetimeStats(ws, lifetimeByAccount[accountID])
+				}
+				result[accountID] = ws
 			}
 			return result, nil
 		}
@@ -1491,8 +1599,13 @@ func (s *AccountUsageService) GetTodayStatsBatch(ctx context.Context, accountIDs
 	_ = g.Wait()
 
 	for _, accountID := range uniqueIDs {
-		if _, ok := result[accountID]; !ok {
-			result[accountID] = &WindowStats{}
+		ws, ok := result[accountID]
+		if !ok {
+			ws = &WindowStats{}
+			result[accountID] = ws
+		}
+		if lifetime, err := s.usageLogRepo.GetAccountWindowStats(ctx, accountID, time.Time{}); err == nil {
+			attachLifetimeStats(ws, lifetime)
 		}
 	}
 	return result, nil
@@ -1510,6 +1623,14 @@ func windowStatsFromAccountStats(stats *usagestats.AccountStats) *WindowStats {
 		UserCost:     stats.UserCost,
 		KiroCredits:  stats.KiroCredits,
 	}
+}
+
+func attachLifetimeStats(ws *WindowStats, lifetime *usagestats.AccountStats) {
+	if ws == nil || lifetime == nil {
+		return
+	}
+	ws.LifetimeTokens = lifetime.Tokens
+	ws.LifetimeCost = lifetime.Cost
 }
 
 func buildCodexUsageProgressFromExtra(extra map[string]any, window string, now time.Time) *UsageProgress {

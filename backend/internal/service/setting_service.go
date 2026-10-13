@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Wei-Shaw/sub2api/internal/requestcapture"
+	"github.com/Wei-Shaw/sub2api/internal/serverless"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -68,6 +71,18 @@ func (s *SettingService) GetGrokDefaultBaseURLMode(ctx context.Context) string {
 	return normalizeGrokDefaultBaseURLMode(raw)
 }
 
+// IsGrokVideoSourceURLEnabled fails closed: lookup errors keep the xAI media
+// URL hidden behind the authenticated content proxy.
+func (s *SettingService) IsGrokVideoSourceURLEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return false
+	}
+	dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gatewayForwardingDBTimeout)
+	defer cancel()
+	raw, err := s.settingRepo.GetValue(dbCtx, SettingKeyGrokVideoSourceURLEnabled)
+	return err == nil && strings.TrimSpace(raw) == "true"
+}
+
 func (s *SettingService) GetGrokDefaultBaseURL(ctx context.Context) string {
 	return GrokBaseURLForMode(s.GetGrokDefaultBaseURLMode(ctx))
 }
@@ -117,6 +132,14 @@ type WebSearchManagerBuilder func(cfg *WebSearchEmulationConfig, proxyURLs map[i
 
 // SettingService 系统设置服务
 type SettingService struct {
+	Serverless                         *serverless.Manager // Initialized before requests start.
+	modelBillingCache                  modelBillingConfigCache
+	prioritySchedulingConfig           priorityConfigCache
+	requestCapture                     *requestcapture.Manager
+	astraRoutingMu                     sync.Mutex
+	astraRoutingOnSaved                func(config.AstraRoutingSettings)
+	astraRoutingCache                  *config.AstraRoutingSettings
+	astraRoutingExpires                time.Time
 	settingRepo                        SettingRepository
 	defaultSubGroupReader              DefaultSubscriptionGroupReader
 	proxyRepo                          ProxyRepository // for resolving websearch provider proxy URLs
@@ -131,11 +154,17 @@ type SettingService struct {
 	openAICodexVersionCache            atomic.Value // *cachedOpenAICodexClientVersion
 	openAICodexVersionSF               singleflight.Group
 	openAICodexTicketEnabledCache      atomic.Value // *cachedOpenAICodexTicketEnabled
+	openAIRequestTimezoneEnabledCache  atomic.Value // *cachedOpenAIRequestTimezoneEnabled
+	openAIRequestTimezoneEnabledSF     singleflight.Group
 	openAICodexTicketEnabledSF         singleflight.Group
 	openAICodexTicketFailClosedCache   atomic.Value // *cachedOpenAICodexTicketFailClosed
 	openAICodexTicketFailClosedSF      singleflight.Group
+	openAICodexTicketModelsCache       atomic.Value // *cachedOpenAICodexTicketModels
+	openAICodexTicketModelsSF          singleflight.Group
 	openAICodexTicketHarvestProxyCache atomic.Value // *cachedOpenAICodexTicketHarvestProxy
 	openAICodexTicketHarvestProxySF    singleflight.Group
+	openAICodexTicketHarvestScopeCache atomic.Value // *cachedOpenAICodexTicketHarvestScope
+	openAICodexTicketHarvestScopeSF    singleflight.Group
 	openAICodexTicketTargetLengthCache atomic.Value // *cachedOpenAICodexTicketTargetLength
 	openAICodexTicketTargetLengthSF    singleflight.Group
 	codexRestrictionPolicyCache        atomic.Value // *cachedCodexRestrictionPolicy
@@ -164,6 +193,8 @@ type SettingService struct {
 
 	channelMonitorRuntimeListenersMu sync.Mutex
 	channelMonitorRuntimeListeners   []func()
+	codexHarvestWakeOnce             sync.Once
+	codexHarvestWake                 chan struct{}
 }
 
 // DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）
@@ -299,10 +330,11 @@ const (
 
 // NewSettingService 创建系统设置服务实例
 func NewSettingService(settingRepo SettingRepository, cfg *config.Config) *SettingService {
-	return &SettingService{
-		settingRepo: settingRepo,
-		cfg:         cfg,
+	s := &SettingService{settingRepo: settingRepo, cfg: cfg}
+	if cfg != nil {
+		cfg.SetAstraRoutingLoader(s.astraRoutingRuntime)
 	}
+	return s
 }
 
 // SetDefaultSubscriptionGroupReader injects an optional group reader for default subscription validation.

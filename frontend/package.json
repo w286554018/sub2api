@@ -35,7 +35,7 @@
     "vue-draggable-plus": "^0.6.1",
     "vue-i18n": "^9.14.5",
     "vue-router": "^4.2.5",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@intlify/message-compiler": "9.14.5",
@@ -59,7 +59,9 @@
     "vite": "^5.0.10",
     "vite-plugin-checker": "^0.9.1",
     "vitest": "^2.1.9",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "tree-sitter-batch": "0.11.1",
+    "web-tree-sitter": "0.25.10"
   },
   "pnpm": {
     "overrides": {

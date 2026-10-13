@@ -29,6 +29,7 @@
         <label class="input-label">{{ t('admin.users.form.roleLabel') }}</label>
         <Select v-model="form.role" :options="roleOptions" />
       </div>
+      <ObserverGroupSelector v-if="form.role === 'observer'" v-model="form.observer_group_ids" />
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="input-label">{{ t('admin.users.columns.balance') }}</label>
@@ -71,6 +72,7 @@ import { reactive, ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import ObserverGroupSelector from './ObserverGroupSelector.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -82,11 +84,12 @@ const emit = defineEmits(['close', 'success']); const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin' | 'super_admin', balance: '', concurrency: 1, rpm_limit: 0 })
+const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user' as 'user' | 'admin' | 'super_admin' | 'observer', observer_group_ids: [] as number[], balance: '', concurrency: 1, rpm_limit: 0 })
 
 const roleOptions = computed<SelectOption[]>(() => {
   const options: SelectOption[] = [
     { value: 'user', label: t('admin.users.roles.user') },
+    { value: 'observer', label: t('admin.users.roles.observer') },
   ]
   if (authStore.isSuperAdmin) {
     options.push(
@@ -129,7 +132,7 @@ const submit = async () => {
   } finally { loading.value = false }
 }
 
-watch(() => props.show, (v) => { if(v) Object.assign(form, { email: '', password: '', username: '', notes: '', role: 'user', balance: '', concurrency: 1, rpm_limit: 0 }) })
+watch(() => props.show, (v) => { if(v) Object.assign(form, { email: '', password: '', username: '', notes: '', role: 'user', observer_group_ids: [], balance: '', concurrency: 1, rpm_limit: 0 }) })
 
 const generateRandomPassword = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*'

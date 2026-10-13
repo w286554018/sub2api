@@ -58,7 +58,7 @@ func (s *GatewayService) handleResponsesCompactionResponse(
 		heartbeat = hb.tick
 	}
 
-	finalResp, usage := s.collectAnthropicResponseFromSSE(resp.Body, requestID, heartbeat)
+	finalResp, usage := s.collectAnthropicResponseFromSSE(resp.Body, requestID, heartbeat, c)
 	if finalResp == nil {
 		return nil, s.failCompaction(c, clientStream, http.StatusBadGateway,
 			"Upstream stream ended without a response", requestID)

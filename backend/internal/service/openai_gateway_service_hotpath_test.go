@@ -117,6 +117,9 @@ func TestOpenAIGatewayService_Forward_APIKeyMissingInstructionsKeepsLargeInputRa
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          1,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -157,6 +160,9 @@ func TestOpenAIGatewayService_Forward_DecodedMutationKeepsLaterFieldDeletes(t *t
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          2,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -200,6 +206,9 @@ func TestOpenAIGatewayService_Forward_NormalizesMaxTokensAndStripsPromptCacheOpt
 		cfg.Security.URLAllowlist.Enabled = false
 		svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 		account := &Account{
+			Status:      StatusActive,
+			Schedulable: true,
+
 			ID:          4,
 			Name:        "openai-apikey",
 			Platform:    PlatformOpenAI,
@@ -249,6 +258,9 @@ func TestOpenAIGatewayService_Forward_MappedImageModelUsesImageGate(t *testing.T
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          3,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -308,6 +320,9 @@ func TestOpenAIGatewayService_Forward_TextResponsesSetsBillingModelToMappedModel
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          4,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -349,6 +364,9 @@ func TestOpenAIGatewayService_Forward_TextResponsesWithoutMappingKeepsRequestedB
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          4,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -378,6 +396,9 @@ func TestOpenAIGatewayService_Forward_TextResponsesBillingModelMatchesChatComple
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          5,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -444,6 +465,9 @@ func TestOpenAIGatewayService_Forward_TextDataImageDoesNotForceMapMarshal(t *tes
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          4,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -482,6 +506,9 @@ func TestOpenAIGatewayService_Forward_ImageToolBillingDoesNotForceFullDecode(t *
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          9,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -521,6 +548,9 @@ func TestOpenAIGatewayService_Forward_ImageToolWithImageOnlyModelIsNormalized(t 
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          11,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -564,6 +594,9 @@ func TestOpenAIGatewayService_Forward_HTTPRetryRecoveryDoesNotDecodeBeforeError(
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          10,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -611,6 +644,9 @@ func TestOpenAIGatewayService_Forward_HTTPRetryRecoveryDropsCompaction(t *testin
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          10,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -714,6 +750,9 @@ func TestOpenAIGatewayService_Forward_CodexSparkRejectsEscapedInputImage(t *test
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          5,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -755,6 +794,9 @@ func TestOpenAIGatewayService_Forward_CodexBridgeInjectionSetsImageBilling(t *te
 	cfg.Gateway.CodexImageGenerationBridgeEnabled = true
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          7,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -786,6 +828,9 @@ func TestOpenAIGatewayService_Forward_HTTPPreservesPreviousResponseIDForAPIKey(t
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          8,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -835,6 +880,9 @@ func TestOpenAIGatewayService_Forward_StripsImageGenerationToolForSparkAPIKey(t 
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          11,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -894,6 +942,9 @@ func TestOpenAIGatewayService_Forward_ImageOnlyModelKeepsSupportedVerbosity(t *t
 	cfg.Security.URLAllowlist.Enabled = false
 	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
 	account := &Account{
+		Status:      StatusActive,
+		Schedulable: true,
+
 		ID:          6,
 		Name:        "openai-apikey",
 		Platform:    PlatformOpenAI,
@@ -1102,4 +1153,26 @@ func TestSanitizeEmptyBase64InputImagesInOpenAIBody(t *testing.T) {
 			]}
 		]
 	}`, string(body))
+}
+
+func TestOpenAIGatewayService_Forward_StripsReasoningStatusBeforeFirstAttempt(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"id":"resp_test","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":2}}`))}}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+	svc := &OpenAIGatewayService{cfg: cfg, httpUpstream: upstream}
+	account := &Account{ID: 1, Status: StatusActive, Schedulable: true, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1, Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://example.com"}, Extra: map[string]any{"use_responses_api": true}}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	SetOpenAIClientTransport(c, OpenAIClientTransportHTTP)
+	body := []byte(`{"model":"gpt-5.6-sol","stream":false,"store":true,"input":[{"type":"reasoning","status":"completed","summary":[],"encrypted_content":"keep-cipher"},{"type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"prior"}]},{"type":"message","role":"user","content":"continue"}]}`)
+	result, err := svc.Forward(context.Background(), c, account, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, upstream.bodies, 1)
+	require.False(t, gjson.GetBytes(upstream.bodies[0], "input.0.status").Exists())
+	require.Equal(t, "keep-cipher", gjson.GetBytes(upstream.bodies[0], "input.0.encrypted_content").String())
+	require.Equal(t, "completed", gjson.GetBytes(upstream.bodies[0], "input.1.status").String())
+	require.Equal(t, "completed", gjson.GetBytes(body, "input.0.status").String(), "leave captured inbound bytes unchanged")
 }

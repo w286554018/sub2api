@@ -4,33 +4,47 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"testing"
-	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpsRepositoryLookupDeletedKeyAudit(t *testing.T) {
+// The deleted-key lookup was removed together with credential retention. Keep
+// this integration regression on the supported DeleteWithAudit compatibility
+// API: deletion releases the unique credential without retaining its material.
+func TestAPIKeyDeletionDoesNotRetainCredentialAudit(t *testing.T) {
 	ctx := context.Background()
-	_, _ = integrationDB.ExecContext(ctx, "TRUNCATE deleted_api_key_audits RESTART IDENTITY")
-	repo := NewOpsRepository(integrationDB).(*opsRepository)
+	client := testEntClient(t)
+	user := mustCreateUser(t, client, &service.User{})
+	credential := fmt.Sprintf("sk-delete-audit-%d", user.ID)
+	key := mustCreateApiKey(t, client, &service.APIKey{UserID: user.ID, Key: credential, Name: "original"})
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(ctx, "DELETE FROM api_keys WHERE user_id = $1", user.ID)
+		_, _ = integrationDB.ExecContext(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	})
 
-	// 同一 key 两条审计,取最近一条(deleted_at DESC, id DESC)
-	_, err := integrationDB.ExecContext(ctx, `
-		INSERT INTO deleted_api_key_audits (key, api_key_id, user_id, key_name, deleted_at)
-		VALUES ('sk-lookup-1', 10, 100, 'old', $1),
-		       ('sk-lookup-1', 11, 200, 'new', $2)`,
-		time.Now().Add(-time.Hour), time.Now())
-	require.NoError(t, err)
+	repo := NewAPIKeyRepository(client, integrationDB)
+	require.NoError(t, repo.DeleteWithAudit(ctx, key.ID))
+	require.NoError(t, repo.DeleteWithAudit(ctx, key.ID), "deletion remains idempotent")
+	_, err := repo.GetByKey(ctx, credential)
+	require.ErrorIs(t, err, service.ErrAPIKeyNotFound)
 
-	res, err := repo.LookupDeletedKeyAudit(ctx, "sk-lookup-1")
-	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, int64(200), res.UserID)
-	require.Equal(t, "new", res.KeyName)
+	var storedCredential string
+	var deletedAt sql.NullTime
+	require.NoError(t, integrationDB.QueryRowContext(ctx,
+		"SELECT key, deleted_at FROM api_keys WHERE id = $1", key.ID).Scan(&storedCredential, &deletedAt))
+	require.True(t, deletedAt.Valid)
+	require.NotEqual(t, credential, storedCredential)
+	require.Contains(t, storedCredential, fmt.Sprintf("__deleted__%d__", key.ID))
 
-	// 未命中返回 nil
-	miss, err := repo.LookupDeletedKeyAudit(ctx, "sk-never-existed")
-	require.NoError(t, err)
-	require.Nil(t, miss)
+	var auditCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM deleted_api_key_audits WHERE api_key_id = $1", key.ID).Scan(&auditCount))
+	require.Zero(t, auditCount)
+	// A replacement key can reuse the released unique value.
+	replacement := mustCreateApiKey(t, client, &service.APIKey{UserID: user.ID, Key: credential, Name: "replacement"})
+	require.NotEqual(t, key.ID, replacement.ID)
 }

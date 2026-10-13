@@ -99,3 +99,7 @@ CLAUDE.md
 .pi/
 .trellis/
 article.txt
+# Persistent encrypted 2FA recovery archives and their keys are never build inputs.
+**/totp-recovery/
+**/*.sealed
+**/credential-operations.key
