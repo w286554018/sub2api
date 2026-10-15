@@ -38,7 +38,12 @@ func TestRequestTimezoneSwitch(t *testing.T) {
 		{name: "enabled", value: "true", enabled: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := &OpenAIGatewayService{settingService: NewSettingService(&codexTicketLifecycleSettings{get: func(context.Context, string) (string, error) { return tc.value, tc.err }}, &config.Config{})}
+			svc := &OpenAIGatewayService{settingService: NewSettingService(&codexTicketLifecycleSettings{get: func(_ context.Context, key string) (string, error) {
+				if key == SettingKeyOpenAIRequestTimezoneAuto {
+					return "false", nil
+				}
+				return tc.value, tc.err
+			}}, &config.Config{})}
 			for _, transport := range []string{"http", "ws"} {
 				got := svc.normalizeRequestTimezone(context.Background(), account, body, transport)
 				if !tc.enabled {

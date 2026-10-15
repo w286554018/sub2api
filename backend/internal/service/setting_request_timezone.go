@@ -84,5 +84,9 @@ func (s *OpenAIGatewayService) normalizeRequestTimezone(ctx context.Context, acc
 	if account == nil || !account.IsOpenAI() || s == nil || !s.settingService.GetOpenAIRequestTimezoneEnabled(ctx, false) {
 		return body
 	}
+	// Automatic mode must wait until transport routing has selected the actual egress.
+	if s.settingService.GetOpenAIRequestTimezoneAuto(ctx, false) {
+		return body
+	}
 	return normalizeOpenAIRequestLocale(ctx, account, body, transport)
 }

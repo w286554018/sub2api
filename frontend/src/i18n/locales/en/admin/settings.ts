@@ -629,6 +629,12 @@ export default {
         claudeCodeVersionAutoSyncHint: 'Fetches the latest Claude Code client version from the official release channel every hour, so you never need to upgrade this service just to keep the version current. When disabled, fetching stops but the previously synced version remains available. The manual version above always takes priority.',
         claudeCodeVersionSyncedValue: 'Currently synced: {version}',
         codexHardeningTitle: "Codex Settings",
+        requestTimezoneEnabled: 'Bind request timezone',
+        requestTimezoneEnabledDesc: 'Choose a manual account timezone or automatic egress IP detection for existing environment context, web search timezone fields and supported timezone headers. Dates and ordinary text stay unchanged. Disabled means no rewriting. This does not guarantee improved model quality.',
+        requestTimezoneMode: 'Timezone source',
+        requestTimezoneManual: 'Manual: account setting',
+        requestTimezoneAuto: 'Automatic: egress IP',
+        requestTimezoneModeDesc: 'Manual mode defaults to Asia/Singapore. Automatic mode detects the timezone through the request egress and resolves again after proxy changes; failed detection preserves the original request. Dates and ordinary text stay unchanged. This does not guarantee improved model quality.',
         codexTicketEnabled: "Codex ticket harvest",
         codexTicketEnabledDesc:
           "When off, the gateway neither harvests nor injects x-codex-turn-state and forwards traffic as usual. When on, it harvests tickets in the background and overwrites that header on gated-model production requests.",
@@ -650,8 +656,6 @@ export default {
         codexTicketPlanRuleAdd: "Add plan rule",
         codexTicketPlanRuleRemove: "Remove rule",
         codexTicketPlanLengthsEmpty: "No plan rules; every account uses the default length.",
-        requestTimezoneEnabled: 'Bind request timezone',
-        requestTimezoneEnabledDesc: 'Use each OpenAI account’s timezone (Asia/Singapore by default) for existing environment context and web search timezone fields. Dates and ordinary text remain unchanged. Disabled means no timezone rewriting. This does not guarantee improved model quality.',
         codexTicketModels: "Ticket models",
         codexTicketModelsDesc: "Harvest and inject tickets only for selected models. Unselected models use the normal forwarding path.",
         codexTicketProxyMode: "Ticket exit type",
@@ -1401,6 +1405,14 @@ export default {
       long_context_badge: {
         label: 'Show long-context billing badge',
         description: 'When enabled, usage records billed under long-context tiered pricing show an x2 badge next to their cost. Enabled by default.',
+      },
+      cache_rate: {
+        label: 'Show usage cache rate',
+        description: 'When enabled, the usage record status column shows the cache rate for that request. Turning it off hides the rate from both admins and users. Enabled by default.',
+      },
+      cache_rate_to_users: {
+        label: 'Show cache rate to users',
+        description: 'When enabled, users can see the per-request cache rate on their own usage page. Off by default, so only admins see it.',
       },
       saveSettings: 'Save Settings',
       saving: 'Saving...',

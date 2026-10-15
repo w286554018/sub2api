@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -162,7 +163,8 @@ func (d *coderOpenAIWSClientDialer) Dial(
 		proxyURL, region = d.upstreamRoutes.MatchForAccount(parsed, upstreamroute.AccountIDFromContext(ctx))
 	}
 
-	wrapped := &coderOpenAIWSClientConn{}
+	binding, _ := ctx.Value(requestTimezoneEgressKey{}).(*requestTimezoneBinding)
+	wrapped := &coderOpenAIWSClientConn{timezoneBinding: binding, timezoneProxy: proxyURL}
 	opts := &coderws.DialOptions{
 		HTTPHeader:      cloneHeader(headers),
 		CompressionMode: coderws.CompressionContextTakeover,
@@ -170,6 +172,12 @@ func (d *coderOpenAIWSClientDialer) Dial(
 			wrapped.upstreamPings.Add(1)
 			return true
 		},
+	}
+	if binding.enabled(ctx) {
+		wrapped.requestTimezone = binding.service.egressRequestTimezone(ctx, proxyURL)
+		if wrapped.requestTimezone != "" {
+			rewriteRequestTimezoneHeaders(opts.HTTPHeader, wrapped.requestTimezone)
+		}
 	}
 	if proxy := strings.TrimSpace(proxyURL); proxy != "" {
 		proxyClient, err := d.proxyHTTPClient(proxy)
@@ -368,8 +376,12 @@ func (d *coderOpenAIWSClientDialer) SnapshotTransportMetrics() OpenAIWSTransport
 }
 
 type coderOpenAIWSClientConn struct {
-	conn          *coderws.Conn
-	upstreamPings atomic.Int64
+	timezoneBinding *requestTimezoneBinding
+	timezoneProxy   string
+	requestTimezone string
+	timezoneMu      sync.Mutex
+	conn            *coderws.Conn
+	upstreamPings   atomic.Int64
 }
 
 func (c *coderOpenAIWSClientConn) UpstreamPingCount() int64 {
@@ -389,7 +401,15 @@ func (c *coderOpenAIWSClientConn) WriteJSON(ctx context.Context, value any) erro
 		ctx = context.Background()
 	}
 	if payload, ok := value.(openAIWSPreparedJSON); ok {
-		return c.conn.Write(ctx, coderws.MessageText, payload)
+		return c.WriteFrame(ctx, coderws.MessageText, payload)
+	}
+	if c.timezoneBinding != nil {
+		payload, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		// Preserve wsjson.Write's Encoder framing while applying egress timezone.
+		return c.WriteFrame(ctx, coderws.MessageText, append(payload, '\n'))
 	}
 	return wsjson.Write(ctx, c.conn, value)
 }
@@ -434,6 +454,17 @@ func (c *coderOpenAIWSClientConn) WriteFrame(ctx context.Context, msgType coderw
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if msgType == coderws.MessageText && c.timezoneBinding.enabled(ctx) {
+		c.timezoneMu.Lock()
+		if c.requestTimezone == "" {
+			c.requestTimezone = c.timezoneBinding.service.egressRequestTimezone(ctx, c.timezoneProxy)
+		}
+		name := c.requestTimezone
+		c.timezoneMu.Unlock()
+		if name != "" {
+			payload = normalizeOpenAIRequestLocaleTimezone(ctx, c.timezoneBinding.account, payload, "ws", name)
+		}
 	}
 	return c.conn.Write(ctx, msgType, payload)
 }

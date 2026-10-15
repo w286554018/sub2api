@@ -622,6 +622,12 @@ export default {
         claudeCodeVersionAutoSyncHint: '每小时从官方发布渠道获取最新版本的 Claude Code 客户端版本号，无需为了跟版本而升级本服务。关闭后停止获取新版本，已同步的版本仍可使用；上方手填版本始终优先。',
         claudeCodeVersionSyncedValue: '当前同步到：{version}',
         codexHardeningTitle: 'Codex 设置',
+        requestTimezoneEnabled: '请求时区绑定',
+        requestTimezoneEnabledDesc: '开启后可选手动账号时区或按请求出口 IP 自动识别，替换已有环境上下文、网页搜索时区及受支持的时区请求头。保留日期和普通对话；关闭后不改写。此功能不保证改善模型表现。',
+        requestTimezoneMode: '时区来源',
+        requestTimezoneManual: '手动：使用账号配置',
+        requestTimezoneAuto: '自动：跟随出口 IP',
+        requestTimezoneModeDesc: '手动模式默认 Asia/Singapore；自动模式经请求出口识别 IP 时区，切换代理后重新识别，失败时保留原文。保留日期和普通对话，不保证改善模型表现。',
         codexTicketEnabled: 'Codex 门票打票',
         codexTicketEnabledDesc:
           '关闭后不打票、不注入 x-codex-turn-state，按原链路转发。开启后后台打票，并仅对门控模型覆盖该头。',
@@ -643,8 +649,6 @@ export default {
         codexTicketPlanRuleAdd: '添加档位规则',
         codexTicketPlanRuleRemove: '删除该规则',
         codexTicketPlanLengthsEmpty: '暂无档位规则，所有账号使用默认长度。',
-        requestTimezoneEnabled: '请求时区绑定',
-        requestTimezoneEnabledDesc: '开启后，按 OpenAI 账号配置替换环境上下文和网页搜索工具中已有的时区，默认 Asia/Singapore。保留日期和普通对话原文；关闭后不改写时区。此功能不保证改善模型表现。',
         codexTicketModels: '打票模型',
         codexTicketModelsDesc: '只对勾选的模型打票和注入；取消勾选后该模型按原链路转发。',
         codexTicketProxyMode: '打票出口类型',
@@ -1395,6 +1399,14 @@ export default {
       long_context_badge: {
         label: '展示长上下文计费标识',
         description: '开启后，使用详情中触发长上下文阶梯计费的记录会在费用旁显示 x2 标识；默认开启。',
+      },
+      cache_rate: {
+        label: '显示使用记录缓存率',
+        description: '开启后，使用记录的状态列显示单条请求的缓存率。关闭后管理端和用户端都不显示。默认开启。',
+      },
+      cache_rate_to_users: {
+        label: '向用户展示缓存率',
+        description: '开启后，用户在自己的用量页也能看到单条请求的缓存率。默认关闭，仅管理端可见。',
       },
       saveSettings: '保存设置',
       saving: '保存中...',

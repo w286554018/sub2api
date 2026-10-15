@@ -303,6 +303,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyExcelBPSImageBaseURL:       "",
 
 		SettingKeyUsageShowLongContextBadge:     "true",
+		SettingKeyUsageShowCacheRate:            "true",
+		SettingKeyUsageShowCacheRateToUsers:     "false",
 		SettingKeyExcelBPSImageBodyLimitMiB:     strconv.Itoa(DefaultExcelBPSImageBodyLimitMiB),
 		SettingKeyExcelBPSImageBudgetMiB:        strconv.Itoa(DefaultExcelBPSImageBudgetMiB),
 		SettingKeyExcelBPSImageMaxRequests:      strconv.Itoa(DefaultExcelBPSImageMaxRequests),
@@ -968,6 +970,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.OpenAICodexVersionAutoSyncEnabled = true
 	}
 	result.OpenAIRequestTimezoneEnabled = settings[SettingKeyOpenAIRequestTimezoneEnabled] == "true"
+	result.OpenAIRequestTimezoneAuto = settings[SettingKeyOpenAIRequestTimezoneAuto] == "true"
 	if v, ok := settings[SettingKeyOpenAICodexTicketEnabled]; ok && v != "" {
 		result.OpenAICodexTicketEnabled = v == "true"
 	} else if s != nil && s.cfg != nil {
@@ -1114,6 +1117,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
 	result.UsageShowLongContextBadge = settings[SettingKeyUsageShowLongContextBadge] != "false"  // 默认开启
+	result.UsageShowCacheRate = settings[SettingKeyUsageShowCacheRate] != "false"                // 默认开启
+	result.UsageShowCacheRateToUsers = settings[SettingKeyUsageShowCacheRateToUsers] == "true"   // 默认不向用户展示
 	result.RequestCaptureEnabled = settings[SettingKeyRequestCaptureEnabled] == "true"
 	result.RequestCaptureQuotaMiB, _ = strconv.ParseInt(settings[SettingKeyRequestCaptureQuotaMiB], 10, 64)
 	if result.RequestCaptureQuotaMiB <= 0 {

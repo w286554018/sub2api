@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,8 +44,8 @@ func TestSourceSyncCacheStorageQuoteMatchesAccountAdjustedBilling(t *testing.T) 
 func TestSourceSyncAccountMultiplierComposesWithPeakRate(t *testing.T) {
 	svc := &GatewayService{}
 	factor := 3.0
-	when := time.Date(2026, 10, 15, 0, 30, 0, 0, time.UTC)
-	key := &APIKey{GroupID: i64p(1), Group: &Group{ID: 1, RateMultiplier: 2,
+	when := time.Date(2026, 10, 15, 0, 30, 0, 0, timezone.Location())
+	key := &APIKey{GroupID: i64p(1), Group: &Group{ID: 1, RateMultiplier: 2, SubscriptionType: SubscriptionTypeSubscription,
 		PeakRateEnabled: true, PeakStart: "00:00", PeakEnd: "01:00", PeakRateMultiplier: 5}}
 	tokenRate, imageRate, pricedAt := svc.recordUsageMultipliers(context.Background(), key, nil, when, &Account{GroupRateMultiplier: &factor})
 	require.Equal(t, 30.0, tokenRate)

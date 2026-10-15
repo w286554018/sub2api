@@ -96,6 +96,17 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	// 已发出，这里只为「所有 attempt 都失败」的回合补发唯一一条。
 	defer finishCodexTelemetryTurn(c)
 
+	var finishMeter func(*OpenAIForwardResult, error) error
+	var meterErr error
+	ctx, finishMeter, meterErr = s.beginRegionalMeter(ctx, c, account, body)
+	if meterErr != nil {
+		return nil, meterErr
+	}
+	if regionalMeterAttemptFrom(ctx) != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
+	defer func() { resultErr = regionalMeterFinishForward(ctx, result, resultErr, finishMeter) }()
+	ctx = s.withRequestTimezoneEgress(ctx, account)
 	body = s.normalizeRequestTimezone(ctx, account, body, "http")
 	if astraSchedulingAppliesToRequest(s.cfg.AstraRouting(ctx), account, gjson.GetBytes(body, "model").String(), getOpenAIGroupIDFromContext(c)) {
 		if err := s.checkAstraSchedulingRoute(ctx, account); err != nil {
@@ -1953,6 +1964,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	setOpenAICodexRoutingHintFromBody(req.Header, account, body)
 	applyCodexDeviceWireProfile(c, account, req.Header, false)
 	logOpenAIRoutingDiagnosticsFromBody(ctx, account, "http", req.Header, body, "not_applicable")
+	if c != nil && c.Request != nil {
+		s.requestTimezoneHeaders(ctx, account, c.Request.Header, req.Header)
+	}
 	s.pinBoundCodexTicketHarvestIdentity(req, account)
 
 	if err := applyMappedGPT55LiteCompatibility(req, account, body); err != nil {

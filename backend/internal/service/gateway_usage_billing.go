@@ -946,7 +946,7 @@ func (s *GatewayService) recordUsageMultipliers(ctx context.Context, apiKey *API
 			multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, multiplier)
 		}
 	}
-	if len(accounts) > 0 {
+	if len(accounts) > 0 && accounts[0] != nil {
 		multiplier *= accounts[0].UserGroupRateMultiplier()
 	}
 	// 高峰因子按请求时刻现算，不并入 getUserGroupRateMultiplier，以免污染 user:group 倍率缓存。
