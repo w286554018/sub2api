@@ -100,9 +100,11 @@
             data-testid="monitor-v2-platform-select"
             :aria-label="t('channelMonitorV2.settings.selectPlatform')"
             :options="candidateOptions"
+            :disabled="saving"
           />
           <input
             v-model="customPlatform"
+            :disabled="saving"
             class="input min-w-[12rem] flex-1"
             type="text"
             maxlength="64"
@@ -111,7 +113,7 @@
             :aria-label="t('channelMonitorV2.settings.customPlatform')"
             @keydown.enter.prevent="addPlatform"
           />
-          <button type="button" class="btn btn-secondary btn-sm" data-testid="monitor-v2-add-platform" @click="addPlatform">
+          <button type="button" class="btn btn-secondary btn-sm" :disabled="saving || (!customPlatform.trim() && !selectedCandidate)" data-testid="monitor-v2-add-platform" @click="addPlatform">
             <Icon name="plus" size="xs" />
             {{ t('channelMonitorV2.settings.addPlatform') }}
           </button>
@@ -473,7 +475,7 @@ const candidateOptions = computed<SelectOption[]>(() => [
 ])
 
 function addPlatform() {
-  if (!draft.value) return
+  if (!draft.value || saving.value) return
   const id = (customPlatform.value.trim() || selectedCandidate.value).trim().toLowerCase()
   if (!id) {
     appStore.showError(t('channelMonitorV2.settings.platformRequired'))
