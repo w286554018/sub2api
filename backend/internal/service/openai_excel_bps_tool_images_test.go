@@ -97,7 +97,7 @@ func TestExcelBPSNativeToolImagesForward(t *testing.T) {
 					c, _ := gin.CreateTestContext(rec)
 					c.Request = httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
 					result, err := svc.Forward(context.Background(), c, excelAccount(), body)
-					require.NoError(t, err)
+					require.NoError(t, err, "BPS forward response: %s", rec.Body.String())
 					require.NotNil(t, result)
 					require.Equal(t, 2, calls, "duplicate images share one upload before the response")
 				})

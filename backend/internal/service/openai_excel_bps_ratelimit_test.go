@@ -17,21 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type excelBPSQuotaWrite struct {
-	accountID int64
-	updates   map[string]any
-	resetAt   time.Time
-	ctxErr    error
-	deadline  time.Time
-}
-
-type excelBPSQuotaRepo struct {
-	AccountRepository
-	writes    chan excelBPSQuotaWrite
-	updateErr error
-	limitErr  error
-}
-
 type excelBPSQuotaSettingsRepo struct {
 	SettingRepository
 	cooldown string
@@ -42,53 +27,6 @@ func (r *excelBPSQuotaSettingsRepo) GetValue(_ context.Context, key string) (str
 		return r.cooldown, nil
 	}
 	return "", ErrSettingNotFound
-}
-
-func (r *excelBPSQuotaRepo) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
-	copied := make(map[string]any, len(updates))
-	for key, value := range updates {
-		copied[key] = value
-	}
-	deadline, _ := ctx.Deadline()
-	r.writes <- excelBPSQuotaWrite{accountID: id, updates: copied, ctxErr: ctx.Err(), deadline: deadline}
-	return r.updateErr
-}
-
-func (r *excelBPSQuotaRepo) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
-	deadline, _ := ctx.Deadline()
-	r.writes <- excelBPSQuotaWrite{accountID: id, resetAt: resetAt, ctxErr: ctx.Err(), deadline: deadline}
-	return r.limitErr
-}
-
-func nextExcelBPSQuotaWrite(t *testing.T, repo *excelBPSQuotaRepo) excelBPSQuotaWrite {
-	t.Helper()
-	select {
-	case write := <-repo.writes:
-		return write
-	case <-time.After(3 * time.Second):
-		t.Fatal("expected an account quota update")
-		return excelBPSQuotaWrite{}
-	}
-}
-
-func requireNoExcelBPSQuotaWrite(t *testing.T, repo *excelBPSQuotaRepo) {
-	t.Helper()
-	select {
-	case write := <-repo.writes:
-		t.Fatalf("unexpected account quota update: %+v", write)
-	case <-time.After(20 * time.Millisecond):
-	}
-}
-
-func excelBPSQuotaHeaders(used5h, used7d string) http.Header {
-	headers := http.Header{}
-	headers.Set("x-codex-primary-used-percent", used7d)
-	headers.Set("x-codex-primary-reset-after-seconds", "604800")
-	headers.Set("x-codex-primary-window-minutes", "10080")
-	headers.Set("x-codex-secondary-used-percent", used5h)
-	headers.Set("x-codex-secondary-reset-after-seconds", "18000")
-	headers.Set("x-codex-secondary-window-minutes", "300")
-	return headers
 }
 
 func TestExcelBPSQuotaSnapshotAtResponseBoundary(t *testing.T) {
@@ -161,26 +99,6 @@ type excelBPSCancelReader struct {
 func (r *excelBPSCancelReader) Read(p []byte) (int, error) {
 	r.cancel()
 	return r.Reader.Read(p)
-}
-
-// requireExcelBPSRateLimitFailover checks that a BPS 429 left the response to
-// the handler's account switch and kept upstream content out of the error.
-func requireExcelBPSRateLimitFailover(t *testing.T, err error, c *gin.Context) {
-	t.Helper()
-	var failover *UpstreamFailoverError
-	require.ErrorAs(t, err, &failover)
-	require.Equal(t, http.StatusTooManyRequests, failover.StatusCode)
-	require.Equal(t, ExcelBPSRateLimitedReason, failover.Reason)
-	require.Equal(t, http.StatusTooManyRequests, failover.ClientStatusCode)
-	require.True(t, failover.ShouldRetryNextAccount())
-	require.False(t, failover.RetryableOnSameAccount, "do not retry the throttled account in this request")
-	require.False(t, failover.ShouldReportAccountScheduleFailure(), "keep the shared scheduler score")
-	require.Empty(t, failover.ResponseBody)
-	for key := range failover.ResponseHeaders {
-		require.Equal(t, "Retry-After", key)
-	}
-	require.False(t, c.Writer.Written(), "leave the response to the handler")
-	require.False(t, IsResponseCommitted(c))
 }
 
 func excelBPSCooldownRemaining(t *testing.T, svc *OpenAIGatewayService, accountID int64) time.Duration {
@@ -302,8 +220,22 @@ func TestExcelBPSNon429DoesNotChangeQuotaState(t *testing.T) {
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 			_, err := svc.Forward(context.Background(), c, account, []byte("{\"model\":\"gpt-6-astra\",\"input\":\"test\"}"))
-			require.Error(t, err)
-			require.Equal(t, status, rec.Code)
+			if status == http.StatusBadRequest {
+				require.Error(t, err)
+				require.Equal(t, status, rec.Code)
+			} else {
+				var failover *UpstreamFailoverError
+				require.ErrorAs(t, err, &failover)
+				wantReason := ExcelBPSAccountRejectedReason
+				if status >= http.StatusInternalServerError {
+					wantReason = ExcelBPSUpstreamErrorReason
+				}
+				require.Equal(t, wantReason, failover.Reason)
+				require.Equal(t, status, failover.StatusCode)
+				require.True(t, failover.ShouldRetryNextAccount())
+				require.False(t, c.Writer.Written(), "leave the response to the handler")
+				require.Zero(t, rec.Body.Len())
+			}
 			requireNoExcelBPSQuotaWrite(t, repo)
 			require.False(t, svc.isOpenAIAccountRuntimeBlocked(account))
 			require.True(t, account.IsSchedulable())

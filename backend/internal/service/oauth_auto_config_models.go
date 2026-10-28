@@ -15,7 +15,7 @@ type OAuthModelMappingRule struct {
 
 func defaultOAuthModelMappings(platform string) []OAuthModelMappingRule {
 	if platform == PlatformOpenAI {
-		return []OAuthModelMappingRule{{From: "gpt-5.4", To: "gpt-5.5"}}
+		return []OAuthModelMappingRule{{From: "gpt-5.4", To: "gpt-5.6-sol"}}
 	}
 	return []OAuthModelMappingRule{}
 }

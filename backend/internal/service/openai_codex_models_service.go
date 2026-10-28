@@ -216,7 +216,12 @@ func (s *OpenAIGatewayService) MergeGroupConfiguredCodexModels(
 		return fmt.Errorf("restrict group BPS capabilities: %w", err)
 	}
 	changed = changed || restricted
-	if changed {
+	filtered, retired, err := filterRetiredOpenAIPublicModelsBody(body, catalog, true)
+	if err != nil {
+		return fmt.Errorf("filter retired Codex models: %w", err)
+	}
+	body = filtered
+	if changed || retired {
 		manifest.Body = body
 		manifest.ETag = codexModelsManifestBodyETag(body)
 	}
@@ -312,7 +317,7 @@ func openAIConfiguredCodexModelIDsForGroup(accounts []Account, group *Group) []s
 	}
 	models := supplementUnmappedOpenAIModels(accounts, groupID, openAIConfiguredCodexModelIDs(accounts, groupID))
 	if group == nil || !group.ModelAllowlistEnabled() {
-		return models
+		return filterRetiredOpenAIModelIDs(accounts, models)
 	}
 
 	seen := make(map[string]struct{}, len(models)+len(group.ModelAllowlist.Models))
@@ -341,7 +346,7 @@ func openAIConfiguredCodexModelIDsForGroup(accounts []Account, group *Group) []s
 		}
 	}
 	sort.Strings(models)
-	return models
+	return filterRetiredOpenAIModelIDs(accounts, models)
 }
 
 const (
@@ -920,6 +925,19 @@ func buildCodexModelsManifestForAccounts(
 	compositeRoutes []CompositeModelRoute,
 	compositeRoutesAvailable bool,
 ) ([]byte, error) {
+	if effectivePlatform == PlatformOpenAI {
+		modelIDs = filterRetiredOpenAIModelIDs(accounts, modelIDs)
+	} else if effectivePlatform == PlatformComposite {
+		filtered := make([]string, 0, len(modelIDs))
+		for _, modelID := range modelIDs {
+			platform, target, resolved := resolveCodexCompositeModelTarget(modelID, accounts, compositeRoutes, compositeRoutesAvailable)
+			if resolved && platform == PlatformOpenAI && openAIModelRetiredForAccounts(accounts, target) {
+				continue
+			}
+			filtered = append(filtered, modelID)
+		}
+		modelIDs = filtered
+	}
 	imageInputModels := make(map[string]bool, len(modelIDs))
 	searchToolModels := make(map[string]bool, len(modelIDs))
 	var groupID *int64
@@ -979,6 +997,7 @@ func buildCodexModelsManifestForAccounts(
 	}
 	// Conflicting aliases can intentionally omit synced metadata. Do not let
 	// the bundled Astra defaults reintroduce v2 for a possible BPS route.
+	// the bundled defaults reintroduce v2 for a possible BPS route.
 	body, _, err = restrictExcelBPSCodexModelsManifest(body, accounts, group)
 	return body, err
 }
@@ -1098,7 +1117,7 @@ func uniqueCodexMappedModel(accounts []Account, platform string, modelID string)
 	targets := make(map[string]struct{})
 	for i := range accounts {
 		account := &accounts[i]
-		if account.Platform != platform {
+		if !codexAccountServesPlatformModel(account, platform, modelID) {
 			continue
 		}
 		mappedModel, matched := account.ResolveMappedModel(modelID)
@@ -1685,6 +1704,16 @@ func (c *openAIModelsCache) set(key string, manifest *OpenAIModelsResponse, now 
 	}
 }
 
+func excelBPSCodexManifest(account *Account, ifNoneMatch string) (*OpenAIModelsResponse, error) {
+	body := convertOpenAIModelListToCodexManifestForAccount(excelBPSConfiguredModelsBody(account), account)
+	body, _, err := clearCodexManifestMultiAgent(body, func(string) bool { return true })
+	if err != nil {
+		return nil, err
+	}
+	manifest := &OpenAIModelsResponse{Body: body, ETag: codexModelsManifestBodyETag(body)}
+	return openAIModelsResponseForClient(manifest, ifNoneMatch), nil
+}
+
 // FetchCodexModelsManifest fetches the live Codex models manifest from either
 // the ChatGPT backend for OAuth accounts or a custom upstream for API key accounts.
 //
@@ -1692,6 +1721,9 @@ func (c *openAIModelsCache) set(key string, manifest *OpenAIModelsResponse, now 
 // passed through verbatim. Custom API key manifests receive only the narrowly
 // scoped compatibility adjustments required by custom-provider Codex clients.
 func (s *OpenAIGatewayService) FetchCodexModelsManifest(ctx context.Context, account *Account, clientVersion, ifNoneMatch string) (*OpenAIModelsResponse, error) {
+	if account != nil && account.IsBPSOAuth() {
+		return excelBPSCodexManifest(account, ifNoneMatch)
+	}
 	if account != nil && account.IsExcelBPSEnabled() {
 		return s.fetchExcelBPSCodexManifest(ctx, account, ifNoneMatch)
 	}
@@ -1731,8 +1763,7 @@ func (s *OpenAIGatewayService) buildCodexModelsManifestRequest(ctx context.Conte
 	if err != nil {
 		return openAIModelsRequest{}, nil, infraerrors.Newf(http.StatusInternalServerError, "OPENAI_CODEX_MODELS_CREDENTIALS_FAILED", "resolve credential account: %v", err)
 	}
-
-	if credAccount.IsExcelOAuth() {
+	if credAccount.IsBPSOAuth() || credAccount.IsExcelOAuth() {
 		return openAIModelsRequest{}, nil, errExcelOAuthRouteUnavailable
 	}
 	clientVersion = strings.TrimSpace(clientVersion)

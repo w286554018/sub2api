@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -19,6 +20,11 @@ import (
 
 const excelBPSInvalidCiphertext = `{"error":{"code":"invalid_encrypted_content","message":"private upstream diagnostic"}}`
 const excelBPSInvalidCiphertextNoCode = `{"error":{"message":"The encrypted content fixture...end could not be verified. Reason: Encrypted content could not be decrypted or parsed."}}`
+
+func bpsOAuthExcelAccount() *Account {
+	return &Account{ID: 300, Platform: PlatformOpenAI, Type: AccountTypeBPSOAuth, Status: StatusActive, Schedulable: true, Concurrency: 10,
+		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account", "client_id": openai.ExcelClientID}, Extra: map[string]any{"openai_passthrough": true}}
+}
 
 func TestExcelBPSInvalidEncryptedContentClassification(t *testing.T) {
 	for _, tc := range []struct {
@@ -95,6 +101,14 @@ func TestExcelBPSInvalidEncryptedRetryNeverDropsRequiredContext(t *testing.T) {
 	}
 }
 
+// excelBPSEncryptedHistoryAccount serves the encrypted-history request model
+// (gpt-5.4, mapped onto a BPS model) besides gpt-5.6-sol.
+func excelBPSEncryptedHistoryAccount() *Account {
+	account := bpsOAuthExcelAccount()
+	account.Credentials["model_mapping"] = map[string]any{"gpt-5.4": "gpt-5.6-sol", "gpt-5.6-sol": "gpt-5.6-sol"}
+	return account
+}
+
 func excelBPSEncryptedHistoryRequest(stream bool) []byte {
 	return []byte(fmt.Sprintf(`{"model":"gpt-5.4","stream":%t,"reasoning":{"effort":"max"},"prompt_cache_key":"encrypted-recovery-session","input":[{"role":"user","content":"continue original task"},{"type":"reasoning","encrypted_content":"private-ciphertext"},{"type":"function_call","call_id":"call_old","name":"inspect","arguments":"{}"},{"type":"function_call_output","call_id":"call_old","output":"original tool result"}]}`, stream))
 }
@@ -113,7 +127,7 @@ func TestExcelBPSInvalidEncryptedContentRecoversSameRoute(t *testing.T) {
 				checked := &excelBPSRepairUpstream{httpUpstreamRecorder: upstream, bodies: []*excelBPSRepairBody{first, second}}
 				svc := openAIClientToolsTestService(upstream)
 				svc.httpUpstream = checked
-				account := excelAccount()
+				account := bpsOAuthExcelAccount()
 				account.Concurrency = 1
 				account.Credentials["model_mapping"] = map[string]any{"gpt-5.4": "gpt-5.6-sol"}
 				account.Proxy = &Proxy{Protocol: "http", Host: "127.0.0.1", Port: 7890}
@@ -169,7 +183,7 @@ func TestExcelBPSInvalidEncryptedContentRetryIsBounded(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-			account := excelAccount()
+			account := excelBPSEncryptedHistoryAccount()
 			_, err := svc.Forward(context.Background(), c, account, excelBPSEncryptedHistoryRequest(false))
 			require.Error(t, err)
 			require.Len(t, upstream.requests, 2)
@@ -180,6 +194,13 @@ func TestExcelBPSInvalidEncryptedContentRetryIsBounded(t *testing.T) {
 				return
 			}
 			var failover *UpstreamFailoverError
+			if status == http.StatusInternalServerError {
+				// Still no output: another account may serve, but not this route again.
+				require.ErrorAs(t, err, &failover)
+				require.Equal(t, ExcelBPSUpstreamErrorReason, failover.Reason)
+				require.Zero(t, rec.Body.Len())
+				return
+			}
 			require.NotErrorAs(t, err, &failover)
 			require.Equal(t, status, rec.Code)
 			require.NotContains(t, rec.Body.String(), "private upstream diagnostic")
@@ -198,7 +219,6 @@ func TestExcelBPSInvalidEncryptedContentDoesNotRetryOtherFailures(t *testing.T) 
 	}{
 		{"ordinary 400", `{"error":{"code":"invalid_value"}}`, string(excelBPSEncryptedHistoryRequest(false)), 400},
 		{"no removable reasoning", excelBPSInvalidCiphertext, `{"model":"gpt-5.6-sol","input":"continue"}`, 400},
-		{"encrypted compaction", excelBPSInvalidCiphertext, `{"model":"gpt-5.6-sol","input":[{"role":"user","content":"continue"},{"type":"reasoning","encrypted_content":"opaque"},{"type":"compaction","encrypted_content":"context"}]}`, 400},
 		{"non-400", excelBPSInvalidCiphertext, string(excelBPSEncryptedHistoryRequest(false)), 500},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -207,9 +227,15 @@ func TestExcelBPSInvalidEncryptedContentDoesNotRetryOtherFailures(t *testing.T) 
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
-			_, err := svc.Forward(context.Background(), c, excelAccount(), []byte(tc.body))
+			_, err := svc.Forward(context.Background(), c, excelBPSEncryptedHistoryAccount(), []byte(tc.body))
 			require.Error(t, err)
 			require.Len(t, upstream.requests, 1)
+			if tc.status >= 500 {
+				var failover *UpstreamFailoverError
+				require.ErrorAs(t, err, &failover, "a 5xx fails over instead of retrying here")
+				require.Zero(t, rec.Body.Len())
+				return
+			}
 			require.Equal(t, tc.status, rec.Code)
 		})
 	}
@@ -239,7 +265,7 @@ func TestExcelBPSInvalidEncryptedContentStopsOnDisconnect(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil).WithContext(ctx)
-			_, err := svc.Forward(ctx, c, excelAccount(), excelBPSEncryptedHistoryRequest(false))
+			_, err := svc.Forward(ctx, c, excelBPSEncryptedHistoryAccount(), excelBPSEncryptedHistoryRequest(false))
 			require.Error(t, err)
 			require.True(t, first.closed.Load())
 			if cancelBeforeRetry {
@@ -252,4 +278,69 @@ func TestExcelBPSInvalidEncryptedContentStopsOnDisconnect(t *testing.T) {
 			require.NotContains(t, rec.Body.String(), "private")
 		})
 	}
+}
+
+// Unreadable compaction is degraded like on the native path: the whole item
+// goes with the opaque reasoning, and other ciphertext still blocks the retry.
+func TestPrepareExcelBPSInvalidEncryptedRetryDropsCompaction(t *testing.T) {
+	retry, ok := prepareExcelBPSInvalidEncryptedRetry([]byte(`{"model":"gpt-5.6-sol","input":[{"role":"user","content":"continue"},{"type":"compaction","encrypted_content":"native-compact","summary":[]},{"type":"compaction_summary","encrypted_content":"native-summary"},{"type":"reasoning","encrypted_content":"native-reasoning"},{"role":"user","content":"next"}]}`), []byte(excelBPSInvalidCiphertext))
+	require.True(t, ok)
+	for _, ciphertext := range []string{"native-compact", "native-summary", "native-reasoning"} {
+		require.NotContains(t, string(retry), ciphertext)
+	}
+	require.Contains(t, string(retry), "continue")
+	require.Contains(t, string(retry), "next")
+
+	for name, input := range map[string]string{
+		"encrypted agent message":      `{"type":"agent_message","encrypted_content":"opaque"}`,
+		"encrypted function arguments": `{"type":"function_call","call_id":"c","name":"x","arguments":"{}","encrypted_function_args":["opaque"]}`,
+		"encrypted content part":       `{"role":"user","content":[{"type":"input_text","text":"x","encrypted_content":"opaque"}]}`,
+	} {
+		body := `{"model":"gpt-5.6-sol","input":[{"role":"user","content":"continue"},{"type":"compaction","encrypted_content":"native-compact"},` + input + `]}`
+		_, ok := prepareExcelBPSInvalidEncryptedRetry([]byte(body), []byte(excelBPSInvalidCiphertext))
+		require.False(t, ok, name)
+	}
+}
+
+// After one rejection the conversation remembers the unreadable ciphertext: the
+// next turn strips it up front and BPS is asked only once. The memory lives in
+// a BPS namespace, so native accounts keep reading native ciphertext.
+func TestExcelBPSRemembersUnreadableCiphertextPerConversation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"gpt-5.6-sol","stream":false,"prompt_cache_key":"cross-protocol-session","input":[{"role":"user","content":"original task"},{"type":"compaction","encrypted_content":"native-compact"},{"type":"reasoning","encrypted_content":"native-reasoning","summary":[]},{"role":"user","content":"continue"}]}`)
+	completed := func() *http.Response {
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_ok\",\"status\":\"completed\",\"output\":[]}}\n\n"))}
+	}
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{
+		{StatusCode: 400, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(excelBPSInvalidCiphertext))},
+		completed(),
+		completed(),
+	}}
+	svc := openAIClientToolsTestService(upstream)
+	forward := func() *gin.Context {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
+		_, err := svc.Forward(context.Background(), c, bpsOAuthExcelAccount(), body)
+		require.NoError(t, err)
+		require.Equal(t, 200, rec.Code)
+		return c
+	}
+
+	c := forward()
+	require.Len(t, upstream.bodies, 2, "rejected once, then retried without the unreadable items")
+	require.Contains(t, string(upstream.bodies[0]), "native-compact")
+	require.NotContains(t, string(upstream.bodies[1]), "native-compact")
+	require.NotContains(t, string(upstream.bodies[1]), "native-reasoning")
+
+	forward()
+	require.Len(t, upstream.bodies, 3, "the next turn is stripped up front")
+	require.NotContains(t, string(upstream.bodies[2]), "native-compact")
+	require.NotContains(t, string(upstream.bodies[2]), "native-reasoning")
+	require.Contains(t, string(upstream.bodies[2]), "original task")
+
+	nativeKey := svc.GenerateSessionHash(c, body)
+	require.NotEmpty(t, nativeKey)
+	require.Empty(t, svc.sessionInvalidEncryptedContentDigests(getOpenAIGroupIDFromContext(c), nativeKey), "the native lineage is untouched")
+	require.NotEmpty(t, svc.sessionInvalidEncryptedContentDigests(getOpenAIGroupIDFromContext(c), excelBPSLineageSessionPrefix+nativeKey))
 }

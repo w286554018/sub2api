@@ -87,6 +87,14 @@ func excelBPSAccessModelsBody(raw []byte) ([]byte, error) {
 // FetchExcelBPSModelsList uses a separate fresh-only cache scoped by bearer,
 // account and proxy identity. Expired permissions are never served stale.
 func (s *OpenAIGatewayService) FetchExcelBPSModelsList(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
+	return s.fetchExcelBPSModelsList(ctx, account, false)
+}
+
+func (s *OpenAIGatewayService) fetchExcelBPSModelsListForSync(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
+	return s.fetchExcelBPSModelsList(ctx, account, true)
+}
+
+func (s *OpenAIGatewayService) fetchExcelBPSModelsList(ctx context.Context, account *Account, bypassCache bool) (*OpenAIModelsResponse, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -117,12 +125,16 @@ func (s *OpenAIGatewayService) FetchExcelBPSModelsList(ctx context.Context, acco
 	proxy := upstreamModelsProxyURL(account)
 	identity := openAIModelsRequest{url: request.URL.String(), headers: request.Header, proxyURL: fmt.Sprintf("%s|bps_pool:%s|managed:%t", proxy, account.ExcelBPSProxySource(), account.IsExcelBPSMihomoEnabled()), accountID: account.ID, credentialAccountID: account.ID, standardModelsList: true}
 	key := buildOpenAIModelsCacheKey(identity)
-	if cached, state := s.excelBPSModelsCache.get(key, time.Now()); state == openAIModelsCacheFresh {
-		return openAIModelsResponseForClient(cached, ""), nil
+	if !bypassCache {
+		if cached, state := s.excelBPSModelsCache.get(key, time.Now()); state == openAIModelsCacheFresh {
+			return openAIModelsResponseForClient(cached, ""), nil
+		}
 	}
 	fetch := func(fetchCtx context.Context) (*OpenAIModelsResponse, error) {
-		if cached, state := s.excelBPSModelsCache.get(key, time.Now()); state == openAIModelsCacheFresh {
-			return cached, nil
+		if !bypassCache {
+			if cached, state := s.excelBPSModelsCache.get(key, time.Now()); state == openAIModelsCacheFresh {
+				return cached, nil
+			}
 		}
 		fetchCtx, cancel := context.WithTimeout(fetchCtx, 5*time.Second)
 		defer cancel()
@@ -278,7 +290,21 @@ func applyExcelBPSEffortsToManifest(body, access []byte, account *Account) ([]by
 // Independent BPS discovery applies to the actual selected model route. Native
 // models keep their own source; a native source failure cannot invent BPS access.
 func (s *OpenAIGatewayService) fetchExcelBPSAccountModels(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
-	access, accessErr := s.FetchExcelBPSModelsList(ctx, account)
+	return s.fetchExcelBPSAccountModelsWithCacheMode(ctx, account, false)
+}
+
+func (s *OpenAIGatewayService) fetchExcelBPSAccountModelsForSync(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
+	return s.fetchExcelBPSAccountModelsWithCacheMode(ctx, account, true)
+}
+
+func (s *OpenAIGatewayService) fetchExcelBPSAccountModelsWithCacheMode(ctx context.Context, account *Account, bypassCache bool) (*OpenAIModelsResponse, error) {
+	var access *OpenAIModelsResponse
+	var accessErr error
+	if bypassCache {
+		access, accessErr = s.fetchExcelBPSModelsListForSync(ctx, account)
+	} else {
+		access, accessErr = s.FetchExcelBPSModelsList(ctx, account)
+	}
 	if accessErr != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()

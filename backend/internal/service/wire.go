@@ -284,6 +284,7 @@ func ProvideAccountUsageService(
 	openAIGatewayService *OpenAIGatewayService,
 	kiroTokenProvider *KiroTokenProvider,
 	adobeTokenProvider *AdobeTokenProvider,
+	leonardoTokenProvider *LeonardoTokenProvider,
 ) *AccountUsageService {
 	service := NewAccountUsageService(
 		accountRepo,
@@ -300,6 +301,7 @@ func ProvideAccountUsageService(
 	)
 	service.agentIdentityWS = openAIGatewayService
 	service.SetAdobeTokenProvider(adobeTokenProvider)
+	service.SetLeonardoTokenProvider(leonardoTokenProvider)
 	return service.SetKiroTokenProvider(kiroTokenProvider)
 }
 
@@ -309,6 +311,8 @@ func ProvideAccountTestService(
 	claudeTokenProvider *ClaudeTokenProvider,
 	kiroTokenProvider *KiroTokenProvider,
 	grokTokenProvider *GrokTokenProvider,
+	adobeTokenProvider *AdobeTokenProvider,
+	leonardoTokenProvider *LeonardoTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
@@ -316,7 +320,6 @@ func ProvideAccountTestService(
 	openAIGatewayService *OpenAIGatewayService,
 	settingService *SettingService,
 	pluginManager *PluginManager,
-	adobeTokenProvider *AdobeTokenProvider,
 ) *AccountTestService {
 	service := NewAccountTestService(
 		accountRepo,
@@ -364,6 +367,7 @@ func ProvideAccountTestService(
 			service.StopAstraAutomaticSetup()
 		}
 	}
+	service.SetLeonardoTokenProvider(leonardoTokenProvider)
 	return service
 }
 
@@ -463,14 +467,84 @@ func ProvideKiroTokenProvider(
 	return p
 }
 
-// ProvideAdobeTokenProvider creates AdobeTokenProvider sharing the OAuthRefreshAPI
-// singleton, so request-path and background refreshes serialize on the same locks.
-func ProvideAdobeTokenProvider(accountRepo AccountRepository, refreshAPI *OAuthRefreshAPI) *AdobeTokenProvider {
-	return NewAdobeTokenProvider(accountRepo, refreshAPI)
+// ProvideFishImageService 构造 fish.audio 出图服务；对象存储由设置服务动态
+// 决定，与 Leonardo 出图共用同一 resolver。
+func ProvideFishImageService(settings *ImageStorageSettingService) *FishImageService {
+	return NewFishImageService(settings.Resolver())
+}
+
+// ProvideLeonardoImageService 构造 Leonardo 出图服务；对象存储由设置服务动态
+// 解析，未配置时同步返回 b64_json 即可。
+func ProvideLeonardoImageService(settings *ImageStorageSettingService) *LeonardoImageService {
+	return NewLeonardoImageService(settings.Resolver())
+}
+
+func ProvideAdobeImageService(settings *ImageStorageSettingService) *AdobeImageService {
+	return NewAdobeImageService(settings.Resolver())
 }
 
 func ProvideKiroCooldownStore(redisClient *redis.Client) KiroCooldownStore {
 	return kirocooldown.NewStore(redisClient)
+}
+
+// ProvideLeonardoTokenProvider creates LeonardoTokenProvider with OAuthRefreshAPI
+// injection so the request path shares locks and CAS persistence with the
+// background TokenRefreshService.
+func ProvideLeonardoTokenProvider(
+	accountRepo AccountRepository,
+	refreshAPI *OAuthRefreshAPI,
+) *LeonardoTokenProvider {
+	return NewLeonardoTokenProvider(accountRepo, refreshAPI)
+}
+
+func ProvideAdobeTokenProvider(accountRepo AccountRepository, refreshAPI *OAuthRefreshAPI) *AdobeTokenProvider {
+	return NewAdobeTokenProvider(accountRepo, refreshAPI)
+}
+
+func ProvideGatewayService(
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	identityService *IdentityService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	claudeTokenProvider *ClaudeTokenProvider,
+	kiroTokenProvider *KiroTokenProvider,
+	leonardoTokenProvider *LeonardoTokenProvider,
+	kiroCooldownStore KiroCooldownStore,
+	kiroCacheEmulationRemote KiroCacheEmulationRemoteStore,
+	sessionLimitCache SessionLimitCache,
+	rpmCache RPMCache,
+	digestStore *DigestSessionStore,
+	settingService *SettingService,
+	tlsFPProfileService *TLSFingerprintProfileService,
+	channelService *ChannelService,
+	resolver *ModelPricingResolver,
+	compositeResolver *CompositeRouteResolver,
+	balanceNotifyService *BalanceNotifyService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	adobeTokenProvider *AdobeTokenProvider,
+) *GatewayService {
+	svc := NewGatewayService(
+		accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo,
+		cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService,
+		identityService, httpUpstream, deferredService, claudeTokenProvider, kiroTokenProvider, leonardoTokenProvider,
+		kiroCooldownStore, kiroCacheEmulationRemote, sessionLimitCache, rpmCache, digestStore, settingService,
+		tlsFPProfileService, channelService, resolver, compositeResolver, balanceNotifyService, userPlatformQuotaRepo,
+	)
+	svc.SetAdobeTokenProvider(adobeTokenProvider)
+	return svc
 }
 
 // ProvideGrokTokenProvider creates GrokTokenProvider with OAuthRefreshAPI injection.
@@ -877,14 +951,6 @@ func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSetting
 	return NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
-// ProvideAdobeImageService 构造 Adobe 出图服务。
-//
-// 与异步图片任务不同，对象存储对 Adobe 只是「返 URL 还是返 b64」的选择，不是启用前提：
-// 未配置时同步返回 b64_json 即可，因此这里传 resolver 而非把功能整体关掉。
-func ProvideAdobeImageService(settings *ImageStorageSettingService) *AdobeImageService {
-	return NewAdobeImageService(settings.Resolver())
-}
-
 // ProvideBackupService creates and starts BackupService
 func ProvideBackupService(
 	settingRepo SettingRepository,
@@ -1063,13 +1129,12 @@ var ProviderSet = wire.NewSet(
 	ProvideBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
-	NewGatewayService,
+	ProvideGatewayService,
 	ProvideOpenAIGatewayService,
 	wire.Struct(new(OpenAIGatewayDependencies), "*"),
 	ProvideCodexHarvestService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
-	ProvideAdobeImageService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,
@@ -1092,7 +1157,11 @@ var ProviderSet = wire.NewSet(
 	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
 	ProvideKiroTokenProvider,
+	ProvideLeonardoTokenProvider,
+	ProvideLeonardoImageService,
+	ProvideFishImageService,
 	ProvideAdobeTokenProvider,
+	ProvideAdobeImageService,
 	ProvideKiroCooldownStore,
 	NewGeminiMessagesCompatService,
 	ProvideAntigravityTokenProvider,

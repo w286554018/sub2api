@@ -561,16 +561,15 @@ func (s *OpenAIGatewayService) clearOpenAIAccountRuntimeBlockIfUnchanged(account
 // scheduling Account as source of truth. When TempUnschedulableUntil,
 // RateLimitResetAt, and OverloadUntil are all inactive, a stale local account
 // block is dropped with generation+deadline CAS. Model-scoped transient blocks
-// isOpenAIAccountRequestRuntimeBlocked treats persisted cooldown fields on the
-// scheduling Account as source of truth. When TempUnschedulableUntil,
-// RateLimitResetAt, and OverloadUntil are all inactive, a stale local account
-// block is dropped with generation+deadline CAS. Model-scoped transient blocks
 // and Excel BPS cooldowns (BPS-routed models only) are left alone. This is
 // fail-open if a DB write failed or the snapshot has not caught up yet: empty
 // cooldown fields drop the local account-level block.
 // requireCompact 必须与 Forward 的 /responses/compact 判定同源（两侧都来自
 // IsOpenAIResponsesCompactPath）：门票门控按真正出站的模型名判定，否则 compact
 // 请求会被按客户端原始模型误拦（见 openAICodexTicketOutboundModel）。
+// and Excel BPS cooldowns (BPS-routed models only) are left alone. This is
+// fail-open if a DB write failed or the snapshot has not caught up yet: empty
+// cooldown fields drop the local account-level block.
 func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlocked(account *Account, requestedModel string, requireCompact bool) bool {
 	if s == nil {
 		return false
@@ -579,6 +578,11 @@ func (s *OpenAIGatewayService) isOpenAIAccountRequestRuntimeBlocked(account *Acc
 		return true
 	}
 	outboundModel := s.openAICodexTicketOutboundModel(account, requestedModel, requireCompact)
+	// The BPS 429 and model-permission cooldowns live only in memory; every
+	// scheduling path, sticky bindings included, must honor them.
+	if s.isExcelBPSRouteCoolingDown(account, requestedModel) {
+		return true
+	}
 	if s.openAICodexTicketBlocksAccount(account, outboundModel) {
 		return true
 	}

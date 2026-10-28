@@ -16,6 +16,15 @@ func restrictExcelBPSCodexModelsManifest(body []byte, accounts []Account, group 
 	if !hasBPS {
 		return body, false, nil
 	}
+	return clearCodexManifestMultiAgent(body, func(slug string) bool {
+		return codexGroupModelUsesExcelBPS(slug, accounts, group)
+	})
+}
+
+// clearCodexManifestMultiAgent clears multi_agent_version and
+// multi_agent_reasoning_effort on the manifest models whose slug matches: BPS
+// cannot carry multi-agent v2 state. It reports whether anything changed.
+func clearCodexManifestMultiAgent(body []byte, match func(slug string) bool) ([]byte, bool, error) {
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil, false, err
@@ -31,7 +40,7 @@ func restrictExcelBPSCodexModelsManifest(body []byte, accounts []Account, group 
 			continue
 		}
 		var slug string
-		if json.Unmarshal(model["slug"], &slug) != nil || !codexGroupModelUsesExcelBPS(strings.TrimSpace(slug), accounts, group) {
+		if json.Unmarshal(model["slug"], &slug) != nil || !match(strings.TrimSpace(slug)) {
 			continue
 		}
 		updated := false
@@ -66,17 +75,15 @@ func codexGroupModelUsesExcelBPS(model string, accounts []Account, group *Group)
 	if model == "" {
 		return false
 	}
-	var groupID *int64
-	if group != nil {
-		groupID = &group.ID
-	}
 	routed := codexModelRoutingAccountIDs(group, model)
 	for i := range accounts {
 		account := &accounts[i]
 		if len(routed) > 0 && !containsInt64(routed, account.ID) {
 			continue
 		}
-		if account.IsModelAllowedInGroup(groupID, model) && account.IsModelSupported(model) && account.IsExcelBPSEnabledForModel(model) {
+		// Per-account-group model allowlists are not part of this build; group
+		// membership itself is the only gate here.
+		if account.IsModelSupported(model) && account.IsExcelBPSEnabledForModel(model) {
 			return true
 		}
 	}

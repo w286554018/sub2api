@@ -24,6 +24,7 @@ export default {
         "failed": "Session export failed. Check that the Cookie is valid, belongs to this account, and the account proxy can reach ChatGPT."
       },
       bpsAuthorizing: 'BPS authorization is automatic. Native routing remains active until authorization succeeds, then BPS activates automatically.',
+      adobe: { credentialStepTitle: 'Adobe Firefly account' },
       "modelsLoadFailed": "Could not load models. Please retry.",
       "retryModels": "Reload models",
       "openCredentialOperations": "Open Credential Operations",
@@ -114,8 +115,6 @@ export default {
       editAccount: 'Edit Account',
       deleteAccount: 'Delete Account',
       searchAccounts: 'Search accounts...',
-      moreFilters: 'More filters',
-      moreFiltersActive: 'More filters ({count} active)',
       notes: 'Notes',
       notesPlaceholder: 'Enter notes',
       notesHint: 'Notes are optional',
@@ -125,6 +124,7 @@ export default {
       allGroups: 'All Groups',
       ungroupedGroup: 'Ungrouped',
       oauthType: 'OAuth',
+      bpsOAuthType: 'BPS OAuth',
       setupToken: 'Setup Token',
       apiKey: 'API Key',
       // Schedulable toggle
@@ -149,6 +149,16 @@ export default {
       kiroCooldown: 'Kiro Cooldown',
       kiroCreditUnitPriceUsd: 'Credit Unit Price',
       kiroCreditUnitPriceUsdHint: 'Used only to estimate Kiro Credits cost in today stats. 0 hides the estimate.',
+      leonardoCreditUnitPriceUsd: 'Credit Unit Price (USD)',
+      leonardoCreditUnitPriceUsdHint: 'Used only to estimate the cost of Leonardo credits in today stats; 0 hides the estimate. Reference (monthly fee ÷ monthly fast credits): Essential $12 / 8,500 ≈ $0.0014, Premium $30 / 25,000 = $0.0012, Ultimate $60 / 60,000 = $0.001. Annual billing is cheaper.',
+      leonardoMaxQuality: 'Max quality',
+      leonardoMaxQualityUnlimited: 'Unlimited',
+      leonardoMaxShortEdge: 'Max short edge (px)',
+      leonardoMaxUpscaleFactor: 'Max upscale factor',
+      leonardoImageLimitsHint: 'Caps Leonardo credit usage. Requests above the max quality are generated at the max quality. When the requested short edge exceeds the limit, a smaller image with the exact same aspect ratio is generated and then upscaled to the requested size (no stretching or cropping); billing follows the delivered size. 0 / Unlimited means no limit; the upscale factor defaults to 2 (1–4).',
+      fishMaxQuality: 'Max quality',
+      fishMaxQualityUnlimited: 'Unlimited',
+      fishMaxQualityHint: 'Requests above the max quality are generated at the max quality. The response still echoes the requested quality. Unlimited means no cap. gpt-image-2.5 also supports xhigh and max; max is the highest tier.',
       kiroProfileError: 'Profile Error',
       kiroProfileHint: 'Resolve and save a valid profileArn for this account',
       kiroRuntimeResetsAt: 'Auto resumes at {time}',
@@ -156,6 +166,7 @@ export default {
       kiroUsageForbidden: 'Usage Forbidden',
       kiroUsageForbiddenHint: 'Usage fetch is blocked for this account, but request forwarding may still work',
       platforms: {
+        leonardo: 'Leonardo',
         anthropic: 'Anthropic',
         claude: 'Claude',
         openai: 'OpenAI',
@@ -163,7 +174,6 @@ export default {
         antigravity: 'Antigravity',
         grok: 'Grok',
         kiro: 'Kiro',
-        adobe: 'Adobe',
         kimi: 'Kimi',
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
@@ -274,9 +284,12 @@ export default {
         grokOauth: 'Grok OAuth',
         kiroApikey: 'Connect to AWS directly via API Key',
         kiroApikeyRelay: 'Relay via external API Key + Base URL',
+        leonardoOauth: 'Leonardo web Cookie, direct GraphQL',
+        leonardoApikeyRelay: 'OpenAI-compatible relay fallback',
+        fishOauthToken: 'API Key',
+        fishOauth: 'Connect to Fish Audio directly with an API Key',
+        fishApikeyRelay: 'OpenAI-compatible relay fallback',
         kiroOauth: 'Social OAuth / AWS Builder ID / Import',
-        adobeOauth: 'Firefly cookie',
-        adobeApikeyRelay: 'Relay via external API Key + Base URL',
         antigravityApikey: 'Connect via Base URL + API Key',
         upstream: 'Upstream',
         upstreamDesc: 'Connect via Base URL + API Key'
@@ -818,11 +831,13 @@ export default {
         excelBPSIgnoreEncryptedContentDesc: 'Old Codex conversations that used multi-agent collaboration carry sub-agent messages as ciphertext that only the native Codex channel can read. BPS cannot forward it, so the whole conversation fails on every turn with an encrypted_content error. When enabled, encrypted parts of messages and tool results are replaced with a fixed omission notice before forwarding, keeping the remaining text, message order and tool call pairing so the conversation can continue. The model cannot see omitted content; plaintext messages, such as a sub-agent’s final answer, and reasoning items are not affected.',
         excelBPSCacheCreationAsInputDesc: 'Bill BPS cache creation tokens as regular input and report zero cache creation usage downstream. Total input and cache reads stay unchanged. This does not disable upstream caching.',
         excelBPSDesc: 'Forward Responses through Excel using this account’s existing ChatGPT OAuth credentials. No GitHub login or sidecar. Disable to restore Codex routing.',
+        excelBPSOAuthOnlyDesc: 'This BPS OAuth account forwards Responses requests only through the Excel add-in endpoint.',
         excelBPSAllModels: 'Enable for all models (legacy behavior)',
         excelBPSModels: 'Select models for Excel / BPS',
         excelBPSAstraOnly: 'Astra only',
         excelBPSModelsHint: 'Matches model names after account mapping. Selected models use Excel / BPS; other models retain their Codex, WS and passthrough settings. An empty selection disables BPS routing. Selecting gpt-image-2 also sends non-streaming png text-to-image and single-image edit requests (no mask) through BPS; streaming, masks, transparent backgrounds and anything else BPS rejects fall back to Codex. Among image models BPS currently supports only gpt-image-2, so selecting other image models has no effect there, and "Enable for all models" does not include image models.',
         excelBPSNotice: 'Start a new Codex conversation after saving. Selected models use HTTP/SSE regardless of WS mode or passthrough. Supports Responses, client tools and HTTPS images; base64 images are unsupported. max / ultra use xhigh. Model access depends on the upstream.',
+        excelBPSOAuthOnlyNotice: 'This account supports the Responses API only, over HTTP/SSE. Chat Completions, Messages and image generation are unsupported.',
         autoBPS: 'Enable BPS automatically when degraded',
         autoBPSDesc: "A state probe checks this account at the configured interval (every 2 minutes by default) over the normal protocol, never through BPS. When the conditions below are met, it enables BPS with the selected options. This is a quality rule; its records and settings are also under Smart operations → Quality operations.",
         autoBPSLoading: 'Loading this account’s auto-BPS rule…',
@@ -855,6 +870,7 @@ export default {
         wsModeCtxPool: 'Context Pool (ctx_pool)',
         wsModePassthrough: 'Passthrough (passthrough)',
         wsModeHttpBridge: 'HTTP Bridge (http_bridge)',
+        wsModeWsBridge: 'WebSocket Bridge (ws_bridge)',
         wsModeShared: 'Shared (shared)',
         wsModeDedicated: 'Dedicated (dedicated)',
         wsModeCtxPoolHint:
@@ -863,6 +879,8 @@ export default {
           'The gateway opens a separate upstream WS connection for each client session, without using a connection pool.',
         wsModeHttpBridgeHint:
           'The gateway converts client WS requests to upstream HTTP requests, then converts SSE streaming responses back into WS messages.',
+        wsModeWsBridgeHint:
+          'The gateway converts streaming client HTTP requests to upstream WS requests over pooled connections, then converts WS messages back into an SSE stream; WS requests behave the same as the context pool. Non-streaming requests and requests above the HTTP bridge threshold still use HTTP.',
         oauthResponsesWebsocketsV2: 'OAuth WebSocket Mode',
         oauthResponsesWebsocketsV2Desc:
           'Only applies to OpenAI OAuth. This account can use OpenAI WebSocket Mode only when enabled.',
@@ -1381,20 +1399,6 @@ export default {
         pleaseEnterBaseUrl: 'Please enter upstream Base URL',
         pleaseEnterApiKey: 'Please enter upstream API Key'
       },
-      adobe: {
-        cookieLabel: 'Adobe Cookie',
-        cookieHint: 'Sign in to Adobe, open firefly.adobe.com/generate/image and successfully generate an image there, then export JSON with Adobe Cookie Exporter and upload it under Accounts → Import. You can also paste that JSON or the Cookie header from an adobeid-na1.services.adobe.com /ims/check/v6/token request here (it must include ims_sid). Copying document.cookie from firefly.adobe.com alone is not enough. A "Cookie:" prefix or a JSON cookie array is also accepted. The short-lived access token is refreshed from this automatically.',
-        credentialStepTitle: 'Enter credentials',
-        cookiePlaceholder: 'ims_sid=...; aux_sid=...; ...',
-        cookieRequired: 'Please enter the Adobe cookie',
-        accessTokenLabel: 'Access Token (optional)',
-        accessTokenHint: 'Leave empty to have it fetched from the cookie on first refresh. Fill it only when you already hold a valid IMS token.',
-        arpLabel: 'ARP Session (optional)',
-        arpPlaceholder: 'Firefly x-arp-session-id header',
-        arpHint: 'Recommended for FREE accounts. With the exporter, generate an image on firefly.adobe.com/generate/image first, then export. Paid accounts can leave this empty. Pasting the exporter JSON into the cookie field also fills it.',
-        relayApiKeyHint: 'API key for that external upstream (sent as Authorization: Bearer)',
-        relayBaseUrlHint: 'External OpenAI-compatible upstream URL (e.g. https://your-relay.example.com)'
-      },
       kiro: {
         apiKeyHint: 'Kiro API Key (starts with ksk_), used as the Bearer token for direct AWS access',
         apiRegionLabel: 'API Region',
@@ -1890,7 +1894,6 @@ export default {
       geminiAccount: 'Gemini Account',
       antigravityAccount: 'Antigravity Account',
       grokAccount: 'Grok Account',
-      adobeAccount: 'Adobe Account',
       inputMethod: 'Input Method',
       reAuthorizedSuccess: 'Account re-authorized successfully',
       // Test Modal
@@ -2113,9 +2116,32 @@ export default {
         usageTrend: '30-Day Cost & Request Trend',
         noData: 'No usage data available for this account',
         approxCost: 'approx. {amount}',
-        kiroCredits: 'Credits Used'
+        kiroCredits: 'Credits Used',
+        leonardoCredits: 'Credits Used'
       },
+      fish: {
+        tokenLabel: 'API Key',
+        tokenHint: 'The session value from localStorage in a logged-in fish.audio browser (36-character UUID, long-lived, no refresh), stored as credentials.api_key. team_id and device_id are filled in by the connectivity test.',
+        tokenRequired: 'Paste the fish.audio API key',
+        relayApiKeyHint: 'API key for the relay upstream (sent as Authorization: Bearer)',
+        relayBaseUrlHint: 'Handles requests fish native accounts cannot (sizes outside the allowlist, mask, n>8, webp). Channel mapping rewrites the model name, for example gpt-image-2 to gpt-image-1.'
+      },
+      leonardo: {
+        cookieLabel: 'Leonardo Cookie',
+        cookieHint: 'Log in to app.leonardo.ai, then copy the full cookie string from DevTools (Application → Cookies or a request Cookie header). Must include __Secure-better-auth.session_token; session_data.* shards are recommended. A bare session token value also works. The short-lived JWT is exchanged and kept alive automatically from this cookie.',
+        cookiePlaceholder: '__Secure-better-auth.session_token=...; __Secure-better-auth.session_data.0=...',
+        cookieRequired: 'Leonardo cookie is required',
+        relayApiKeyHint: "API key for the relay upstream (sent as Authorization: Bearer)",
+        relayBaseUrlHint: 'OpenAI-compatible upstream (official https://api.openai.com or a third-party relay); fallback when native accounts fail'
+      },
+
       usageWindow: {
+        leonardoCredits: 'Credits',
+        leonardoFast: 'Fast Tokens',
+        leonardoFastDaily: 'Fast Tokens (daily)',
+        leonardoRollover: 'Rollover Bank',
+        leonardoTopUp: 'Top-up',
+        leonardoReset: 'Reset',
         statsTitle: '5-Hour Window Usage Statistics',
         statsTitleDaily: 'Daily Usage Statistics',
         geminiProDaily: 'Pro',
@@ -2148,12 +2174,12 @@ export default {
         activeQuery: 'Query',
         kiroBonus: 'Bonus',
         kiroCredits: 'Credits',
+        fishCredits: 'Credits',
+        fishDaily: 'Daily images',
+        fishReset: 'Reset',
         kiroDaysLeft: '{days}d left',
         kiroExpires: 'Expires',
         kiroReset: 'Reset',
-        adobeCredits: 'Credits',
-        adobeReset: 'Reset',
-        adobePlanCap: 'Plan',
         estimatedTotalCost: 'Est. total ${cost}',
         estimatedTotalCostTooltip: 'Estimated total cost at 100% utilization, based on current window cost and utilization'
       },

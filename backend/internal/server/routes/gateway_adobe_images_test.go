@@ -29,11 +29,15 @@ func adobeRoutesRouterWithResolver(t *testing.T, group *service.Group, resolver 
 	cfg.Gateway.MaxBodySize = 1 << 20
 	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, cfg,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	gateway := service.NewGatewayService(
+		nil, nil, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := &handler.Handlers{
-		Gateway: handler.NewGatewayHandler(nil, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil, nil, service.NewAdobeImageService(nil), cfg, nil),
+		Gateway: handler.NewGatewayHandler(gateway, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, service.NewAdobeImageService(nil), nil, nil, cfg, nil),
 		OpenAIGateway: handler.NewOpenAIGatewayHandler(openAI, nil, nil, nil, nil, nil, nil, nil, nil, cfg),
-		AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
+		AsyncImage:    handler.NewAsyncImageHandler(nil, nil, nil),
 	}
 	router := gin.New()
 	RegisterGatewayRoutes(router, h, servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
@@ -215,8 +219,12 @@ func adobeGeminiV1BetaRouterWithResolver(t *testing.T, group *service.Group, res
 	cfg.Gateway.MaxBodySize = 1 << 20
 	openAI := service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, cfg,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	h := handler.NewGatewayHandler(nil, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, service.NewAdobeImageService(nil), cfg, nil)
+	gateway := service.NewGatewayService(
+		nil, nil, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	h := handler.NewGatewayHandler(gateway, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, service.NewAdobeImageService(nil), nil, nil, cfg, nil)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{ID: 11, GroupID: &group.ID, Group: group})
@@ -282,7 +290,11 @@ func TestGatewayRoutesAdobeListModels(t *testing.T) {
 
 func TestGatewayRoutesCompositeNanoBananaGenerateContentDispatchesAdobe(t *testing.T) {
 	group := &service.Group{ID: 1, Platform: service.PlatformComposite, AllowImageGeneration: false}
-	router := adobeGeminiV1BetaRouter(t, group)
+	resolver := service.NewCompositeRouteResolver(nil)
+	resolver.SetModelOwnershipResolver(func(context.Context, int64, string) (service.CompositeModelOwnership, error) {
+		return service.CompositeModelOwnership{TargetPlatform: service.PlatformAdobe, Matched: true}, nil
+	})
+	router := adobeGeminiV1BetaRouterWithResolver(t, group, resolver)
 
 	w := postAdobeImages(t, router, "/v1beta/models/nano-banana-pro:generateContent", adobeGeminiGenerateContentBody("x"))
 	require.Equal(t, http.StatusForbidden, w.Code, w.Body.String())

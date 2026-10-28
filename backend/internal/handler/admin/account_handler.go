@@ -146,7 +146,7 @@ type CreateAccountRequest struct {
 	Name                    string         `json:"name" binding:"required"`
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
-	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream bedrock service_account"`
+	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream bedrock service_account bps-oauth"`
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`
@@ -1565,7 +1565,7 @@ func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
 // refreshSingleAccount refreshes credentials for a single OAuth account.
 // Returns (updatedAccount, warning, error) where warning is used for Antigravity ProjectIDMissing scenario.
 func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *service.Account) (*service.Account, string, error) {
-	if !account.IsOAuth() {
+	if !account.IsOAuth() && !account.IsBPSOAuth() {
 		return nil, "", infraerrors.BadRequest("NOT_OAUTH", "cannot refresh non-OAuth account")
 	}
 	// spark 影子凭据由母账号管理、自身恒空,刷新无意义且会先打上游;在调用上游前早拒
@@ -1757,7 +1757,7 @@ func (h *AccountHandler) Refresh(c *gin.Context) {
 
 // ApplyOAuthCredentialsRequest is the payload for persisting re-authorized OAuth credentials.
 type ApplyOAuthCredentialsRequest struct {
-	Type        string         `json:"type" binding:"required,oneof=oauth setup-token"`
+	Type        string         `json:"type" binding:"required,oneof=oauth setup-token bps-oauth"`
 	Credentials map[string]any `json:"credentials" binding:"required"`
 	Extra       map[string]any `json:"extra"`
 }
@@ -1796,7 +1796,7 @@ func (h *AccountHandler) ApplyOAuthCredentials(c *gin.Context) {
 		response.NotFound(c, "Account not found")
 		return
 	}
-	if !existing.IsOAuth() {
+	if !existing.IsOAuth() && !existing.IsBPSOAuth() {
 		response.ErrorFrom(c, infraerrors.BadRequest("NOT_OAUTH", "cannot apply oauth credentials to non-OAuth account"))
 		return
 	}
@@ -1866,7 +1866,7 @@ func (h *AccountHandler) ApplyOAuthCredentials(c *gin.Context) {
 		updatedAccount = cleared
 	}
 
-	if h.tokenCacheInvalidator != nil && updatedAccount.IsOAuth() {
+	if h.tokenCacheInvalidator != nil && (updatedAccount.IsOAuth() || updatedAccount.IsBPSOAuth()) {
 		if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(ctx, updatedAccount); invalidateErr != nil {
 			slog.Warn("apply_oauth_credentials.invalidate_token_failed",
 				"account_id", accountID,
@@ -1926,7 +1926,7 @@ func (h *AccountHandler) ClearError(c *gin.Context) {
 
 	// 清除错误后，同时清除 token 缓存，确保下次请求会获取最新的 token（触发刷新或从 DB 读取）
 	// 这解决了管理员重置账号状态后，旧的失效 token 仍在缓存中导致立即再次 401 的问题
-	if h.tokenCacheInvalidator != nil && account.IsOAuth() {
+	if h.tokenCacheInvalidator != nil && (account.IsOAuth() || account.IsBPSOAuth()) {
 		if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(c.Request.Context(), account); invalidateErr != nil {
 			log.Printf("[WARN] Failed to invalidate token cache for account %d: %v", accountID, invalidateErr)
 		}
@@ -2127,7 +2127,7 @@ func (h *AccountHandler) BatchClearError(c *gin.Context) {
 			}
 
 			// 清除错误后，同时清除 token 缓存
-			if h.tokenCacheInvalidator != nil && account.IsOAuth() {
+			if h.tokenCacheInvalidator != nil && (account.IsOAuth() || account.IsBPSOAuth()) {
 				if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(gctx, account); invalidateErr != nil {
 					log.Printf("[WARN] Failed to invalidate token cache for account %d: %v", accountID, invalidateErr)
 				}
@@ -3020,6 +3020,74 @@ func (h *AccountHandler) GetModelReasoning(c *gin.Context) {
 	response.Success(c, h.accountTestService.GetAccountTestReasoning(c.Request.Context(), account, modelID))
 }
 
+// leonardoAccountTestModels 列出 Leonardo 账号测试可选的请求模型：取模型映射
+// 的键，只保留账号真能调度的（IsModelSupported 已按平台口径校验映射目标）；
+// 通配符键不能直接当请求模型，跳过。一个都不剩时回落平台默认模型。
+func leonardoAccountTestModels(account *service.Account) []openai.Model {
+	requested := make([]string, 0)
+	for model := range account.GetModelMapping() {
+		if strings.Contains(model, "*") || !account.IsModelSupported(model) {
+			continue
+		}
+		requested = append(requested, model)
+	}
+	sort.Strings(requested)
+	if len(requested) == 0 {
+		requested = service.LeonardoModelIDs()
+	}
+	models := make([]openai.Model, 0, len(requested))
+	for _, id := range requested {
+		model := openai.Model{ID: id, Object: "model", Type: "model", DisplayName: id}
+		for _, dm := range openai.DefaultModels {
+			if dm.ID == id {
+				model = dm
+				break
+			}
+		}
+		models = append(models, model)
+	}
+	return models
+}
+
+// fishAccountTestModels 列出 fish 账号测试可选的请求模型。只保留账号真能调度的
+// 对外名；通配符不能直接当请求模型。一个都不剩时回落平台默认模型。
+func fishAccountTestModels(account *service.Account) []openai.Model {
+	requested := make([]string, 0)
+	for model := range account.GetModelMapping() {
+		if strings.Contains(model, "*") || !account.IsModelSupported(model) {
+			continue
+		}
+		requested = append(requested, model)
+	}
+	sort.Strings(requested)
+	if len(requested) == 0 {
+		requested = service.FishModelIDs()
+	}
+	models := make([]openai.Model, 0, len(requested))
+	for _, id := range requested {
+		models = append(models, openai.Model{
+			ID:          id,
+			Object:      "model",
+			Type:        "model",
+			DisplayName: fishTestModelDisplayName(id),
+		})
+	}
+	return models
+}
+
+func fishTestModelDisplayName(id string) string {
+	switch id {
+	case "gpt-image-2":
+		return "GPT Image 2"
+	case "gpt-image-2.5-flare":
+		return "GPT Image 2.5 Flare"
+	case "gpt-image-2.5-sunburst":
+		return "GPT Image 2.5 Sunburst"
+	default:
+		return id
+	}
+}
+
 // GetAvailableModels handles getting available models for an account
 // GET /api/v1/admin/accounts/:id/models
 func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
@@ -3036,6 +3104,14 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	}
 
 	// Handle OpenAI accounts. BPS catalogs use their configured account path.
+	// BPS-only accounts test only their configured models (mapping keys, or the
+	// BPS defaults), never the native defaults.
+	if account.IsBPSOAuth() {
+		response.Success(c, service.ExcelBPSConfiguredModels(account))
+		return
+	}
+
+	// Handle OpenAI accounts
 	if account.IsOpenAI() {
 		if account.IsExcelBPSEnabled() {
 			if h.accountTestService == nil {
@@ -3132,6 +3208,25 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		return
 	}
 
+	// Leonardo 只出图：只列账号实际能调度的请求模型（首期仅 gpt-image-2），
+	// 不能落到下面 OAuth 账号的 Claude 默认模型。
+	if account.Platform == service.PlatformLeonardo {
+		response.Success(c, leonardoAccountTestModels(account))
+		return
+	}
+
+	// fish 只出图：列出这个账号实际能调度的请求模型。返回对象要带 id / display_name，
+	// 测试弹窗的选择器读的是这两个字段。
+	if account.Platform == service.PlatformFish {
+		response.Success(c, fishAccountTestModels(account))
+		return
+	}
+
+	if account.Platform == service.PlatformAdobe {
+		response.Success(c, buildAdobeTestModels(account.GetModelMapping()))
+		return
+	}
+
 	// Explicit account mappings expose their request-side names to connectivity tests.
 	if account.Platform == service.PlatformAntigravity {
 		response.Success(c, antigravityAccountTestModels(account.Credentials["model_mapping"]))
@@ -3147,16 +3242,6 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		}
 
 		response.Success(c, buildMappedKiroModels(mapping))
-		return
-	}
-
-	// Handle Adobe accounts
-	//
-	// Adobe 账号一律是 oauth，改前会落到本函数结尾的 Claude 兜底分支返回 claude.DefaultModels
-	// ——测试弹窗因此显示一堆 Sonnet/Opus。GetModelMapping 对 Adobe 在未显式配置时会自动
-	// 回落到 DefaultAdobeModelMapping，所以这一条同时覆盖默认账号与自定义映射的账号。
-	if account.Platform == service.PlatformAdobe {
-		response.Success(c, buildAdobeTestModels(account.GetModelMapping()))
 		return
 	}
 
@@ -3257,19 +3342,10 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	response.Success(c, models)
 }
 
-// buildAdobeTestModels 把账号的 model_mapping 键渲染成测试弹窗可用的模型条目。
-//
-// 顺序是刻意的：先按 adobe.ImageModelIDs() 的对外展示序输出，再把运维自定义的额外别名
-// 按字典序追加。前端默认选中第一项，顺序不稳会让默认模型每次刷新都变。
-//
-// DisplayName 直接用 id：Adobe 的对外名本身可读（gpt-image-2 / gemini-3-pro-image / flux-pro），
-// 不值得再维护一张标签表。
 func buildAdobeTestModels(mapping map[string]string) []adobe.Model {
 	models := make([]adobe.Model, 0, len(mapping))
 	emitted := make(map[string]struct{}, len(mapping))
 
-	// 对外清单里的模型给人类可读展示名（"gpt-image-2" → "GPT Image 2"），
-	// 与 OpenAI/Gemini 的选择器观感一致。
 	for _, id := range adobe.ImageModelIDs() {
 		if _, ok := mapping[id]; !ok {
 			continue
@@ -3284,15 +3360,11 @@ func buildAdobeTestModels(mapping map[string]string) []adobe.Model {
 
 	extras := make([]string, 0, len(mapping))
 	for id := range mapping {
-		if _, ok := emitted[id]; ok {
-			continue
+		if _, ok := emitted[id]; !ok {
+			extras = append(extras, id)
 		}
-		extras = append(extras, id)
 	}
 	sort.Strings(extras)
-	// extras 刻意保留裸 id：默认映射里的 gpt-image / gpt-image-1 / gpt-image-1-mini
-	// 都落同一个族，套 label 会出现三行一模一样的「GPT Image 2」；
-	// 运维自定义的别名也该显示他自己写的那个名字。
 	for _, id := range extras {
 		models = append(models, adobe.Model{ID: id, Type: "model", DisplayName: id})
 	}
@@ -3328,13 +3400,13 @@ func antigravityAccountTestModels(rawMapping any) []antigravity.ClaudeModel {
 	switch mapping := rawMapping.(type) {
 	case map[string]any:
 		for id := range mapping {
-			if strings.TrimSpace(id) != "" {
+			if strings.TrimSpace(id) != "" && !strings.Contains(id, "*") {
 				mappedIDs = append(mappedIDs, id)
 			}
 		}
 	case map[string]string:
 		for id := range mapping {
-			if strings.TrimSpace(id) != "" {
+			if strings.TrimSpace(id) != "" && !strings.Contains(id, "*") {
 				mappedIDs = append(mappedIDs, id)
 			}
 		}
@@ -3700,8 +3772,6 @@ func (h *AccountHandler) GetKiroDefaultModelMapping(c *gin.Context) {
 	response.Success(c, domain.DefaultKiroModelMapping)
 }
 
-// GetAdobeDefaultModelMapping 获取 Adobe 平台的默认模型映射
-// GET /api/v1/admin/accounts/adobe/default-model-mapping
 func (h *AccountHandler) GetAdobeDefaultModelMapping(c *gin.Context) {
 	response.Success(c, domain.DefaultAdobeModelMapping)
 }

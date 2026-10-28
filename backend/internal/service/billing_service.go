@@ -534,6 +534,27 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown: false,
 	}
 
+	// Gemini 4 Argon (Google AI pricing: $2 input / $10 output / $0.10 cached
+	// input per MTok, promotional through 2026-11-30; official rates double to
+	// $4/$20/$0.20 from 2026-12-01). One rate covers every prompt length.
+	// Antigravity's -high/-low/-medium aliases are matched below so unavailable
+	// remote pricing never records token-bearing requests at $0.
+	s.fallbackPrices["gemini-4-argon"] = &ModelPricing{
+		InputPricePerToken:     2e-6,
+		OutputPricePerToken:    10e-6,
+		CacheReadPricePerToken: 0.1e-6,
+		SupportsCacheBreakdown: false,
+	}
+
+	// Gemini 4 Argon Cyber Permissive (Vertex AI pricing: $4 input / $20 output /
+	// $0.20 cached input per MTok). The Gemini 4 Argon promotion does not apply.
+	s.fallbackPrices["gemini-4-argon-cyber-permissive"] = &ModelPricing{
+		InputPricePerToken:     4e-6,
+		OutputPricePerToken:    20e-6,
+		CacheReadPricePerToken: 0.2e-6,
+		SupportsCacheBreakdown: false,
+	}
+
 	// OpenAI GPT-5.4（业务指定价格）
 	s.fallbackPrices["gpt-5.4"] = &ModelPricing{
 		InputPricePerToken:             2.5e-6,  // $2.5 per MTok
@@ -967,6 +988,20 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextOutputMultiplier:   2,
 	}
 
+	// xAI Grok 4.7 Fast (Cursor and Grok Build only): the same model on faster
+	// infrastructure at $4 input / $1 cached input / $12 output below 200k;
+	// long-context rates are $6 / $1.50 / $18 (1.5x of the Fast base card).
+	s.fallbackPrices["grok-4.7-fast"] = &ModelPricing{
+		InputPricePerToken:            4e-6,
+		OutputPricePerToken:           12e-6,
+		CacheReadPricePerToken:        1e-6,
+		SupportsCacheBreakdown:        false,
+		LongContextInputThreshold:     200000,
+		LongContextThresholdInclusive: true,
+		LongContextInputMultiplier:    1.5,
+		LongContextOutputMultiplier:   1.5,
+	}
+
 	// xAI Grok 4.3: $1.25 input / $0.20 cached / $2.50 output below 200k;
 	// long-context rates are $2.50 / $0.40 / $5.
 	s.fallbackPrices["grok-4.3"] = &ModelPricing{
@@ -1024,7 +1059,7 @@ func (s *BillingService) initFallbackPricing() {
 
 // getFallbackPricing 根据模型系列获取回退价格
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
-	modelLower := strings.ToLower(model)
+	modelLower := normalizeAntigravityClaudeTierAlias(strings.ToLower(model))
 	if modelLower == "jev-latest" {
 		return s.fallbackPrices["jev-latest"]
 	}
@@ -1101,6 +1136,13 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	}
 	if strings.Contains(modelLower, "gemini-3.8-flash") || strings.Contains(modelLower, "gemini-3-8-flash") {
 		return s.fallbackPrices["gemini-3.8-flash"]
+	}
+	// Cyber 变体不享受 Gemini 4 Argon 的优惠价，必须先于 "gemini-4-argon" 判。
+	if strings.Contains(modelLower, "gemini-4-argon-cyber") {
+		return s.fallbackPrices["gemini-4-argon-cyber-permissive"]
+	}
+	if strings.Contains(modelLower, "gemini-4-argon") {
+		return s.fallbackPrices["gemini-4-argon"]
 	}
 
 	// DeepSeek 系列：官方模型 V4 Pro/Flash（含 vision-exp）按各自价卡；
@@ -1266,6 +1308,11 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		return s.fallbackPrices["grok-4.6"]
 	case "grok-4.7", "grok-4.7-latest":
 		return s.fallbackPrices["grok-4.7"]
+	// Grok 4.7 Fast IDs (grok-4.7-fast, and the Grok Build ID
+	// grok-4.7-build-fast). Without these cases both fall into the unknown-Grok
+	// family card and bill at the standard 4.7 rate (#8119).
+	case "grok-4.7-fast", "grok-4.7-build-fast":
+		return s.fallbackPrices["grok-4.7-fast"]
 	case "grok-4.5", "grok-4.5-latest":
 		return s.fallbackPrices["grok-4.5"]
 	case "grok-3-mini":
@@ -1389,7 +1436,7 @@ func (s *BillingService) getModelPricingAt(model string, pricingAt time.Time) (*
 		// token 计费：直接返回会把 token 流量按 $0 计费。跳过后走 fallback，
 		// 无 fallback 则 fail-closed（ErrModelPricingUnavailable）。
 		// 图片计费路径（getDefaultImagePrice / getImageUnitPrice）直接读
-		// PricingService，不受影响。Adobe 分档只在 platform=adobe 时套用。
+		// PricingService，不受影响。
 		if litellmPricing != nil && litellmPricing.TokenPricingAbsent {
 			litellmPricing = nil
 		}
@@ -2226,14 +2273,13 @@ func (s *BillingService) CalculateAudioCost(mode string, durationOrUnits float64
 	}
 }
 
-// CalculateImageCost 计算图片生成费用。未传平台时不套 Adobe 分档，避免
-// gpt-image-* 等同名模型把 OpenAI 出图按 Firefly 档计费。
+// CalculateImageCost 计算图片生成费用（不区分平台）。
 func (s *BillingService) CalculateImageCost(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64) *CostBreakdown {
 	return s.CalculateImageCostWithPlatform(model, imageSize, imageCount, groupConfig, rateMultiplier, "")
 }
 
-// CalculateImageCostWithPlatform 与 CalculateImageCost 相同，但按账号/分组平台
-// 决定是否套 Adobe Firefly 兜底价。仅 platform=adobe 走 adobeImagePriceTierByModel。
+// CalculateImageCostWithPlatform 与 CalculateImageCost 相同，但携带账号/分组平台，
+// 供按平台区分的兜底价使用。
 func (s *BillingService) CalculateImageCostWithPlatform(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64, platform string) *CostBreakdown {
 	if imageCount <= 0 {
 		return &CostBreakdown{}
@@ -2335,18 +2381,10 @@ func (s *BillingService) getVideoUnitPrice(model string, resolution string, grou
 	return s.getDefaultVideoPrice(model, resolution)
 }
 
-// getDefaultImagePrice 获取 LiteLLM 默认图片价格。
-// Adobe 分档只在 platform=adobe 时生效：gpt-image-1 / gpt-image-2.5-flare 等
-// 同时是 OpenAI 官方出图名，合成路由也不按前缀猜平台。空平台与 openai/gemini/grok
-// 必须落到 LiteLLM output_cost_per_image，没有则用通用 $0.134。
+// getDefaultImagePrice 获取 LiteLLM 默认图片价格，没有则用通用 $0.134。
 func (s *BillingService) getDefaultImagePrice(model string, imageSize string, platform string) float64 {
 	if price, ok := getDefaultGrokImagineImagePrice(model, imageSize); ok {
 		return price
-	}
-	if isAdobeImageBillingPlatform(platform) {
-		if price, ok := getDefaultAdobeImagePrice(model, imageSize); ok {
-			return price
-		}
 	}
 
 	basePrice := 0.0
@@ -2387,85 +2425,11 @@ func (s *BillingService) getDefaultVideoPrice(model string, resolution string) f
 	return s.getDefaultImagePrice(model, ImageBillingSize2K, "")
 }
 
-// adobeImagePriceTiers 是 Adobe Firefly 直连的三档兜底价（[1K, 2K, 4K]）。
-//
-// 分档依据（USD/image，含 middleman 溢价）：
-//   - nano:  Google Gemini Flash 系（gemini-*-image / 历史别名 nano-banana*）
-//   - gpt-image: OpenAI 标准 gpt-image / 1.5 / 2；OpenAI 官方 gpt-image-1 ~$0.02(low)-$0.19(high)
-//   - premium: gpt-image-2.5 旗舰
-//   - third:   flux / imagen-4 / gpt-4o-image / runway；对齐各家官方 $0.04–$0.08 档
-//
-// 数字目标是「三档差异化，避免一价通吃」，而非精确 P/L；精确计费交给分组的
-// image_price_1k/2k/4k 覆盖。这里只是让「运维忘配价」时不会以 $0.134 大锅收.
-var adobeImagePriceTiers = map[string][3]float64{
-	"nano":      {0.02, 0.04, 0.08},
-	"gpt-image": {0.05, 0.08, 0.15},
-	"premium":   {0.10, 0.15, 0.25},
-	"third":     {0.08, 0.12, 0.20},
-}
-
-// adobeImagePriceTierByModel 把用户面模型名（billingModel = requestedModel，即
-// DefaultAdobeModelMapping 的 keys）映射到 adobeImagePriceTiers 的档位。
-//
-// 表内含 gpt-image-* 等与 OpenAI 官方出图同名的对外名。隔离轴是 platform=adobe，
-// 不是「OpenAI 一定走 token 计费」：未配 image_price_* 且渠道不是 token 时，
-// calculateOpenAIImageCost 仍会落到本函数。非 Adobe 平台不得查这张表。
-var adobeImagePriceTierByModel = map[string]string{
-	"nano-banana":                    "nano",
-	"nano-banana-pro":                "nano",
-	"nano-banana2":                   "nano",
-	"gemini-2.5-flash-image":         "nano",
-	"gemini-2.5-flash-image-preview": "nano",
-	"gemini-3-pro-image":             "nano",
-	"gemini-3-pro-image-preview":     "nano",
-	"gemini-3.1-flash-image":         "nano",
-	"gemini-3.1-flash-image-preview": "nano",
-	"gpt-image":                      "gpt-image",
-	"gpt-image-1":                    "gpt-image",
-	"gpt-image-1-mini":               "gpt-image",
-	"gpt-image-1.5":                  "gpt-image",
-	"gpt-image-2":                    "gpt-image",
-	"gpt-image-2.5-flare":            "premium",
-	"gpt-image-2.5-prism":            "premium",
-	"gpt-image-2.5-sunburst":         "premium",
-	"flux-pro":                       "third",
-	"flux-ultra":                     "third",
-	"imagen-4":                       "third",
-	"imagen-4-fast":                  "third",
-	"gpt-4o-image":                   "third",
-	"runway-gen4-image":              "third",
-}
-
-func isAdobeImageBillingPlatform(platform string) bool {
-	return strings.EqualFold(strings.TrimSpace(platform), PlatformAdobe)
-}
-
 func imageBillingPlatform(account *Account) string {
 	if account == nil {
 		return ""
 	}
 	return account.Platform
-}
-
-// getDefaultAdobeImagePrice 是 Adobe Firefly 直连的兜底价。未命中返回 (0, false)——
-// 交给下游继续走 pricingService → hardcoded $0.134。调用方必须先用
-// isAdobeImageBillingPlatform 把门，本函数本身只按模型名查表。
-func getDefaultAdobeImagePrice(model string, imageSize string) (float64, bool) {
-	tier, ok := adobeImagePriceTierByModel[strings.ToLower(strings.TrimSpace(model))]
-	if !ok {
-		return 0, false
-	}
-	prices := adobeImagePriceTiers[tier]
-	switch NormalizeImageBillingTierOrDefault(imageSize) {
-	case ImageBillingSize1K:
-		return prices[0], true
-	case ImageBillingSize2K:
-		return prices[1], true
-	case ImageBillingSize4K:
-		return prices[2], true
-	default:
-		return prices[1], true
-	}
 }
 
 func getDefaultGrokImagineImagePrice(model string, imageSize string) (float64, bool) {

@@ -31,15 +31,6 @@ func (l *bpsTestLease) ReportStreamFailure()   { l.failures++ }
 func (l *bpsTestLease) ReportSuccess()         {}
 func (l *bpsTestLease) ReportUpstreamFailure() { l.failures++ }
 
-type bpsTestUpstream struct {
-	httpUpstreamRecorder
-	send func(*http.Request, string) (*http.Response, error)
-}
-
-func (u *bpsTestUpstream) Do(r *http.Request, proxy string, _ int64, _ int) (*http.Response, error) {
-	return u.send(r, proxy)
-}
-
 func TestExcelBPSProxyFailoverOnlyBeforeRequestSent(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

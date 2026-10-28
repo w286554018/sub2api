@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -68,5 +69,12 @@ func TestTraceSafetyAndStages(t *testing.T) {
 				t.Fatal("private data leaked")
 			}
 		})
+	}
+}
+
+func TestClassifyConnectionAbort(t *testing.T) {
+	err := fmt.Errorf("wrapped socket error: %w", syscall.ECONNABORTED)
+	if got := Classify(err); got != "connection_reset" {
+		t.Fatalf("Classify(connection abort) = %q, want connection_reset", got)
 	}
 }

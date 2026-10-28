@@ -63,15 +63,15 @@ func TestBuildAuthorizationURLForPlatform_OpenAI(t *testing.T) {
 	if got := q.Get("id_token_add_organizations"); got != "true" {
 		t.Fatalf("id_token_add_organizations mismatch: got=%q want=true", got)
 	}
-	if got := q.Get("originator"); got != "codex-tui" {
-		t.Fatalf("originator mismatch: got=%q want=codex-tui", got)
+	if got := q.Get("originator"); got != CodexDefaultOriginator {
+		t.Fatalf("originator mismatch: got=%q want=%q", got, CodexDefaultOriginator)
 	}
 }
 
 func TestBuildAuthorizationURLIdentityEncoding(t *testing.T) {
 	tests := []struct{ originator, want string }{
-		{"", "codex-tui"},
-		{" \t ", "codex-tui"},
+		{"", CodexDefaultOriginator},
+		{" \t ", CodexDefaultOriginator},
 		{" codex_cli_rs ", "codex_cli_rs"},
 		{"client&scope=extra+value", "client&scope=extra+value"},
 	}
@@ -100,7 +100,7 @@ func TestBuildAuthorizationURLIdentityEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if parsed.Query().Get("originator") != "codex-tui" || parsed.Query().Get("redirect_uri") != DefaultRedirectURI {
+	if parsed.Query().Get("originator") != CodexDefaultOriginator || parsed.Query().Get("redirect_uri") != DefaultRedirectURI {
 		t.Fatal("default wrapper lost identity or redirect")
 	}
 }

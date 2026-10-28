@@ -351,8 +351,8 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 			// post-refresh cache publication cannot restore that stale snapshot.
 			freshAccount = durableAccount
 		} else if freshAccount.Platform == PlatformAdobe {
-			// Adobe 的长期凭据是管理员粘贴的 cookie：整体覆盖会把 IMS 往返期间的
-			// cookie / model_mapping 修改写回旧值，故只合并 token 字段，且要求 cookie 未变。
+			// Adobe's long-lived cookie and model mapping may change during IMS refresh.
+			// Persist only token fields and only while the cookie still matches.
 			conditionalRepo, ok := api.accountRepo.(AdobeTokenCredentialsRepository)
 			if !ok {
 				return nil, &providerConfigurationRefreshError{
@@ -378,6 +378,45 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 				if readErr != nil || currentAccount == nil {
 					if readErr == nil {
 						readErr = fmt.Errorf("account not found after adobe token CAS miss")
+					}
+					return nil, fmt.Errorf("%w: %v", errOAuthRefreshAccountRereadFailed, readErr)
+				}
+				slog.Info("oauth_refresh_success_cas_skipped_stale_credentials",
+					"account_id", freshAccount.ID,
+					"platform", freshAccount.Platform,
+				)
+				return &OAuthRefreshResult{Account: currentAccount}, nil
+			}
+			freshAccount.Credentials = newCredentials
+		} else if freshAccount.Platform == PlatformLeonardo {
+			// Leonardo 的长期凭据是管理员粘贴的 cookie：整体覆盖会把 get-session
+			// 往返期间的 model_mapping 修改写回旧值，故只合并交换产物字段（含
+			// Better Auth 轮转后的新 cookie），且要求 cookie 未变。
+			conditionalRepo, ok := api.accountRepo.(LeonardoTokenCredentialsRepository)
+			if !ok {
+				return nil, &providerConfigurationRefreshError{
+					err: fmt.Errorf("leonardo token refresh conditional repository is not configured"),
+				}
+			}
+			applied, updateErr := conditionalRepo.UpdateLeonardoTokenIfCookieUnchanged(
+				ctx,
+				freshAccount.ID,
+				attemptedAccount.GetCredential("cookie"),
+				leonardoTokenCredentialFields(newCredentials),
+			)
+			if updateErr != nil {
+				slog.Error("oauth_refresh_update_failed",
+					"account_id", freshAccount.ID,
+					"platform", freshAccount.Platform,
+					"error", updateErr,
+				)
+				return nil, fmt.Errorf("%w: %v", errOAuthRefreshCredentialPersist, updateErr)
+			}
+			if !applied {
+				currentAccount, readErr := api.accountRepo.GetByID(ctx, freshAccount.ID)
+				if readErr != nil || currentAccount == nil {
+					if readErr == nil {
+						readErr = fmt.Errorf("account not found after leonardo token CAS miss")
 					}
 					return nil, fmt.Errorf("%w: %v", errOAuthRefreshAccountRereadFailed, readErr)
 				}

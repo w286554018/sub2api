@@ -1,4 +1,5 @@
 /** Initial model selection when configuring Excel / BPS in account editors. */
+/** Default model whitelist for new BPS OAuth accounts (Excel / Basis Points). */
 export const DEFAULT_EXCEL_BPS_MODELS = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra'] as const
 
 /** WebSearch emulation mode values (must match backend WebSearchMode* constants in account.go) */

@@ -38,7 +38,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?Set TOTP_ENCRYPTION_KEY}
-      TZ: Asia/Shanghai
+      TZ: UTC
       GOMEMLIMIT: 256MiB
       GOMAXPROCS: "2"
     depends_on:
@@ -67,7 +67,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: sub2api
       PGDATA: /var/lib/postgresql/data
-      TZ: Asia/Shanghai
+      TZ: UTC
     command: [postgres, -c, shared_buffers=32MB, -c, max_connections=40]
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
@@ -89,7 +89,7 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
       REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
-      TZ: Asia/Shanghai
+      TZ: UTC
     command:
       - sh
       - -c

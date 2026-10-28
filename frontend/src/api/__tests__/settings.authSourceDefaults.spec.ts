@@ -11,10 +11,7 @@ import {
 import { listPlatformIds } from "@/constants/platformCatalog";
 
 /** 与后端 AllowedQuotaPlatforms 一致的全部具体平台（平台清单）。 */
-const quotaPlatforms = [
-  "anthropic", "openai", "gemini", "antigravity", "kiro", "grok", "adobe",
-  "kimi", "zhipu", "deepseek", "minimax", "opencode_go", "typesafe", "command_code", "cline",
-];
+const quotaPlatforms = listPlatformIds();
 
 /** 全部平台全 null 的 map，用于断言归一化默认值 */
 const allNullQuotas: DefaultPlatformQuotasMap = Object.fromEntries(
@@ -250,6 +247,7 @@ describe("normalizePlatformQuotasMap", () => {
 
   it("无参数时返回平台清单中的全部平台全 null", () => {
     const result = normalizePlatformQuotasMap();
+    expect(quotaPlatforms).toContain("adobe");
     expect(listPlatformIds()).toEqual(quotaPlatforms);
     expect(Object.keys(result)).toEqual(quotaPlatforms);
     for (const v of Object.values(result)) {

@@ -31,6 +31,29 @@ func TestLoadDefaultModelsListReadMaxBytes(t *testing.T) {
 	require.Equal(t, DefaultModelsListReadMaxBytes, cfg.Gateway.ModelsListReadMaxBytes)
 }
 
+func TestLoadDefaultMinOutputTokens(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 128, cfg.Gateway.MinOutputTokens)
+}
+
+func TestLoadMinOutputTokensFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_MIN_OUTPUT_TOKENS", "16")
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 16, cfg.Gateway.MinOutputTokens)
+}
+
+func TestValidateMinOutputTokensMinimum(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	cfg.Gateway.MinOutputTokens = 15
+	require.EqualError(t, cfg.Validate(), "gateway.min_output_tokens must be at least 16")
+}
+
 func TestLoadTimezonePrecedence(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -673,6 +696,19 @@ func TestLoadImageNonstreamKeepaliveFromEnv(t *testing.T) {
 	cfg, err := Load()
 	require.NoError(t, err)
 	require.Equal(t, 15, cfg.Gateway.ImageNonstreamKeepaliveInterval)
+}
+
+func TestLoadLeonardoUsageTokensPerCredit(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 34.0, cfg.Gateway.LeonardoUsageTokensPerCredit)
+
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_LEONARDO_USAGE_TOKENS_PER_CREDIT", "0")
+	cfg, err = Load()
+	require.NoError(t, err)
+	require.Zero(t, cfg.Gateway.LeonardoUsageTokensPerCredit)
 }
 
 func TestLoadOpenAIWSStickyTTLCompatibility(t *testing.T) {
@@ -1979,6 +2015,16 @@ func TestValidateConfigErrors(t *testing.T) {
 			wantErr: "gateway.stream_data_interval_timeout must be non-negative",
 		},
 		{
+			name:    "gateway excel bps stream data interval range",
+			mutate:  func(c *Config) { c.Gateway.ExcelBPSStreamDataIntervalTimeout = 10 },
+			wantErr: "gateway.excel_bps_stream_data_interval_timeout",
+		},
+		{
+			name:    "gateway excel bps stream data interval negative",
+			mutate:  func(c *Config) { c.Gateway.ExcelBPSStreamDataIntervalTimeout = -1 },
+			wantErr: "gateway.excel_bps_stream_data_interval_timeout",
+		},
+		{
 			name:    "gateway image stream keepalive range",
 			mutate:  func(c *Config) { c.Gateway.ImageStreamKeepaliveInterval = 4 },
 			wantErr: "gateway.image_stream_keepalive_interval",
@@ -1997,6 +2043,11 @@ func TestValidateConfigErrors(t *testing.T) {
 			name:    "gateway image nonstream keepalive negative",
 			mutate:  func(c *Config) { c.Gateway.ImageNonstreamKeepaliveInterval = -1 },
 			wantErr: "gateway.image_nonstream_keepalive_interval must be non-negative",
+		},
+		{
+			name:    "gateway leonardo usage tokens per credit negative",
+			mutate:  func(c *Config) { c.Gateway.LeonardoUsageTokensPerCredit = -1 },
+			wantErr: "gateway.leonardo_usage_tokens_per_credit must be non-negative",
 		},
 		{
 			name:    "gateway image stream data interval range",
@@ -2227,6 +2278,14 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 		require.Equal(t, 7200, cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds)
 	})
 
+	t.Run("ingress_mode_default 接受 http_bridge 与 ws_bridge", func(t *testing.T) {
+		for _, mode := range []string{"http_bridge", "ws_bridge"} {
+			cfg := buildValid(t)
+			cfg.Gateway.OpenAIWS.IngressModeDefault = mode
+			require.NoError(t, cfg.Validate(), mode)
+		}
+	})
+
 	cases := []struct {
 		name    string
 		mutate  func(*Config)
@@ -2320,7 +2379,7 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 			wantErr: "gateway.openai_ws.store_disabled_conn_mode",
 		},
 		{
-			name:    "ingress_mode_default 必须为 off|ctx_pool|passthrough|http_bridge",
+			name:    "ingress_mode_default 必须为 off|ctx_pool|passthrough|http_bridge|ws_bridge",
 			mutate:  func(c *Config) { c.Gateway.OpenAIWS.IngressModeDefault = "invalid" },
 			wantErr: "gateway.openai_ws.ingress_mode_default",
 		},
@@ -2634,6 +2693,9 @@ func TestLoad_DefaultGatewayImageStreamConfig(t *testing.T) {
 	}
 	if cfg.Gateway.ExcelBPSStreamDataIntervalTimeout != 120 {
 		t.Fatalf("excel_bps_stream_data_interval_timeout = %d, want 120", cfg.Gateway.ExcelBPSStreamDataIntervalTimeout)
+	}
+	if cfg.Gateway.ExcelBPSStateRedisEnabled {
+		t.Fatalf("excel_bps_state_redis_enabled = true, want false")
 	}
 	if cfg.Gateway.StreamKeepaliveInterval != 10 {
 		t.Fatalf("stream_keepalive_interval = %d, want 10", cfg.Gateway.StreamKeepaliveInterval)

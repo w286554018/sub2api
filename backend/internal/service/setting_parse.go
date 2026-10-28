@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/anthropictokenizer"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
@@ -934,11 +935,17 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Gateway forwarding behavior (defaults: fingerprint=true, metadata_passthrough=false,
 	// cch_signing=false, claude_oauth_system_prompt_injection=true)
 	result.OpenAITTFTMode = normalizeOpenAITTFTMode(settings[SettingKeyOpenAITTFTMode])
+	result.GatewayKiroTokenizer = string(anthropictokenizer.ParseAlgorithm(settings[SettingKeyGatewayKiroTokenizer]))
 	if v, ok := settings[SettingKeyEnableFingerprintUnification]; ok && v != "" {
 		result.EnableFingerprintUnification = v == "true"
 	} else {
 		result.EnableFingerprintUnification = true // default: enabled (current behavior)
 	}
+
+	// fish 原生号动态尺寸规划阈值（缺省裁 4px / 放大 2 倍）
+	fishFit := parseFishImageFitLimitsValues(settings)
+	result.FishImageMaxCropPixels = fishFit.MaxCropPixels
+	result.FishImageMaxUpscaleFactor = fishFit.MaxUpscaleFactor
 	result.EnableMetadataPassthrough = settings[SettingKeyEnableMetadataPassthrough] == "true"
 	result.EnableCCHSigning = settings[SettingKeyEnableCCHSigning] == "true"
 	if v, ok := settings[SettingKeyEnableClaudeOAuthSystemPromptInjection]; ok && v != "" {
@@ -1174,6 +1181,26 @@ func normalizeOpenAITTFTMode(mode string) string {
 		return OpenAITTFTModeVisible
 	}
 	return OpenAITTFTModeSemantic
+}
+
+// normalizeGatewayKiroTokenizer 归一并校验 Kiro 计量算法设置值。
+// 空值归一为 official（与历史行为一致）；非法值返回错误。
+func normalizeGatewayKiroTokenizer(raw string) (string, error) {
+	switch v := strings.ToLower(strings.TrimSpace(raw)); v {
+	case "", string(anthropictokenizer.AlgorithmOfficial),
+		string(anthropictokenizer.AlgorithmCharClass),
+		string(anthropictokenizer.AlgorithmWeighted):
+		if v == "" {
+			return string(anthropictokenizer.AlgorithmOfficial), nil
+		}
+		return v, nil
+	default:
+		return "", fmt.Errorf("%s must be one of: %s/%s/%s",
+			SettingKeyGatewayKiroTokenizer,
+			anthropictokenizer.AlgorithmOfficial,
+			anthropictokenizer.AlgorithmCharClass,
+			anthropictokenizer.AlgorithmWeighted)
+	}
 }
 
 func clampAffiliateRebateRate(value float64) float64 {

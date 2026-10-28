@@ -33,6 +33,13 @@ func (s *OpenAIGatewayService) resolveOpenAIHTTPWSSSEDecision(
 	clientTransport := GetOpenAIClientTransport(c)
 	if clientTransport == OpenAIClientTransportHTTP &&
 		decision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2 &&
+		s != nil && s.cfg != nil && account != nil &&
+		s.cfg.Gateway.OpenAIWS.ModeRouterV2Enabled &&
+		account.ResolveOpenAIResponsesWebSocketV2Mode(s.cfg.Gateway.OpenAIWS.IngressModeDefault) == OpenAIWSIngressModeWSBridge {
+		return decision
+	}
+	if clientTransport == OpenAIClientTransportHTTP &&
+		decision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2 &&
 		account.IsOpenAIOAuthWSSSEAccelerationEnabled() && !account.IsOpenAIPassthroughEnabled() &&
 		c.Request != nil && c.Request.Method == http.MethodPost &&
 		strings.HasSuffix(strings.TrimRight(c.Request.URL.Path, "/"), "/responses") &&

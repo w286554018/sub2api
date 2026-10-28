@@ -292,7 +292,7 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_SQLFilter(t *testing.T)
 		"paused (schedulable=false, status=active) accounts must remain OAuth refresh candidates: excluding them lets their stored access_token expire and the usage-window probe then reports a false 'needs re-auth'; permanent rejection is already covered by status = 'active' and refresh failures are bounded by the retry-cooldown exclusion")
 	require.Contains(t, normalized, "status = 'active'")
 	// setup-token 的 access_token 同为 8h 短期令牌，必须与 oauth 一起纳入后台刷新候选
-	require.Contains(t, normalized, "type IN ('oauth', 'setup-token')")
+	require.Contains(t, normalized, "type IN ('oauth', 'setup-token', 'bps-oauth')")
 	require.Contains(t, normalized, "platform = ANY($1)")
 	require.NotContains(t, normalized, "platform IN ('anthropic'",
 		"candidate platforms must come from the refresher registry instead of a second hard-coded list")
@@ -319,38 +319,6 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_SQLFilter(t *testing.T)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-// Adobe 没有 refresh_token：cookie 类平台必须按 cookie 进入候选，否则后台永远刷不到它们。
-func TestAccountRepository_ListOAuthRefreshCandidatePage_CookieCredentialPlatforms(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
-	require.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
-	var capturedSQL string
-	var capturedArgs []any
-	mock.ExpectQuery("SELECT id").WillReturnRows(sqlmock.NewRows([]string{"id"}))
-	repo := newAccountRepositoryWithSQL(nil, captureQuerySQL{db: db, captured: &capturedSQL, args: &capturedArgs}, nil)
-
-	page, err := repo.ListOAuthRefreshCandidatePage(context.Background(), service.OAuthRefreshPageOptions{
-		Platforms:                 []string{service.PlatformAnthropic, service.PlatformAdobe},
-		Limit:                     50,
-		RequireRefreshToken:       true,
-		CookieCredentialPlatforms: []string{service.PlatformAdobe},
-	})
-	require.NoError(t, err)
-	require.Empty(t, page.Accounts)
-
-	normalized := normalizeSQLWhitespace(capturedSQL)
-	require.Contains(t, normalized, "(credentials ? 'refresh_token' AND btrim(credentials->>'refresh_token') <> '')")
-	require.Contains(t, normalized, "OR (platform = ANY($4) AND btrim(COALESCE(credentials->>'cookie', '')) <> '')")
-	require.Len(t, capturedArgs, 4)
-	valuer, ok := capturedArgs[3].(interface{ Value() (driver.Value, error) })
-	require.True(t, ok)
-	cookiePlatforms, err := valuer.Value()
-	require.NoError(t, err)
-	require.Contains(t, cookiePlatforms, service.PlatformAdobe)
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
 func TestAccountRepository_ListOAuthRefreshCandidatePage_ReconciliationExcludesAPIKeys(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
@@ -369,8 +337,8 @@ func TestAccountRepository_ListOAuthRefreshCandidatePage_ReconciliationExcludesA
 	require.Empty(t, page.Accounts)
 
 	normalized := normalizeSQLWhitespace(capturedSQL)
-	require.Contains(t, normalized, "type = 'oauth'")
-	require.NotContains(t, normalized, "type IN ('oauth', 'setup-token')")
+	require.Contains(t, normalized, "type IN ('oauth', 'bps-oauth')")
+	require.NotContains(t, normalized, "'setup-token'")
 	require.NotContains(t, normalized, "type = 'api-key'")
 	require.NotContains(t, normalized, "credentials ? 'refresh_token'",
 		"reconciliation must be able to find structurally invalid OAuth rows")

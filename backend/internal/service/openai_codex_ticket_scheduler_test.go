@@ -221,7 +221,7 @@ func TestCodexTicketCandidateHydrationScope(t *testing.T) {
 				excluded = map[int64]struct{}{account.ID: {}}
 			case "compact_ungated":
 				compact = true
-				svc.cfg.Gateway.OpenAICompactModel = "gpt-5.5"
+				svc.cfg.Gateway.OpenAICompactModel = "gpt-5.4"
 			}
 			_, err := svc.listSchedulableAccountsForRequest(context.Background(), &groupID,
 				PlatformOpenAI, model, compact, excluded)
@@ -247,7 +247,7 @@ func TestCodexTicketSchedulerCompactUsesOutboundModel(t *testing.T) {
 		for _, scenario := range []string{"ungated_outbound", "gated_valid_ticket", "gated_missing_ticket"} {
 			t.Run(path.name+"/"+scenario, func(t *testing.T) {
 				svc, _, account, groupID := ticketSchedulerFixture(t, path.advanced, path.loadBatch)
-				requested, outbound := "gpt-5.5", "gpt-6-astra"
+				requested, outbound := "gpt-5.4", "gpt-6-astra"
 				if scenario == "ungated_outbound" {
 					requested, outbound = outbound, requested
 				}

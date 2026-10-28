@@ -90,7 +90,7 @@ func TestExcelBPSStructuredOutputForwardContract(t *testing.T) {
 	}
 }
 
-func TestExcelBPSStructuredOutputDoesNotOverrideModelAccess(t *testing.T) {
+func TestExcelBPSStructuredOutputStillFailsOverOnModelAccess(t *testing.T) {
 	for _, model := range []string{"gpt-6-luna", "gpt-6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusForbidden, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("{\"error\":{\"code\":\"basispoints_model_access_changed\"}}"))}}
@@ -100,15 +100,17 @@ func TestExcelBPSStructuredOutputDoesNotOverrideModelAccess(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 			account := excelAccount()
 			_, err := svc.Forward(context.Background(), c, account, excelStructuredRequest(t, model, true))
-			require.Error(t, err)
 			var failover *UpstreamFailoverError
-			require.NotErrorAs(t, err, &failover)
+			require.ErrorAs(t, err, &failover)
+			require.Equal(t, ExcelBPSModelNotAllowedReason, failover.Reason)
+			require.True(t, failover.ShouldRetryNextAccount())
+			require.Empty(t, failover.ResponseBody)
 			require.Len(t, upstream.requests, 1)
 			require.Equal(t, model, gjson.GetBytes(upstream.lastBody, "model").String())
-			require.Equal(t, http.StatusForbidden, rec.Code)
-			require.Equal(t, "basispoints_model_access_changed", gjson.GetBytes(rec.Body.Bytes(), "error.code").String())
-			require.True(t, IsResponseCommitted(c))
+			require.False(t, c.Writer.Written())
+			require.Zero(t, rec.Body.Len())
 			require.True(t, account.Schedulable)
+			require.True(t, svc.isExcelBPSModelCoolingDown(account, model))
 		})
 	}
 }

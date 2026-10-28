@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -242,6 +243,10 @@ func writeAtomic(path string, wire []byte) error {
 	}
 	if err = os.Rename(name, path); err != nil {
 		return err
+	}
+	if runtime.GOOS == "windows" {
+		// Windows does not support syncing a directory handle through os.File.Sync.
+		return nil
 	}
 	d, err := os.Open(dir)
 	if err != nil {

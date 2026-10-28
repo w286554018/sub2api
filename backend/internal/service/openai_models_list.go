@@ -17,12 +17,16 @@ import (
 // API keys use the standard endpoint; OAuth reuses the authenticated, cached
 // Codex source. Account mappings and group policy are applied after this cache.
 func (s *OpenAIGatewayService) FetchOpenAIModelsList(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
+	if account != nil && account.IsBPSOAuth() {
+		return excelBPSAccountModelsResponse(account), nil
+	}
 	if account != nil && account.IsExcelBPSEnabled() {
 		return s.fetchExcelBPSAccountModels(ctx, account)
 	}
 	return s.fetchNativeOpenAIModelsList(ctx, account)
 }
 
+// fetchNativeOpenAIModelsList is the non-BPS catalog source.
 func (s *OpenAIGatewayService) fetchNativeOpenAIModelsList(ctx context.Context, account *Account) (*OpenAIModelsResponse, error) {
 	if s == nil || account == nil {
 		return nil, infraerrors.New(http.StatusInternalServerError, "OPENAI_MODELS_ACCOUNT_REQUIRED", "OpenAI account is required")
@@ -31,7 +35,7 @@ func (s *OpenAIGatewayService) fetchNativeOpenAIModelsList(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("resolve model list credentials: %w", err)
 	}
-	if credentialAccount.IsExcelOAuth() {
+	if credentialAccount.IsExcelOAuth() || credentialAccount.IsBPSOAuth() {
 		return nil, errExcelOAuthRouteUnavailable
 	}
 	if credentialAccount.IsOpenAIOAuth() {
@@ -171,24 +175,39 @@ func standardOpenAIModelsBody(body []byte, fromManifest bool) ([]byte, error) {
 	}{Object: "list", Data: models})
 }
 
-// projectAccountModelsBody applies the same public-name mapping to both model
-// representations while retaining the source entry's metadata. It never changes
-// the shared response and never synthesizes models absent from this account.
+// projectAccountModelsBody projects upstream entries to public names before
+// checking their routing eligibility. Applying account mappings to source IDs
+// would interpret upstream names as aliases and can retain retired targets or
+// discard metadata needed by a valid replacement alias.
 func projectAccountModelsBody(body []byte, account *Account, group *Group, codex bool) ([]byte, error) {
+	projected, err := projectAccountModelAliases(body, account, group, codex)
+	if err != nil {
+		return nil, err
+	}
+	filtered, _, err := filterRetiredOpenAIPublicModelsBody(projected, []Account{*account}, codex)
+	return filtered, err
+}
+
+// projectAccountModelAliases retains the source entry's metadata, never changes
+// the shared response, and never synthesizes models absent from this account.
+func projectAccountModelAliases(body []byte, account *Account, group *Group, codex bool) ([]byte, error) {
 	var groupID *int64
 	if group != nil {
 		groupID = &group.ID
-	}
-	field, idField := "data", "id"
-	if codex {
-		field, idField = "models", "slug"
 	}
 	if account.IsOpenAIPassthroughEnabled() || len(account.GetModelMapping()) == 0 {
 		if len(account.GroupAllowedModels(derefGroupID(groupID))) == 0 {
 			return body, nil
 		}
-		// 没有映射的账号原样公布上游列表；在本分组被限制时只保留允许的模型。
+		field, idField := "data", "id"
+		if codex {
+			field, idField = "models", "slug"
+		}
 		return filterModelsBodyForGroup(body, account, groupID, field, idField)
+	}
+	field, idField := "data", "id"
+	if codex {
+		field, idField = "models", "slug"
 	}
 	envelope, entries, err := modelCatalogEntries(body, field)
 	if err != nil {

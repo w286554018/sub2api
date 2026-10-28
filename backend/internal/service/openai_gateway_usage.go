@@ -443,7 +443,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		videoDurationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
 		usageLog.VideoDurationSeconds = &videoDurationSeconds
 	}
-	if account.Platform == PlatformKiro && result.Usage.KiroCredits > 0 {
+	// 上游积分（kiro_credits 列）：Kiro 与 Leonardo Cookie 号记录；Leonardo 中转号
+	// 走 OpenAI 兼容上游，没有 Leonardo 积分。
+	if (account.Platform == PlatformKiro || (account.Platform == PlatformLeonardo && account.Type == AccountTypeOAuth)) &&
+		result.Usage.KiroCredits > 0 {
 		kiroCredits := result.Usage.KiroCredits
 		usageLog.KiroCredits = &kiroCredits
 	}
@@ -619,7 +622,7 @@ func openAIAccountSkipsGPT61SolLongContext(account *Account) bool {
 		return false
 	}
 	switch account.Type {
-	case AccountTypeOAuth, AccountTypeSetupToken, AccountTypeAPIKey:
+	case AccountTypeOAuth, AccountTypeSetupToken, AccountTypeAPIKey, AccountTypeBPSOAuth:
 		return true
 	default:
 		return false

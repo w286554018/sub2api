@@ -219,6 +219,20 @@ func (s *OpenAIOAuthServiceSuite) TestNonSuccessStatus_IncludesBody() {
 	require.ErrorContains(s.T(), err, "bad")
 }
 
+func (s *OpenAIOAuthServiceSuite) TestExcelExchangeFailureIncludesOnlyAllowlistedCode() {
+	s.setupServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, `{"error":{"code":"invalid_grant","message":"refresh_token=secret-token"}}`)
+	}))
+
+	_, err := s.svc.ExchangeCode(s.ctx, "code", "ver", openai.DefaultRedirectURI, "", openai.ExcelClientID)
+
+	require.Error(s.T(), err)
+	require.Contains(s.T(), err.Error(), "invalid_grant")
+	require.NotContains(s.T(), err.Error(), "secret-token")
+	require.NotContains(s.T(), err.Error(), "refresh_token")
+}
+
 func (s *OpenAIOAuthServiceSuite) TestRequestError_ClosedServer() {
 	s.setupServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	s.srv.Close()

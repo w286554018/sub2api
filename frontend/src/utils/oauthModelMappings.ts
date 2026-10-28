@@ -4,7 +4,7 @@ export interface OAuthModelMappingRule {
 }
 
 export function defaultOAuthModelMappings(platform: string): OAuthModelMappingRule[] {
-  return platform === 'openai' ? [{ from: 'gpt-5.4', to: 'gpt-5.5' }] : []
+  return platform === 'openai' ? [{ from: 'gpt-5.4', to: 'gpt-5.6-sol' }] : []
 }
 
 export function oauthModelMappingsError(rules: OAuthModelMappingRule[]): string | null {

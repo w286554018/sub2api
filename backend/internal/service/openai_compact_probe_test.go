@@ -18,6 +18,8 @@ func TestNormalizeAccountTestMode(t *testing.T) {
 		{input: "COMPACT", want: AccountTestModeCompact},
 		{input: " bps_tools ", want: AccountTestModeBPSTools},
 		{input: "BPS_TOOLS", want: AccountTestModeBPSTools},
+		{input: "bps_tools", want: AccountTestModeBPSTools},
+		{input: " BPS_TOOLS ", want: AccountTestModeBPSTools},
 		{input: "unknown", want: AccountTestModeDefault},
 	}
 

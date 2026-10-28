@@ -24,6 +24,7 @@ export default {
         "failed": "Session 导出失败，请检查 Cookie 是否有效、是否属于此账号，以及账号代理是否可访问 ChatGPT。"
       },
       bpsAuthorizing: 'BPS 正在自动授权，当前使用原生通道；授权成功后自动切换，无需再次操作开关。',
+      adobe: { credentialStepTitle: 'Adobe 账号凭据' },
       "modelsLoadFailed": "模型列表加载失败，请重试。",
       "retryModels": "重新加载模型",
       "openCredentialOperations": "查看凭据运维",
@@ -113,8 +114,6 @@ export default {
       editAccount: '编辑账号',
       deleteAccount: '删除账号',
       searchAccounts: '搜索账号...',
-      moreFilters: '更多筛选',
-      moreFiltersActive: '更多筛选（已启用 {count} 项）',
       notes: '备注',
       notesPlaceholder: '请输入备注',
       notesHint: '备注可选',
@@ -125,6 +124,7 @@ export default {
       allGroups: '全部分组',
       ungroupedGroup: '未分配分组',
       oauthType: 'OAuth',
+      bpsOAuthType: 'BPS OAuth',
       // Schedulable toggle
       schedulable: '参与调度',
       schedulableHint: '开启后账号参与API请求调度',
@@ -147,6 +147,16 @@ export default {
       kiroCooldown: 'Kiro 冷却中',
       kiroCreditUnitPriceUsd: '每积分单价',
       kiroCreditUnitPriceUsdHint: '仅用于 Kiro 今日统计的 Credits 金额估算，0 表示不显示估算金额',
+      leonardoCreditUnitPriceUsd: '每积分单价（USD）',
+      leonardoCreditUnitPriceUsdHint: '仅用于今日统计中估算 Leonardo 积分消耗的金额，0 表示不显示估算。参考价（月费 ÷ 每月快速积分）：Essential $12 / 8,500 ≈ $0.0014，Premium $30 / 25,000 = $0.0012，Ultimate $60 / 60,000 = $0.001；按年付费更便宜。',
+      leonardoMaxQuality: '最大质量',
+      leonardoMaxQualityUnlimited: '不限',
+      leonardoMaxShortEdge: '最大短边（像素）',
+      leonardoMaxUpscaleFactor: '最大放大倍数',
+      leonardoImageLimitsHint: '用于控制 Leonardo 积分消耗。请求的质量超过上限时按上限出图；请求尺寸的短边超过上限时，先出一张比例完全相同的小图，再超分放大到请求的尺寸（不拉伸、不裁剪），按交付尺寸计费。0 或"不限"表示不限制；放大倍数默认 2，可设 1 到 4。',
+      fishMaxQuality: '最大质量',
+      fishMaxQualityUnlimited: '不限',
+      fishMaxQualityHint: '请求的质量超过上限时按上限出图，响应仍回显客户请求的档位。不限表示不限制。gpt-image-2.5 额外支持 xhigh 和 max，max 是最高档。',
       kiroProfileError: 'Profile 配置异常',
       kiroProfileHint: '请重新解析或保存可用的 profileArn',
       kiroRuntimeResetsAt: '预计 {time} 自动恢复',
@@ -431,6 +441,7 @@ export default {
       deleteConfirm: "确定要删除账号 '{name}' 吗？此操作无法撤销。",
       failedToClearRateLimit: '清除速率限制失败',
       platforms: {
+        leonardo: 'Leonardo',
         claude: 'Claude',
         openai: 'OpenAI',
         anthropic: 'Anthropic',
@@ -438,7 +449,6 @@ export default {
         antigravity: 'Antigravity',
         grok: 'Grok',
         kiro: 'Kiro',
-        adobe: 'Adobe',
         kimi: 'Kimi',
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
@@ -549,9 +559,12 @@ export default {
         grokOauth: 'Grok OAuth',
         kiroApikey: '通过 API Key 直连 AWS',
         kiroApikeyRelay: '通过外部 API Key + Base URL 中转',
+        leonardoOauth: 'Leonardo 网页版 Cookie 直连',
+        leonardoApikeyRelay: 'OpenAI 兼容 API 中转兜底',
+        fishOauthToken: 'API Key',
+        fishOauth: '通过 API Key 直连 Fish Audio',
+        fishApikeyRelay: 'OpenAI 兼容 API 中转兜底',
         kiroOauth: '社交 OAuth / AWS Builder ID / 导入',
-        adobeOauth: 'Firefly Cookie',
-        adobeApikeyRelay: '通过外部 API Key + Base URL 中转',
         antigravityApikey: '通过 Base URL + API Key 连接',
         upstream: '对接上游',
         upstreamDesc: '通过 Base URL + API Key 连接上游'
@@ -645,6 +658,22 @@ export default {
           unavailableDesc: '服务不可用 - 暂停 30 分钟'
         }
       },
+      fish: {
+        tokenLabel: 'API Key',
+        tokenHint: '已登录 fish.audio 的浏览器 localStorage 里的会话值（36 位 UUID，长期有效、无刷新；失效后需重新导出），写入 credentials.api_key。team_id / device_id 会在连通性测试时自动回填。',
+        tokenRequired: '请粘贴 fish.audio API Key',
+        relayApiKeyHint: '该外部上游的 API Key（通过 Authorization: Bearer 发送）',
+        relayBaseUrlHint: '承接 fish 原生无法处理的请求（白名单外尺寸 / mask / n>8 / webp）。模型名经渠道映射改写（如 gpt-image-2 → gpt-image-1）。'
+      },
+      leonardo: {
+        cookieLabel: 'Leonardo Cookie',
+        cookieHint: '登录 app.leonardo.ai 后，从浏览器 DevTools（Application → Cookies 或 Network 请求头的 Cookie）复制完整 cookie 串；必须包含 __Secure-better-auth.session_token，分片 session_data.* 建议一并复制。也支持只粘贴裸 session token 值。短期 JWT 由后台自动用该 cookie 换取并保活。',
+        cookiePlaceholder: '__Secure-better-auth.session_token=...; __Secure-better-auth.session_data.0=...',
+        cookieRequired: '请填写 Leonardo Cookie',
+        relayApiKeyHint: '该外部上游的 API Key（通过 Authorization: Bearer 发送）',
+        relayBaseUrlHint: 'OpenAI 兼容上游地址（官方 https://api.openai.com 或三方中转）；原生账号全部故障时兜底'
+      },
+
       usageWindow: {
         statsTitle: '5小时窗口用量统计',
         statsTitleDaily: '每日用量统计',
@@ -677,13 +706,19 @@ export default {
         passiveSampled: '被动采样',
         activeQuery: '查询',
         kiroBonus: 'Bonus',
+        leonardoCredits: '积分',
+        leonardoFast: 'Fast 积分',
+        leonardoFastDaily: 'Fast 积分（每日）',
+        leonardoRollover: '结转积分',
+        leonardoTopUp: '充值积分',
+        leonardoReset: '重置',
         kiroCredits: 'Credits',
+        fishCredits: 'Credits',
+        fishDaily: '今日出图',
+        fishReset: '重置',
         kiroDaysLeft: '剩余 {days} 天',
         kiroExpires: '到期',
         kiroReset: '重置',
-        adobeCredits: 'Credits',
-        adobeReset: '重置',
-        adobePlanCap: '套餐',
         estimatedTotalCost: '预计总费用 ${cost}',
         estimatedTotalCostTooltip: '根据当前窗口费用和使用率估算达到 100% 使用率时的总费用'
       },
@@ -944,11 +979,13 @@ export default {
         excelBPSIgnoreEncryptedContentDesc: '用过多代理协作的旧 Codex 会话里，子代理的中间消息是只有原生 Codex 能读取的密文，BPS 无法转发，整个会话每轮都会报 encrypted_content 错误。勾选后，转发前把消息和工具结果中的加密内容替换为固定的已省略提示，保留其余文本、消息顺序和工具调用关系，使旧会话可以继续。模型看不到被省略的内容；明文消息（如子代理的最终结论）和推理记录不受影响。',
         excelBPSCacheCreationAsInputDesc: '勾选后, BPS 缓存创建 token 计入普通输入并按输入价格计费, 返回下游的缓存创建用量同步归零. 总输入和缓存读取不变, 不影响上游实际缓存.',
         excelBPSDesc: '使用本账号已有的 ChatGPT OAuth 凭据，经 Excel 接口转发 Responses 请求。无需 GitHub 登录或 sidecar；关闭后恢复原 Codex 路径。',
+        excelBPSOAuthOnlyDesc: '此 BPS OAuth 账号的 Responses 请求只经 Excel 插件接口转发。',
         excelBPSAllModels: '对所有模型启用（兼容原设置）',
         excelBPSModels: '勾选使用 Excel / BPS 的模型',
         excelBPSAstraOnly: '仅选 Astra',
         excelBPSModelsHint: '按账号映射后的模型名称匹配。仅勾选模型走 Excel / BPS；未选模型保留原 Codex、WS 和自动透传设置。不勾选任何模型时不使用 BPS。勾选 gpt-image-2 后，文生图和单图改图（非流式、png 输出、无蒙版）也走 BPS；流式、蒙版、透明背景等 BPS 不支持的请求自动走 Codex。生图模型中 BPS 目前仅支持 gpt-image-2，勾选其他生图模型不生效；「对所有模型启用」不包含生图模型。',
         excelBPSNotice: '保存后新开 Codex 会话。所选模型强制 HTTP/SSE，忽略 WS mode 与自动透传；仅支持 Responses、客户端工具和 HTTPS 图片链接，不支持 base64 图片。max / ultra 按 xhigh 发送，模型权限以上游为准。',
+        excelBPSOAuthOnlyNotice: '此账号仅支持 Responses API，并使用 HTTP/SSE；不支持 Chat Completions、Messages 和图片生成。',
         autoBPS: '降智后自动开启 BPS',
         autoBPSDesc: "按下方配置的检测间隔用状态探针检测（默认每 2 分钟，走正常协议，不经过 BPS），达到条件时按勾选的选项自动开启 BPS。这是一条质量运维规则，也可在 智能运维 → 质量运维 查看记录和修改。",
         autoBPSLoading: '正在读取本账号的自动开启 BPS 规则…',
@@ -980,11 +1017,13 @@ export default {
         wsModeCtxPool: '上下文池（ctx_pool）',
         wsModePassthrough: '透传（passthrough）',
         wsModeHttpBridge: 'HTTP 桥接（http_bridge）',
+        wsModeWsBridge: 'WebSocket 桥接（ws_bridge）',
         wsModeShared: '共享（shared）',
         wsModeDedicated: '独享（dedicated）',
         wsModeCtxPoolHint: '网关从连接池获取并复用上游 WS 连接，连接池上限由网关配置决定。',
         wsModePassthroughHint: '网关为每个客户端会话单独建立上游 WS 连接，不使用连接池。',
         wsModeHttpBridgeHint: '网关将客户端 WS 请求转换为上游 HTTP 请求，再将 SSE 流式响应转换为 WS 消息返回。',
+        wsModeWsBridgeHint: '网关将客户端流式 HTTP 请求转换为上游 WS 请求，复用上下文池连接，再将 WS 消息转换为 SSE 流式响应返回；WS 请求与上下文池行为一致。非流式请求及超过 HTTP 桥接阈值的请求仍走 HTTP。',
         oauthResponsesWebsocketsV2: 'OAuth WebSocket Mode',
         oauthResponsesWebsocketsV2Desc:
           '仅对 OpenAI OAuth 生效。开启后该账号才允许使用 OpenAI WebSocket Mode 协议。',
@@ -1491,20 +1530,6 @@ export default {
         pleaseEnterBaseUrl: '请输入上游 Base URL',
         pleaseEnterApiKey: '请输入上游 API Key'
       },
-      adobe: {
-        cookieLabel: 'Adobe Cookie',
-        cookieHint: '先登录 Adobe，打开 firefly.adobe.com/generate/image，在网页上成功生一次图，然后用 Adobe Cookie Exporter 导出 JSON，在账号页「导入」上传；也可把该 JSON 或 Cookie 请求头贴到这里（必须包含 ims_sid）。只从 firefly.adobe.com 复制 document.cookie 不够。可带 “Cookie:” 前缀，也支持 JSON cookie 数组。短期 access token 会据此自动刷新。',
-        credentialStepTitle: '填写凭据',
-        cookiePlaceholder: 'ims_sid=...; aux_sid=...; ...',
-        cookieRequired: '请填写 Adobe Cookie',
-        accessTokenLabel: 'Access Token（可选）',
-        accessTokenHint: '留空则首次刷新时用 cookie 自动换取。仅在你已持有有效 IMS token 时才需要填。',
-        arpLabel: 'ARP Session（可选）',
-        arpPlaceholder: 'Firefly 提交头 x-arp-session-id',
-        arpHint: 'FREE 账号建议填。用导出器时请先在 firefly.adobe.com/generate/image 成功生一次图再导出。收费号可留空。粘贴整份导出 JSON 到 Cookie 框也会自动填入。',
-        relayApiKeyHint: '该外部上游的 API Key（通过 Authorization: Bearer 发送）',
-        relayBaseUrlHint: '外部 OpenAI 兼容上游地址（如 https://your-relay.example.com）'
-      },
       kiro: {
         apiKeyHint: 'Kiro API Key（ksk_ 开头），将作为直连 AWS 的 Bearer Token',
         apiRegionLabel: 'API Region',
@@ -1988,7 +2013,6 @@ export default {
       geminiAccount: 'Gemini 账号',
       antigravityAccount: 'Antigravity 账号',
       grokAccount: 'Grok 账号',
-      adobeAccount: 'Adobe 账号',
       inputMethod: '输入方式',
       reAuthorizedSuccess: '账号重新授权成功',
       // Test Modal
@@ -2209,7 +2233,8 @@ export default {
         usageTrend: '30天费用与请求趋势',
         noData: '该账号暂无使用数据',
         approxCost: '约{amount}',
-        kiroCredits: '消费Credits'
+        kiroCredits: '消费Credits',
+        leonardoCredits: '消耗积分'
       }
     },
 

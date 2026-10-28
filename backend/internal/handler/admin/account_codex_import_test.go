@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -333,8 +334,8 @@ func TestResolveCodexImportExpiryForNoRefreshTokenUsesEarlierRequestExpiry(t *te
 
 func TestCodexIdentityKeysPreferStrongIdentifiers(t *testing.T) {
 	keys := buildCodexImportIdentityKeys("acct-1", "user-1", "same@example.com", "token", "refresh")
-	if len(keys) == 0 || keys[0] != "user:user-1" {
-		t.Fatalf("user key should have highest priority when refresh token exists: %v", keys)
+	if len(keys) == 0 || keys[0] != "account_user:6:acct-16:user-1" {
+		t.Fatalf("workspace-scoped user key should have highest priority when refresh token exists: %v", keys)
 	}
 	if keys[len(keys)-1] != "account:acct-1" {
 		t.Fatalf("shared account key should be the last fallback: %v", keys)
@@ -495,9 +496,81 @@ func TestCodexAccountIndexKeepsAllCandidatesForSharedAccountKey(t *testing.T) {
 		if got == nil || got.ID != member.ID {
 			t.Fatalf("Find by user key = %v, want member account ID %d", got, member.ID)
 		}
-		if matchedKey != "user:user-2" {
-			t.Fatalf("matched key = %q, want user:user-2", matchedKey)
+		if matchedKey != "account_user:6:team-16:user-2" {
+			t.Fatalf("matched key = %q, want account_user:6:team-16:user-2", matchedKey)
 		}
+	}
+}
+
+func TestImportCodexSessionsSameUserDifferentWorkspacesCreatesSeparateAccounts(t *testing.T) {
+	svc := newCodexImportMemoryAdminService(nil)
+	handler := NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	req := CodexSessionImportRequest{SkipDefaultGroupBind: boolPtr(true)}
+	entries := []codexImportEntry{
+		{Index: 1, Value: buildCodexRefreshImportValue(t, "workspace-1", "shared-user", "refresh-1")},
+		{Index: 2, Value: buildCodexRefreshImportValue(t, "workspace-2", "shared-user", "refresh-2")},
+	}
+
+	result, err := handler.importCodexSessions(context.Background(), req, entries)
+	if err != nil {
+		t.Fatalf("importCodexSessions error = %v", err)
+	}
+	if result.Created != 2 || result.Updated != 0 || result.Skipped != 0 || result.Failed != 0 {
+		t.Fatalf("result = %+v, want two created accounts", result)
+	}
+	if len(svc.createdAccounts) != 2 {
+		t.Fatalf("created accounts = %d, want 2", len(svc.createdAccounts))
+	}
+	if got := svc.createdAccounts[0].Credentials["chatgpt_account_id"]; got != "workspace-1" {
+		t.Fatalf("first workspace = %v, want workspace-1", got)
+	}
+	if got := svc.createdAccounts[1].Credentials["chatgpt_account_id"]; got != "workspace-2" {
+		t.Fatalf("second workspace = %v, want workspace-2", got)
+	}
+}
+
+func TestCodexImportIdentityKeySeparatesDelimiterValues(t *testing.T) {
+	left := buildCodexImportIdentityKeys("ab:c", "shared-user", "", "", "refresh")
+	right := buildCodexImportIdentityKeys("ab", "c:shared-user", "", "", "refresh")
+	if left[0] == right[0] {
+		t.Fatalf("composite identity keys collided: %q", left[0])
+	}
+}
+
+func TestImportCodexSessionsSameWorkspaceAccountUpdatesAndDifferentUserIsolated(t *testing.T) {
+	svc := newCodexImportMemoryAdminService(nil)
+	handler := NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	req := CodexSessionImportRequest{SkipDefaultGroupBind: boolPtr(true)}
+	initialEntries := []codexImportEntry{
+		{Index: 1, Value: buildCodexRefreshImportValue(t, "workspace-1", "user-1", "refresh-1")},
+		{Index: 2, Value: buildCodexRefreshImportValue(t, "workspace-1", "user-2", "refresh-2")},
+	}
+
+	initialResult, err := handler.importCodexSessions(context.Background(), req, initialEntries)
+	if err != nil {
+		t.Fatalf("importCodexSessions error = %v", err)
+	}
+	if initialResult.Created != 2 || initialResult.Updated != 0 || initialResult.Skipped != 0 || initialResult.Failed != 0 {
+		t.Fatalf("initial result = %+v, want two created accounts", initialResult)
+	}
+
+	updateResult, err := handler.importCodexSessions(context.Background(), req, []codexImportEntry{
+		{Index: 3, Value: buildCodexRefreshImportValue(t, "workspace-1", "user-1", "refresh-3")},
+	})
+	if err != nil {
+		t.Fatalf("importCodexSessions update error = %v", err)
+	}
+	if updateResult.Created != 0 || updateResult.Updated != 1 || updateResult.Skipped != 0 || updateResult.Failed != 0 {
+		t.Fatalf("update result = %+v, want one updated account", updateResult)
+	}
+	if len(svc.createdAccounts) != 2 || len(svc.updatedAccounts) != 1 {
+		t.Fatalf("created = %d, updated = %d, want 2 and 1", len(svc.createdAccounts), len(svc.updatedAccounts))
+	}
+	if svc.updatedAccounts[0].id != 100 {
+		t.Fatalf("updated account ID = %d, want user-1 account ID 100", svc.updatedAccounts[0].id)
+	}
+	if got := svc.updatedAccounts[0].input.Credentials["chatgpt_user_id"]; got != "user-1" {
+		t.Fatalf("updated user = %v, want user-1", got)
 	}
 }
 
@@ -1073,5 +1146,62 @@ func TestImportCodexSessionsSkipExistingPreservesAccount(t *testing.T) {
 	third, err := h.importCodexSessions(context.Background(), req, entries)
 	if err != nil || third.Created != 1 {
 		t.Fatal("legacy create-only behavior changed")
+	}
+}
+// An Excel-client session only works through BPS: importing it as a Codex
+// account would send its token to native Codex, so the item is rejected.
+func TestNormalizeCodexImportRejectsExcelClientSessions(t *testing.T) {
+	codexToken := buildCodexImportTestJWT(t, time.Now().Add(time.Hour), map[string]any{})
+	excelToken := buildCodexImportTestJWT(t, time.Now().Add(time.Hour), map[string]any{"client_id": openai.ExcelClientID})
+	for name, value := range map[string]any{
+		"session client_id":   map[string]any{"tokens": map[string]any{"access_token": codexToken, "refresh_token": "rt", "client_id": openai.ExcelClientID}},
+		"access token claim":  excelToken,
+		"claim with RT input": map[string]any{"access_token": excelToken, "refresh_token": "rt"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := normalizeCodexImportEntry(codexImportEntry{Index: 1, Value: value})
+			if err == nil || !strings.Contains(err.Error(), "BPS OAuth") {
+				t.Fatalf("error = %v, want an Excel session rejection", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeCodexImportKeepsSuppliedRefreshClient(t *testing.T) {
+	token := buildCodexImportTestJWT(t, time.Now().Add(time.Hour), map[string]any{})
+	item, err := normalizeCodexImportEntry(codexImportEntry{Index: 1, Value: map[string]any{"access_token": token, "refresh_token": "rt"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Credentials["client_id"] != openai.ClientID {
+		t.Fatalf("client_id = %v, want the Codex default", item.Credentials["client_id"])
+	}
+	item, err = normalizeCodexImportEntry(codexImportEntry{Index: 1, Value: map[string]any{"access_token": token, "refresh_token": "rt", "client_id": "app_other"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Credentials["client_id"] != "app_other" {
+		t.Fatalf("client_id = %v, want the supplied client", item.Credentials["client_id"])
+	}
+}
+
+// BPS-only accounts need the plan from the id_token too: free plans are not
+// eligible for BPS.
+func TestEnrichCredentialsFromIDTokenCoversBPSOAuth(t *testing.T) {
+	idToken := buildCodexImportTestJWT(t, time.Now().Add(time.Hour), map[string]any{
+		"email":                       "bps@example.com",
+		"https://api.openai.com/auth": map[string]any{"chatgpt_account_id": "acct", "chatgpt_plan_type": "free"},
+	})
+	for _, accountType := range []string{service.AccountTypeOAuth, service.AccountTypeBPSOAuth} {
+		item := &DataAccount{Platform: service.PlatformOpenAI, Type: accountType, Credentials: map[string]any{"id_token": idToken}}
+		enrichCredentialsFromIDToken(item)
+		if item.Credentials["plan_type"] != "free" || item.Credentials["chatgpt_account_id"] != "acct" {
+			t.Fatalf("%s: credentials = %v", accountType, item.Credentials)
+		}
+	}
+	apiKey := &DataAccount{Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Credentials: map[string]any{"id_token": idToken}}
+	enrichCredentialsFromIDToken(apiKey)
+	if _, ok := apiKey.Credentials["plan_type"]; ok {
+		t.Fatal("API key accounts are not enriched")
 	}
 }

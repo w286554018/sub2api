@@ -26,6 +26,7 @@ import (
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbproxy "github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -1538,17 +1539,20 @@ func (r *accountRepository) ListOAuthRefreshCandidatePage(ctx context.Context, o
 		query += `
 			AND status = 'active'`
 	}
+	// bps-oauth (OpenAI Excel/BPS-only) accounts hold OAuth credentials refreshed
+	// through the same OpenAI lifecycle as oauth accounts.
 	if options.IncludeSetupToken {
 		query += `
-			AND type IN ('oauth', 'setup-token')`
+			AND type IN ('oauth', 'setup-token', 'bps-oauth')`
 	} else {
 		query += `
-			AND type = 'oauth'`
+			AND type IN ('oauth', 'bps-oauth')`
 	}
 	args := []any{pq.Array(options.Platforms), options.AfterID, options.Limit}
 	if options.RequireRefreshToken {
 		if len(options.CookieCredentialPlatforms) > 0 {
-			// Adobe 等平台没有 refresh_token，长期凭据是 cookie：按平台分别要求对应凭据非空。
+			// Leonardo 等平台没有 refresh_token，长期凭据是 cookie：按平台
+			// 分别要求对应凭据非空。
 			args = append(args, pq.Array(options.CookieCredentialPlatforms))
 			query += `
 			AND (
@@ -1813,6 +1817,128 @@ func (r *accountRepository) SetGrokOAuthErrorIfCredentialsUnchanged(
 	return true, nil
 }
 
+// UpdateGrokOAuthCredentialsIfUnchanged persists provider-issued replacement
+// credentials only while the complete Grok OAuth credential document and
+// proxy still match the fresh snapshot used by the upstream refresh call. The
+// scheduler outbox insert is part of the same PostgreSQL statement, so a
+// durable invalidation failure rolls the credential update back as well.
+func (r *accountRepository) UpdateGrokOAuthCredentialsIfUnchanged(
+	ctx context.Context,
+	id int64,
+	expectedCredentials map[string]any,
+	expectedProxyID *int64,
+	credentials map[string]any,
+) (bool, error) {
+	if r == nil || r.sql == nil {
+		return false, errors.New("account repository SQL executor is not configured")
+	}
+	expectedJSON, err := json.Marshal(normalizeJSONMap(expectedCredentials))
+	if err != nil {
+		return false, err
+	}
+	credentialsJSON, err := json.Marshal(normalizeJSONMap(credentials))
+	if err != nil {
+		return false, err
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		WITH updated AS (
+		UPDATE accounts AS a
+		SET credentials = $1::jsonb,
+			updated_at = NOW()
+		WHERE a.id = $2
+			AND a.deleted_at IS NULL
+			AND a.platform = $3
+			AND a.type = $4
+			AND a.credentials = $5::jsonb
+			AND a.proxy_id IS NOT DISTINCT FROM $6
+		RETURNING a.id
+		)
+		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+		SELECT $7, updated.id, NULL, NULL FROM updated
+	`,
+		string(credentialsJSON),
+		id,
+		service.PlatformGrok,
+		service.AccountTypeOAuth,
+		string(expectedJSON),
+		expectedProxyID,
+		service.SchedulerOutboxEventAccountChanged,
+	)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if rowsAffected == 0 {
+		return false, nil
+	}
+	r.syncSchedulerAccountSnapshotDetached(ctx, id)
+	return true, nil
+}
+
+// SetGrokOAuthRefreshErrorIfCredentialsUnchanged is the background-refresh
+// counterpart to reconciliation's stricter missing-refresh-token mutation. It
+// matches the complete credential document used by the failed upstream attempt
+// but deliberately does not require the refresh token to be absent.
+func (r *accountRepository) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(
+	ctx context.Context,
+	id int64,
+	expectedCredentials map[string]any,
+	expectedProxyID *int64,
+	errorMsg string,
+) (bool, error) {
+	if r == nil || r.sql == nil {
+		return false, errors.New("account repository SQL executor is not configured")
+	}
+	expectedJSON, err := json.Marshal(normalizeJSONMap(expectedCredentials))
+	if err != nil {
+		return false, err
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		WITH updated AS (
+		UPDATE accounts AS a
+		SET status = $1,
+			error_message = $2,
+			schedulable = FALSE,
+			updated_at = NOW()
+		WHERE a.id = $3
+			AND a.deleted_at IS NULL
+			AND a.platform = $4
+			AND a.type = $5
+			AND a.status = $6
+			AND a.credentials = $7::jsonb
+			AND a.proxy_id IS NOT DISTINCT FROM $8
+		RETURNING a.id
+		)
+		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+		SELECT $9, updated.id, NULL, NULL FROM updated
+	`,
+		service.StatusError,
+		errorMsg,
+		id,
+		service.PlatformGrok,
+		service.AccountTypeOAuth,
+		service.StatusActive,
+		string(expectedJSON),
+		expectedProxyID,
+		service.SchedulerOutboxEventAccountChanged,
+	)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if rowsAffected == 0 {
+		return false, nil
+	}
+	r.syncSchedulerAccountSnapshotDetached(ctx, id)
+	return true, nil
+}
+
 // SetAdobeErrorIfCookieUnchanged marks an Adobe OAuth account as error only
 // while its cookie still equals the one IMS rejected. A cookie the admin
 // replaced during the IMS round trip is not quarantined by the stale verdict.
@@ -1977,51 +2103,45 @@ func (r *accountRepository) UpdateAdobeTokenIfCookieUnchanged(
 	return true, nil
 }
 
-// UpdateGrokOAuthCredentialsIfUnchanged persists provider-issued replacement
-// credentials only while the complete Grok OAuth credential document and
-// proxy still match the fresh snapshot used by the upstream refresh call. The
-// scheduler outbox insert is part of the same PostgreSQL statement, so a
-// durable invalidation failure rolls the credential update back as well.
-func (r *accountRepository) UpdateGrokOAuthCredentialsIfUnchanged(
+// SetLeonardoErrorIfCookieUnchanged marks a Leonardo OAuth account as error only
+// while its cookie still equals the one the upstream rejected. A cookie the
+// admin replaced during the round trip is not quarantined by the stale verdict.
+// The scheduler outbox insert shares the statement.
+func (r *accountRepository) SetLeonardoErrorIfCookieUnchanged(
 	ctx context.Context,
 	id int64,
-	expectedCredentials map[string]any,
-	expectedProxyID *int64,
-	credentials map[string]any,
+	expectedCookie string,
+	errorMsg string,
 ) (bool, error) {
 	if r == nil || r.sql == nil {
 		return false, errors.New("account repository SQL executor is not configured")
 	}
-	expectedJSON, err := json.Marshal(normalizeJSONMap(expectedCredentials))
-	if err != nil {
-		return false, err
-	}
-	credentialsJSON, err := json.Marshal(normalizeJSONMap(credentials))
-	if err != nil {
-		return false, err
+	if strings.TrimSpace(expectedCookie) == "" {
+		return false, errors.New("leonardo error update requires the cookie used for refresh")
 	}
 	result, err := r.sql.ExecContext(ctx, `
 		WITH updated AS (
 		UPDATE accounts AS a
-		SET credentials = $1::jsonb,
+		SET status = $1,
+			error_message = $2,
+			schedulable = FALSE,
 			updated_at = NOW()
-		WHERE a.id = $2
+		WHERE a.id = $3
 			AND a.deleted_at IS NULL
-			AND a.platform = $3
-			AND a.type = $4
-			AND a.credentials = $5::jsonb
-			AND a.proxy_id IS NOT DISTINCT FROM $6
+			AND a.platform = $4
+			AND a.type = $5
+			AND a.credentials ->> 'cookie' = $6
 		RETURNING a.id
 		)
 		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
 		SELECT $7, updated.id, NULL, NULL FROM updated
 	`,
-		string(credentialsJSON),
+		service.StatusError,
+		errorMsg,
 		id,
-		service.PlatformGrok,
+		service.PlatformLeonardo,
 		service.AccountTypeOAuth,
-		string(expectedJSON),
-		expectedProxyID,
+		expectedCookie,
 		service.SchedulerOutboxEventAccountChanged,
 	)
 	if err != nil {
@@ -2038,51 +2158,99 @@ func (r *accountRepository) UpdateGrokOAuthCredentialsIfUnchanged(
 	return true, nil
 }
 
-// SetGrokOAuthRefreshErrorIfCredentialsUnchanged is the background-refresh
-// counterpart to reconciliation's stricter missing-refresh-token mutation. It
-// matches the complete credential document used by the failed upstream attempt
-// but deliberately does not require the refresh token to be absent.
-func (r *accountRepository) SetGrokOAuthRefreshErrorIfCredentialsUnchanged(
+// InvalidateLeonardoAccessTokenIfUnchanged drops access_token / expires_at from
+// a Leonardo OAuth account after the upstream rejected that exact JWT, so the
+// next request refreshes from the cookie instead of reusing a revoked token
+// whose exp has not passed. It is a CAS on the token value: a token a concurrent
+// request already refreshed is left alone. The cookie and every other field are
+// preserved, and the scheduler outbox insert shares the statement.
+func (r *accountRepository) InvalidateLeonardoAccessTokenIfUnchanged(
 	ctx context.Context,
 	id int64,
-	expectedCredentials map[string]any,
-	expectedProxyID *int64,
-	errorMsg string,
+	expectedAccessToken string,
 ) (bool, error) {
 	if r == nil || r.sql == nil {
 		return false, errors.New("account repository SQL executor is not configured")
 	}
-	expectedJSON, err := json.Marshal(normalizeJSONMap(expectedCredentials))
+	if strings.TrimSpace(expectedAccessToken) == "" {
+		return false, errors.New("leonardo token invalidation requires the rejected access_token")
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		WITH updated AS (
+		UPDATE accounts AS a
+		SET credentials = a.credentials - 'access_token' - 'expires_at',
+			updated_at = NOW()
+		WHERE a.id = $1
+			AND a.deleted_at IS NULL
+			AND a.platform = $2
+			AND a.type = $3
+			AND btrim(a.credentials ->> 'access_token') = $4
+		RETURNING a.id
+		)
+		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
+		SELECT $5, updated.id, NULL, NULL FROM updated
+	`,
+		id,
+		service.PlatformLeonardo,
+		service.AccountTypeOAuth,
+		strings.TrimSpace(expectedAccessToken),
+		service.SchedulerOutboxEventAccountChanged,
+	)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if rowsAffected == 0 {
+		return false, nil
+	}
+	r.syncSchedulerAccountSnapshotDetached(ctx, id)
+	return true, nil
+}
+
+// UpdateLeonardoTokenIfCookieUnchanged merges a refreshed Leonardo JWT (and the
+// Better Auth-rotated cookie it was minted with) into a Leonardo OAuth account
+// only while the stored cookie still equals the one used for the exchange. Only
+// tokenFields are written (JSONB ||), so model_mapping edits made during the
+// round trip survive. The scheduler outbox insert shares the statement.
+func (r *accountRepository) UpdateLeonardoTokenIfCookieUnchanged(
+	ctx context.Context,
+	id int64,
+	expectedCookie string,
+	tokenFields map[string]any,
+) (bool, error) {
+	if r == nil || r.sql == nil {
+		return false, errors.New("account repository SQL executor is not configured")
+	}
+	if strings.TrimSpace(expectedCookie) == "" {
+		return false, errors.New("leonardo token update requires the cookie used for refresh")
+	}
+	fieldsJSON, err := json.Marshal(normalizeJSONMap(tokenFields))
 	if err != nil {
 		return false, err
 	}
 	result, err := r.sql.ExecContext(ctx, `
 		WITH updated AS (
 		UPDATE accounts AS a
-		SET status = $1,
-			error_message = $2,
-			schedulable = FALSE,
+		SET credentials = COALESCE(a.credentials, '{}'::jsonb) || $1::jsonb,
 			updated_at = NOW()
-		WHERE a.id = $3
+		WHERE a.id = $2
 			AND a.deleted_at IS NULL
-			AND a.platform = $4
-			AND a.type = $5
-			AND a.status = $6
-			AND a.credentials = $7::jsonb
-			AND a.proxy_id IS NOT DISTINCT FROM $8
+			AND a.platform = $3
+			AND a.type = $4
+			AND a.credentials ->> 'cookie' = $5
 		RETURNING a.id
 		)
 		INSERT INTO scheduler_outbox (event_type, account_id, group_id, payload)
-		SELECT $9, updated.id, NULL, NULL FROM updated
+		SELECT $6, updated.id, NULL, NULL FROM updated
 	`,
-		service.StatusError,
-		errorMsg,
+		string(fieldsJSON),
 		id,
-		service.PlatformGrok,
+		service.PlatformLeonardo,
 		service.AccountTypeOAuth,
-		service.StatusActive,
-		string(expectedJSON),
-		expectedProxyID,
+		expectedCookie,
 		service.SchedulerOutboxEventAccountChanged,
 	)
 	if err != nil {
@@ -2515,6 +2683,7 @@ func (r *accountRepository) schedulableAccountsQuery(now time.Time) *dbent.Accou
 		Where(
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
+			knownPlatformPredicate(),
 			tempUnschedulablePredicate(),
 			notExpiredPredicate(now),
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
@@ -2621,6 +2790,7 @@ func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platf
 			dbaccount.PlatformEQ(platform),
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
+			knownPlatformPredicate(),
 			tempUnschedulablePredicate(),
 			notExpiredPredicate(now),
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
@@ -2655,6 +2825,7 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 			dbaccount.PlatformIn(platforms...),
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
+			knownPlatformPredicate(),
 			tempUnschedulablePredicate(),
 			notExpiredPredicate(now),
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
@@ -2675,6 +2846,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Conte
 			dbaccount.PlatformEQ(platform),
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
+			knownPlatformPredicate(),
 			dbaccount.Not(dbaccount.HasAccountGroups()),
 			tempUnschedulablePredicate(),
 			notExpiredPredicate(now),
@@ -2699,6 +2871,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 			dbaccount.PlatformIn(platforms...),
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
+			knownPlatformPredicate(),
 			dbaccount.Not(dbaccount.HasAccountGroups()),
 			tempUnschedulablePredicate(),
 			notExpiredPredicate(now),
@@ -3860,7 +4033,7 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 		preds = append(preds, dbaccount.PlatformIn(opts.platforms...))
 	}
 	if opts.schedulable {
-		preds = append(preds, dbaccount.SchedulableEQ(true))
+		preds = append(preds, dbaccount.SchedulableEQ(true), knownPlatformPredicate())
 		if !opts.ignoreTransientState {
 			now := time.Now()
 			preds = append(preds,
@@ -3967,6 +4140,14 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	}
 
 	return outAccounts, nil
+}
+
+// knownPlatformPredicate restricts scheduling queries to platforms registered in
+// domain.Platforms. Rows left behind by a removed platform (still allowed by
+// historical DB CHECK constraints) are never scheduled, while admin listing
+// and deletion keep working because they do not use it.
+func knownPlatformPredicate() dbpredicate.Account {
+	return dbaccount.PlatformIn(domain.ConcretePlatformIDs()...)
 }
 
 func tempUnschedulablePredicate() dbpredicate.Account {

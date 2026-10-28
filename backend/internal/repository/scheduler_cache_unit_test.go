@@ -1266,3 +1266,14 @@ func TestBuildSchedulerMetadataAccount_KeepsExcelBPSModelSelection(t *testing.T)
 		})
 	}
 }
+
+// The account-level BPS model whitelist drives routing after scheduler-cache
+// hydration and must survive the scheduler projection.
+func TestFilterSchedulerExtraKeepsExcelBPSWhitelist(t *testing.T) {
+	filtered := filterSchedulerExtra(map[string]any{
+		"openai_excel_bps_models": []string{"gpt-7-new"},
+		"openai_passthrough":      nil,
+	})
+	require.Equal(t, []string{"gpt-7-new"}, filtered["openai_excel_bps_models"])
+	require.NotContains(t, filtered, "openai_passthrough")
+}

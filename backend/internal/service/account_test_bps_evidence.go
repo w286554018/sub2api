@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 type bpsTestResponseObserverKey struct{}
@@ -20,6 +21,31 @@ func (s *AccountTestService) withBPSTestEvidence(ctx context.Context, c *gin.Con
 }
 
 func observeBPSTestResponse(ctx context.Context, resp *http.Response, model, token, code string) {
+	observeBPSTestEvent(ctx, resp, model, token, code, "")
+}
+
+// bpsTestErrorMessageMaxLen bounds the BPS rejection message shown in a test.
+const bpsTestErrorMessageMaxLen = 512
+
+// observeBPSTestFailure reports a non-2xx BPS response together with a redacted
+// error message, so a failing admin test shows why BPS rejected the request
+// without digging through ops logs. Rate-limit bodies are omitted because they
+// may contain arbitrary account-specific details; status and code remain useful.
+func observeBPSTestFailure(ctx context.Context, resp *http.Response, model, token string, raw []byte, account *Account) {
+	if _, ok := ctx.Value(bpsTestResponseObserverKey{}).(bpsTestResponseObserver); !ok || resp == nil {
+		return
+	}
+	message := ""
+	if resp.StatusCode != http.StatusTooManyRequests {
+		message = strings.TrimSpace(extractUpstreamErrorMessage([]byte(excelBPSSanitizeErrorBody(string(raw), token, account))))
+	}
+	if token != "" && strings.Contains(message, token) {
+		message = ""
+	}
+	observeBPSTestEvent(ctx, resp, model, token, gjson.GetBytes(raw, "error.code").String(), truncateString(message, bpsTestErrorMessageMaxLen))
+}
+
+func observeBPSTestEvent(ctx context.Context, resp *http.Response, model, token, code, message string) {
 	observer, ok := ctx.Value(bpsTestResponseObserverKey{}).(bpsTestResponseObserver)
 	if !ok || resp == nil {
 		return
@@ -31,5 +57,5 @@ func observeBPSTestResponse(ctx context.Context, resp *http.Response, model, tok
 		}
 		return value
 	}
-	observer(TestEvent{Type: "upstream_response", UpstreamStatus: resp.StatusCode, UpstreamModel: clean(model), RequestID: clean(resp.Header.Get("x-request-id")), UpstreamErrorCode: clean(code)})
+	observer(TestEvent{Type: "upstream_response", UpstreamStatus: resp.StatusCode, UpstreamModel: clean(model), RequestID: clean(resp.Header.Get("x-request-id")), UpstreamErrorCode: clean(code), UpstreamErrorMessage: message})
 }

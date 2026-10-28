@@ -128,6 +128,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	latest, admissionErr := s.admitOpenAITurn(ctx, c, account, extractOpenAICodexTicketModel(body))
 	if admissionErr != nil {
 		if errors.Is(admissionErr, errExcelOAuthRouteUnavailable) {
+			if account != nil && account.IsBPSOAuth() {
+				return nil, newExcelOAuthRouteFailoverError()
+			}
 			return nil, writeExcelOAuthRouteError(c)
 		}
 		return nil, markOpenAIInitialAdmissionError(admissionErr)
@@ -182,6 +185,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if !account.IsExcelOAuth() && account.IsPrismBrowserEnabledForModel(modelForBPS) && s.prismBrowserGloballyEnabled(ctx) {
 		return s.forwardPrismBrowser(ctx, c, account, body, startTime)
 	}
+	if err := validateExcelOAuthRoute(account, modelForBPS); err != nil {
+		return nil, newExcelOAuthRouteFailoverError()
+	}
+	// The BPS tools probe must exercise BPS itself; a silent native fallback
+	// would report a passing BPS test without touching BPS.
 	if c.GetBool(bpsAccountProbeRequiredContextKey) &&
 		(!account.IsExcelBPSEnabledForModel(modelForBPS) || account.excelBPSNativeFallbackReason(body) != "") {
 		return nil, errors.New("bps probe path is unavailable")
@@ -208,6 +216,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return s.forwardOpenAIPassthrough(ctx, c, account, body, body, view.Model, false,
 			extractOpenAIReasoningEffortFromBody(body, view.Model), view.Stream, startTime)
 	}
+	if account.IsBPSOAuth() {
+		// Unreachable while validateExcelOAuthRoute holds; never hand an Excel
+		// token to the native path.
+		return nil, newExcelOAuthRouteFailoverError()
+	}
 
 	normalizedBody, normalized, err := normalizeOpenAICodexCompactReasoningEffortForAccount(c, account, body)
 	if err != nil {
@@ -216,7 +229,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if normalized {
 		body = normalizedBody
 	}
-	legacyIngressBody, legacyIngressChanged, legacyIngressErr := normalizeOpenAIResponsesLegacyIngress(body)
+	legacyIngressBody, legacyIngressChanged, legacyIngressErr := normalizeOpenAIResponsesLegacyIngressWithConfig(s.cfg, body)
 	if legacyIngressErr != nil {
 		return nil, legacyIngressErr
 	}
@@ -285,9 +298,26 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 		}
 	}
-
+	// 仅允许 WS 入站请求走 WS 上游，避免出现 HTTP -> WS 协议混用；
+	// 例外是 ws_bridge 模式放行的流式 HTTP 请求。必须在此一次定终：下面的
+	// namespace 处理与 previous_response_id 清理都依赖 wsDecision.Transport。
+	wsBridgeHTTP := s.shouldUseOpenAIWSBridgeForHTTPIngress(ctx, c, account, wsDecision, body, responsesLite)
+	if !wsBridgeHTTP && !accelerateHTTPSSE && anchorFinish == nil {
+		wsDecision = resolveOpenAIWSDecisionByClientTransport(wsDecision, GetOpenAIClientTransport(c))
+	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	compactPath := isOpenAIResponsesCompactPath(c)
+	if shouldFlattenOpenAIResponsesNamespaces(account, wsDecision.Transport, passthroughEnabled, compactPath) {
+		body, err = flattenOpenAIResponsesNamespaces(c, body)
+		if err != nil {
+			setOpsUpstreamError(c, http.StatusBadRequest, err.Error(), "")
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{
+				"type": "invalid_request_error", "message": err.Error(), "param": "tools",
+			}})
+			return nil, err
+		}
+	}
+
 	body, err = normalizeOpenAIResponsesNamespaces(c, account, body, wsDecision.Transport, passthroughEnabled, compactPath)
 	if err != nil {
 		return nil, err
@@ -1078,6 +1108,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				attempt,
 				wsLastFailureReason,
 				&agentTaskRecoveryTried,
+				wsBridgeHTTP,
 			)
 			if wsErr == nil {
 				break
@@ -1090,7 +1121,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				return nil, wsErr
 			}
 			if c != nil && c.Writer != nil && c.Writer.Written() {
-				break
+				if wsBridgeHTTP {
+					// 保活注释不是语义输出，不阻止重试。
+					if openAIStreamClientOutputStarted(c, false) {
+						break
+					}
+				} else {
+					break
+				}
 			}
 			if accelerateHTTPSSE {
 				break
@@ -1104,9 +1142,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			if reason != "" {
 				wsLastFailureReason = reason
 			}
+			// HTTP 上游遇 5xx/传输失败立即换号；bridge 只对连接级失败在同账号重试一次。
+			if wsBridgeHTTP && retryable && !openAIWSBridgeSameAccountRetryable(reason, attempt) {
+				retryable = false
+			}
 			// previous_response_not_found 说明续链锚点不可用：
 			// 对非 function_call_output 场景，允许一次“去掉 previous_response_id 后重放”。
-			if codexWSAnchorFromContext(ctx) == nil && reason == "previous_response_not_found" && recoverPrevResponseNotFound(attempt) {
+			// HTTP 客户端保持与 HTTP 上游一致的 400 语义，不静默丢弃续链。
+			if codexWSAnchorFromContext(ctx) == nil && reason == "previous_response_not_found" && !wsBridgeHTTP && recoverPrevResponseNotFound(attempt) {
 				continue
 			}
 			if codexWSAnchorFromContext(ctx) == nil && reason == "invalid_encrypted_content" && recoverInvalidEncryptedContent(attempt) {
@@ -1201,9 +1244,31 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				wsResult.ImageInputSize = imageInputSize
 				wsResult.BillingModel = imageBillingModel
 			}
+			if wsBridgeHTTP {
+				// 绑定 HTTP 续接归属，否则后续带 previous_response_id 的 HTTP 请求会被 owner 校验拒绝。
+				s.bindHTTPResponseAccount(ctx, c, account, wsResult.ResponseID)
+				if account.IsShadow() && account.ParentAccountID != nil {
+					notifyOpenAIAutoReset(*account.ParentAccountID)
+				}
+			}
 			return wsResult, nil
 		}
 		if IsOpenAIRPMError(wsErr) {
+			return nil, wsErr
+		}
+		if wsBridgeHTTP {
+			clearOpenAIWSBridgeAttemptHeaders(c)
+			var failoverErr *UpstreamFailoverError
+			if errors.As(wsErr, &failoverErr) {
+				return nil, wsErr
+			}
+			if failoverErr = s.newOpenAIWSBridgeFallbackFailoverError(ctx, c, account, upstreamModel, wsErr); failoverErr != nil {
+				return nil, failoverErr
+			}
+			if s.writeOpenAIWSBridgeCommittedFallbackError(c, account, originalModel, wsErr) {
+				return nil, wsErr
+			}
+			s.writeOpenAIWSFallbackErrorResponse(c, account, wsErr)
 			return nil, wsErr
 		}
 		fallbackReason := ""

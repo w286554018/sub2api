@@ -5,7 +5,6 @@ package repository
 import (
 	"context"
 	"net"
-	"strconv"
 	"testing"
 	"time"
 
@@ -69,7 +68,7 @@ func TestSchedulerSnapshotPipelinesBoundedFieldsAndFreshLastUsed(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hit)
 	require.Equal(t, newer, *result[2].LastUsedAt)
-	require.NoError(t, cache.rdb.Del(ctx, schedulerAccountMetaKey(strconv.Itoa(802))).Err())
+	require.NoError(t, cache.DeleteAccount(ctx, 802))
 	_, hit, err = cache.GetSnapshot(ctx, bucket)
 	require.NoError(t, err)
 	require.False(t, hit) // missing metadata cannot return a partial candidate pool

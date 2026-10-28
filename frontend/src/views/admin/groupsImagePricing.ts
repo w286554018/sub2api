@@ -1,5 +1,4 @@
 export const imagePricingPlatforms = new Set([
-  "adobe",
   "antigravity",
   "composite",
   "gemini",
@@ -9,6 +8,18 @@ export const imagePricingPlatforms = new Set([
 
 export const supportsImagePricingPlatform = (platform: string): boolean =>
   imagePricingPlatforms.has(platform);
+
+// 与后端 DefaultAllowImageGenerationForPlatform 一致：这些平台新建分组默认允许生图。
+const imageGenerationDefaultPlatforms = new Set([
+  "antigravity",
+  "fish",
+  "gemini",
+  "grok",
+  "leonardo",
+]);
+
+export const defaultAllowImageGenerationForPlatform = (platform: string): boolean =>
+  imageGenerationDefaultPlatforms.has(platform);
 
 export const supportsVideoPricingPlatform = (platform: string): boolean =>
   platform === "grok";
@@ -38,14 +49,6 @@ const defaultImagePricePlaceholders: Record<
     image_price_1k: "0.02",
     image_price_2k: "0.02",
     image_price_4k: "0.02",
-  },
-  // Step 8：Adobe 分档 placeholder。取中位（gpt-image 档）——一个分组里可以同时挂
-  // gemini-*-image（$0.02）和 gpt-image-2.5（$0.10），placeholder 不能兼顾。精细化：按
-  // 模型建独立分组。真实价档由后端 getDefaultAdobeImagePrice 兜底、按模型分档。
-  adobe: {
-    image_price_1k: "0.05",
-    image_price_2k: "0.08",
-    image_price_4k: "0.15",
   },
 };
 

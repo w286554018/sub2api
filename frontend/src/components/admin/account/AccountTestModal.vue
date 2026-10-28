@@ -17,6 +17,7 @@
           <a v-if="modelAuthError" href="/admin/token-guard-v2" target="_blank" rel="noopener noreferrer" class="underline">{{ t('admin.accounts.openCredentialOperations') }}</a>
         </div>
       </div>
+      <AccountTestEvidence v-if="upstreamEvidence" :evidence="upstreamEvidence" />
       <!-- Account Info Card -->
       <div
         v-if="account"
@@ -379,6 +380,8 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import AccountTestEvidence from './AccountTestEvidence.vue'
+import type { AccountTestUpstreamEvidence } from '@/types/accountTestEvidence'
 import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
@@ -427,7 +430,9 @@ const generatedImages = ref<PreviewMedia[]>([])
 const generatedAudios = ref<PreviewMedia[]>([])
 const generatedVideos = ref<PreviewMedia[]>([])
 const previewImageUrl = ref('')
-const testMode = ref<'default' | 'compact'>('default')
+const testMode = ref<'default' | 'compact' | 'bps_tools'>('default')
+// BPS 测试回传的上游证据（HTTP 状态、request id、错误码与脱敏后的错误消息）
+const upstreamEvidence = ref<AccountTestUpstreamEvidence | null>(null)
 const grokTestMode = ref<'text' | 'image' | 'video' | 'search' | 'tts' | 'stt' | 'realtime'>('text')
 const uploadImageDataURL = ref('')
 const uploadImagePreview = ref('')
@@ -438,10 +443,18 @@ const imageFileInput = ref<HTMLInputElement | null>(null)
 const audioFileInput = ref<HTMLInputElement | null>(null)
 const isOpenAIAccount = computed(() => props.account?.platform === 'openai')
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
-const openAITestModeOptions = computed(() => [
-  { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
-  { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
-])
+// BPS-only (BPS OAuth) accounts are tested on the BPS route (the default test
+// follows it), so they get the BPS tool probe instead of the native-only compact probe.
+const isBPSAccount = computed(() => isOpenAIAccount.value && props.account?.type === 'bps-oauth')
+const openAITestModeOptions = computed(() => isBPSAccount.value
+  ? [
+      { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
+      { value: 'bps_tools', label: t('admin.accounts.openai.testModeBPSTools') }
+    ]
+  : [
+      { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
+      { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
+    ])
 const grokTestModeOptions = computed(() => [
   { value: 'text', label: t('admin.accounts.grok.testModeText') },
   { value: 'image', label: t('admin.accounts.grok.testModeImage') },
@@ -456,13 +469,24 @@ const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
 
-  return props.account?.platform === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  return props.account?.platform === 'gemini' || props.account?.platform === 'antigravity'
 })
 
 const supportsOpenAIImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gpt-image-')) return false
   return props.account?.platform === 'openai'
+})
+
+const supportsLeonardoImageTest = computed(() => {
+  const modelID = selectedModelId.value.toLowerCase()
+  if (!modelID.startsWith('gpt-image-')) return false
+  return props.account?.platform === 'leonardo'
+})
+
+const supportsFishImageTest = computed(() => {
+  if (props.account?.platform !== 'fish') return false
+  return selectedModelId.value.toLowerCase().startsWith('gpt-image-')
 })
 
 const isGrokImageModel = (id: string) => {
@@ -486,15 +510,13 @@ const supportsGrokVideoTest = computed(
   () => isGrokAccount.value && grokTestMode.value === 'video'
 )
 
-// Adobe 是纯文生图渠道，所有模型都走图像测试——不像 Grok/OpenAI 要按模型名判断。
-const supportsAdobeImageTest = computed(() => props.account?.platform === 'adobe')
-
 const supportsImageTest = computed(
   () =>
     supportsGeminiImageTest.value ||
     supportsOpenAIImageTest.value ||
-    supportsGrokImageTest.value ||
-    supportsAdobeImageTest.value
+    supportsLeonardoImageTest.value ||
+    supportsFishImageTest.value ||
+    supportsGrokImageTest.value
 )
 
 // Model select only when the mode needs a model.
@@ -801,9 +823,7 @@ const loadAvailableModels = async () => {
       : models
     // Default selection by platform
     if (availableModels.value.length > 0) {
-      // Adobe 后端已按 adobe.ImageModelIDs() 的展示序返回，第一个就是主推模型；
-      // 去找 sonnet 对纯图像渠道毫无意义。
-      if (props.account.platform === 'gemini' || props.account.platform === 'adobe') {
+      if (props.account.platform === 'gemini') {
         selectedModelId.value = availableModels.value[0].id
       } else {
         // Try to select Sonnet as default, otherwise use first model
@@ -828,6 +848,7 @@ const loadAvailableModels = async () => {
 
 const resetState = () => {
   status.value = 'idle'
+  upstreamEvidence.value = null
   outputLines.value = []
   streamingContent.value = ''
   errorMessage.value = ''
@@ -976,6 +997,11 @@ const startTest = async () => {
 
 const handleEvent = (event: {
   type: string
+  upstream_status?: number
+  upstream_model?: string
+  request_id?: string
+  upstream_error_code?: string
+  upstream_error_message?: string
   text?: string
   model?: string
   success?: boolean
@@ -986,6 +1012,18 @@ const handleEvent = (event: {
   mime_type?: string
 }) => {
   switch (event.type) {
+    case 'upstream_response':
+      if (event.upstream_status && event.upstream_status >= 100 && event.upstream_status <= 599) {
+        upstreamEvidence.value = {
+          status: event.upstream_status,
+          model: event.upstream_model,
+          requestId: event.request_id,
+          errorCode: event.upstream_error_code,
+          errorMessage: event.upstream_error_message
+        }
+      }
+      break
+
     case 'test_start':
       addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
       if (event.model) {

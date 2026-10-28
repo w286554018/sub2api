@@ -286,7 +286,7 @@ func TestNativeToolImageValidationAndScope(t *testing.T) {
 	require.Contains(t, string(wire), url)
 	require.Contains(t, string(wire), `"detail":"auto"`)
 	_, _, err = Prepare(raw, "scope", nil)
-	require.ErrorContains(t, err, "image support is disabled")
+	require.ErrorContains(t, err, "accepts data:image input only")
 	for _, change := range []func(object){
 		func(p object) { p["image_url"] = "data:image/png;base64,PRIVATE_INVALID" },
 		func(p object) { p["detail"] = "invalid" },

@@ -607,6 +607,13 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return admissionErr
 	}
 	account = latest
+	// BPS-only accounts have no WebSocket route at all, whatever the model,
+	// plan or global switch: never let their Excel token reach native Codex.
+	// Return a retryable route error before the general BPS close response so
+	// the handler can select an account that supports WebSocket ingress.
+	if account.IsBPSOAuth() {
+		return newBPSUnsupportedInboundFailoverError()
+	}
 	if account.IsPrismBrowserEnabledForModel(extractOpenAICodexTicketModel(firstClientMessage)) && s.prismBrowserGloballyEnabled(ctx) {
 		return NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "Prism accounts require HTTP/SSE", nil)
 	}
@@ -696,12 +703,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			)
 		case OpenAIWSIngressModeHTTPBridge:
 			forceHTTPBridge = true
-		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
-			// continue
+		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModeWSBridge, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
+			// ws_bridge 对 WS 入站与 ctx_pool 完全一致，区别只在 HTTP 入站。
 		default:
 			return NewOpenAIWSClientCloseError(
 				coderws.StatusPolicyViolation,
-				"websocket mode only supports ctx_pool/passthrough/http_bridge",
+				"websocket mode only supports ctx_pool/passthrough/http_bridge/ws_bridge",
 				nil,
 			)
 		}
@@ -849,7 +856,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		normalized = s.normalizeRequestTimezone(ctx, account, normalized, "ws")
 		responsesLite := isOpenAIResponsesLiteWebSocketPayload(normalized)
-		if compatibilityBody, compatibilityChanged, compatibilityErr := normalizeOpenAIResponsesWebSocketCompatibilityBody(normalized, account, responsesLite); compatibilityErr != nil {
+		if compatibilityBody, compatibilityChanged, compatibilityErr := normalizeOpenAIResponsesWebSocketCompatibilityBodyWithConfig(s.cfg, normalized, account, responsesLite); compatibilityErr != nil {
 			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", compatibilityErr)
 		} else if compatibilityChanged {
 			normalized = compatibilityBody

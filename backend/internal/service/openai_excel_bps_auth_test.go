@@ -176,14 +176,31 @@ func TestExcelBPS401AppliesAuthenticationPolicy(t *testing.T) {
 					_, err := svc.Forward(context.Background(), c, account, body)
 					require.Error(t, err)
 					var failover *UpstreamFailoverError
-					require.NotErrorAs(t, err, &failover, "authentication state updates must not replay BPS requests")
+					wantFailover := route == "responses"
+					if wantFailover {
+						require.ErrorAs(t, err, &failover, "an untouched request may move to another account")
+						require.False(t, IsResponseCommitted(c))
+						require.Empty(t, rec.Body.String())
+					} else if route == "attachment" {
+						require.NotErrorAs(t, err, &failover, "attachment authentication errors are surfaced without replay")
+						require.True(t, IsResponseCommitted(c))
+						require.Equal(t, http.StatusUnauthorized, rec.Code)
+						require.Contains(t, rec.Body.String(), "attachment authentication failed")
+					} else {
+						require.NotErrorAs(t, err, &failover, "do not replay after a repair response was accepted")
+						require.True(t, IsResponseCommitted(c))
+					}
 					require.Len(t, upstream.requests, wantRequests)
 					require.True(t, rejected.closed.Load())
 					if first != nil {
 						require.True(t, first.closed.Load())
 					}
-					require.True(t, IsResponseCommitted(c))
-					if wantRequests == 1 {
+					if wantFailover {
+						require.False(t, IsResponseCommitted(c))
+					} else {
+						require.True(t, IsResponseCommitted(c))
+					}
+					if wantRequests == 1 && !wantFailover {
 						require.Equal(t, http.StatusUnauthorized, rec.Code)
 						require.Contains(t, rec.Body.String(), "authentication failed")
 					}

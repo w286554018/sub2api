@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/service/basispoints"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -58,6 +59,13 @@ func excelAccount() *Account {
 	return &Account{ID: 300, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 10,
 		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account"}, Extra: map[string]any{"openai_excel_bps": true, "openai_passthrough": true}}
 }
+
+func bpsOAuthAccount() *Account {
+	return &Account{ID: 300, Platform: PlatformOpenAI, Type: AccountTypeBPSOAuth, Status: StatusActive, Schedulable: true, Concurrency: 10,
+		Credentials: map[string]any{"access_token": "test-token", "chatgpt_account_id": "test-account", "client_id": openai.ExcelClientID},
+		Extra:       map[string]any{}}
+}
+
 func TestExcelBPSForwardContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, stream := range []bool{false, true} {
@@ -138,20 +146,21 @@ func TestExcelBPSUsagePreservesRequestedEffortBeforeGroupMapping(t *testing.T) {
 	}
 }
 
-func TestExcelBPSModelDeniedDoesNotFailover(t *testing.T) {
+func TestExcelBPSModelDeniedFailsOver(t *testing.T) {
 	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: 403, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"error":{"code":"basispoints_model_access_changed","message":"SECRET_UPSTREAM"}}`))}}
 	svc := openAIClientToolsTestService(upstream)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest("POST", "/v1/responses", nil)
 	_, err := svc.Forward(context.Background(), c, excelAccount(), []byte(`{"model":"gpt-5.6-sol","input":"x"}`))
-	require.Error(t, err)
 	var failover *UpstreamFailoverError
-	require.NotErrorAs(t, err, &failover)
-	require.Equal(t, 403, rec.Code)
-	require.Contains(t, rec.Body.String(), "basispoints_model_access_changed")
-	require.NotContains(t, rec.Body.String(), "SECRET_UPSTREAM")
-	require.True(t, IsResponseCommitted(c))
+	require.ErrorAs(t, err, &failover)
+	require.Equal(t, ExcelBPSModelNotAllowedReason, failover.Reason)
+	require.True(t, failover.ShouldRetryNextAccount())
+	require.Empty(t, failover.ResponseBody)
+	require.Zero(t, rec.Body.Len())
+	require.False(t, IsResponseCommitted(c))
+	require.True(t, svc.isExcelBPSModelCoolingDown(excelAccount(), "gpt-5.6-sol"))
 }
 
 func TestExcelBPSHTTPErrorRecordsUpstreamRejection(t *testing.T) {

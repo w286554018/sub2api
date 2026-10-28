@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/anthropictokenizer"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	kiropkg "github.com/Wei-Shaw/sub2api/internal/pkg/kiro"
@@ -83,16 +84,19 @@ func accountTestProbeKind(c *gin.Context) string {
 
 // TestEvent represents a SSE event for account testing
 type TestEvent struct {
-	UpstreamStatus    int    `json:"upstream_status,omitempty"`
-	UpstreamModel     string `json:"upstream_model,omitempty"`
-	RequestID         string `json:"request_id,omitempty"`
-	UpstreamErrorCode string `json:"upstream_error_code,omitempty"`
 	Type              string `json:"type"`
 	Text              string `json:"text,omitempty"`
 	Model             string `json:"model,omitempty"`
 	Status            string `json:"status,omitempty"`
 	Code              string `json:"code,omitempty"`
 	ImageURL          string `json:"image_url,omitempty"`
+	UpstreamStatus    int    `json:"upstream_status,omitempty"`
+	UpstreamModel     string `json:"upstream_model,omitempty"`
+	RequestID         string `json:"request_id,omitempty"`
+	UpstreamErrorCode string `json:"upstream_error_code,omitempty"`
+	// UpstreamErrorMessage is BPS's own rejection message, redacted of the
+	// request token and account secrets.
+	UpstreamErrorMessage string `json:"upstream_error_message,omitempty"`
 	// AudioURL / VideoURL are data: or https URLs for in-browser media players.
 	AudioURL string `json:"audio_url,omitempty"`
 	VideoURL string `json:"video_url,omitempty"`
@@ -204,8 +208,11 @@ type AccountTestService struct {
 	// grokWSDialer is optional; realtime account tests use the default OpenAI-style
 	// WS dialer when nil (supports proxy + coder/websocket handshake).
 	grokWSDialer openAIWSClientDialer
-	// adobeTokenProvider 为 nil 时 Adobe 测试路径按需构造本地 provider。
-	adobeTokenProvider *AdobeTokenProvider
+	// leonardoTokenProvider 为 nil 时 Leonardo 测试路径按需构造本地 provider。
+	leonardoTokenProvider *LeonardoTokenProvider
+	adobeTokenProvider    *AdobeTokenProvider
+	// leonardoImageService 为 nil 时用测试专用的出图服务实例（单测注入用）。
+	leonardoImageService *LeonardoImageService
 }
 
 func (s *AccountTestService) SetSettingService(settingService *SettingService) {
@@ -220,7 +227,13 @@ func (s *AccountTestService) SetPluginManager(pluginManager *PluginManager) {
 	}
 }
 
-// SetAdobeTokenProvider 注入与网关共享 OAuthRefreshAPI 的 Adobe token provider。
+// SetLeonardoTokenProvider 注入与网关共享 OAuthRefreshAPI 的 Leonardo token provider。
+func (s *AccountTestService) SetLeonardoTokenProvider(provider *LeonardoTokenProvider) {
+	if s != nil {
+		s.leonardoTokenProvider = provider
+	}
+}
+
 func (s *AccountTestService) SetAdobeTokenProvider(provider *AdobeTokenProvider) {
 	if s != nil {
 		s.adobeTokenProvider = provider
@@ -477,6 +490,12 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return nil
 	}
 
+	// Rows left behind by a removed platform must not fall through to the Claude
+	// fallback below, which would send their stored credentials to Anthropic.
+	if account.Platform != "" && !isServableAccountPlatform(account.Platform) {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account platform: %s", account.Platform))
+	}
+
 	// Route to platform-specific test method
 	// 按入站协议分流的多协议供应商（国产厂商等）：按账号协议选测试路径。
 	if account.RoutesProtocolByInbound() {
@@ -518,10 +537,15 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testKiroAccountConnection(c, account, modelID, prompt)
 	}
 
-	// Adobe 是文生图渠道，与下面 Claude 兜底的「发一条 prompt 收流式文本」协议不通。
-	// 改前它会落到 testClaudeAccountConnection，拿 IMS token 去打 api.anthropic.com。
 	if account.Platform == PlatformAdobe {
 		return s.testAdobeAccountConnection(c, account, modelID, prompt)
+	}
+	if account.Platform == PlatformLeonardo {
+		return s.testLeonardoAccountConnection(c, account, modelID, prompt)
+	}
+
+	if account.Platform == PlatformFish {
+		return s.testFishAccountConnection(c, account, modelID, prompt)
 	}
 
 	// 按模型分流的多模型聚合平台（OpenCode、Command Code 等）。
@@ -909,7 +933,8 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 	pr, pw := io.Pipe()
 	go func() {
 		defer func() { _ = resp.Body.Close() }()
-		_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(ctx, resp.Body, pw, testModelID, estimateKiroInputTokens(ctx, payloadBytes), kiropkg.KiroRequestContext{})
+		// 账号连通性测试不属计量路径，固定官方精确口径。
+		_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(ctx, resp.Body, pw, testModelID, estimateKiroInputTokens(ctx, anthropictokenizer.AlgorithmOfficial, payloadBytes), kiropkg.KiroRequestContext{})
 		if streamErr != nil {
 			_ = pw.CloseWithError(streamErr)
 			return
@@ -1127,6 +1152,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		if s.openaiGatewayService == nil || s.openaiGatewayService.validateExcelOAuthRoute(ctx, account, model) != nil {
 			return s.sendErrorAndEnd(c, errExcelOAuthRouteUnavailable.Error())
 		}
+	}
+	if account.IsBPSOAuth() {
+		return s.testBPSOAuthAccountConnection(c, account, modelID, prompt, mode)
 	}
 
 	// Excel/BPS accounts must use the same gateway path as user Responses
@@ -1353,97 +1381,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	// Process SSE stream
 	return s.processOpenAIStream(c, resp.Body)
-}
-
-func (s *AccountTestService) testExcelBPSAccountConnection(c *gin.Context, account *Account, modelID, prompt string) error {
-	model := strings.TrimSpace(modelID)
-	if model == "" {
-		model = openai.DefaultTestModel
-	}
-	model = account.GetMappedModel(model)
-	prompt = promptOrDefault(prompt)
-	s.sendEvent(c, TestEvent{Type: "test_start", Model: model})
-
-	body, err := buildExcelBPSAccountTestBody(model, prompt)
-	if err != nil {
-		return s.sendErrorAndEnd(c, "Failed to create Excel BPS test payload")
-	}
-
-	probe := httptest.NewRecorder()
-	probeCtx, _ := gin.CreateTestContext(probe)
-	probeCtx.Request = c.Request.Clone(s.withBPSTestEvidence(c.Request.Context(), c))
-	if probeCtx.Request.Header == nil {
-		probeCtx.Request.Header = make(http.Header)
-	}
-	// Manual one-shot tests have no client conversation. Give them a scoped
-	// identity so enabling the session proxy does not break the test button.
-	// Explicit identities (including load-test sessions) remain unchanged.
-	if scope, _ := resolveOpenAIWSExecutionScope(probeCtx, body, 0); scope == "" {
-		probeCtx.Request.Header.Set("Session-Id", "account-test-"+uuid.NewString())
-	}
-	result, err := s.openaiGatewayService.Forward(probeCtx.Request.Context(), probeCtx, account, body)
-	recordPelicanTestSSE(c.Request.Context(), "openai", model, probe.Body.Bytes())
-	if err != nil {
-		// A single-account test has no other account to fail over to.
-		var failover *UpstreamFailoverError
-		if errors.As(err, &failover) && failover.ClientMessage != "" {
-			return s.sendErrorAndEnd(c, failover.ClientMessage)
-		}
-		var local *excelBPSForwardError
-		if errors.As(err, &local) && strings.HasPrefix(local.code, "basispoints_auth_") {
-			var payload struct {
-				Error struct {
-					Message string `json:"message"`
-				} `json:"error"`
-			}
-			if json.Unmarshal(probe.Body.Bytes(), &payload) == nil && payload.Error.Message != "" {
-				return s.sendErrorAndEnd(c, local.Error()+": "+payload.Error.Message)
-			}
-		}
-		return s.sendErrorAndEnd(c, err.Error())
-	}
-
-	answer := strings.Builder{}
-	completed := false
-	for _, line := range strings.Split(probe.Body.String(), "\n") {
-		if !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-		var event map[string]any
-		if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &event) != nil {
-			continue
-		}
-		switch event["type"] {
-		case "response.output_text.delta":
-			if delta, ok := event["delta"].(string); ok {
-				_, _ = answer.WriteString(delta)
-				s.sendEvent(c, TestEvent{Type: "content", Text: delta})
-			}
-		case "response.completed":
-			completed = true
-		}
-	}
-	if result == nil || result.ClientDisconnect {
-		return s.sendErrorAndEnd(c, "Excel BPS test response was interrupted")
-	}
-	if !completed {
-		return s.sendErrorAndEnd(c, "Excel BPS test response ended before completion")
-	}
-	if strings.TrimSpace(answer.String()) == "" {
-		return s.sendErrorAndEnd(c, "Excel BPS returned empty output")
-	}
-	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-	return nil
-}
-
-func buildExcelBPSAccountTestBody(model, prompt string) ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"model": model, "stream": true, "store": false,
-		"input": []any{map[string]any{"type": "message", "role": "user", "content": []any{
-			map[string]any{"type": "input_text", "text": promptOrDefault(prompt)},
-		}}},
-		"reasoning": map[string]any{"effort": "medium"},
-	})
 }
 
 // testGrokAccountConnection routes Grok admin connectivity tests by explicit mode first,
@@ -3020,6 +2957,7 @@ func (s *AccountTestService) testAntigravityAccountConnection(c *gin.Context, ac
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 
 	// 调用 AntigravityGatewayService.TestConnection（复用协议转换逻辑）
+	// 调用 AntigravityGatewayService.TestConnectionWithPrompt（复用协议转换逻辑）
 	result, err := s.antigravityGatewayService.TestConnectionWithPrompt(ctx, account, testModelID, prompt)
 	if err != nil {
 		return s.sendErrorAndEnd(c, err.Error())
@@ -3028,6 +2966,13 @@ func (s *AccountTestService) testAntigravityAccountConnection(c *gin.Context, ac
 	// 发送响应内容
 	if result.Text != "" {
 		s.sendEvent(c, TestEvent{Type: "content", Text: result.Text})
+	}
+	for _, img := range result.Images {
+		s.sendEvent(c, TestEvent{
+			Type:     "image",
+			ImageURL: img.ImageURL,
+			MimeType: img.MimeType,
+		})
 	}
 
 	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})

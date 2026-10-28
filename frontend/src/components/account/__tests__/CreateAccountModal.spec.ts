@@ -103,6 +103,8 @@ vi.mock('vue-i18n', async () => {
 
 import CreateAccountModal from '../CreateAccountModal.vue'
 import OpenAITwoFAImport from '../OpenAITwoFAImport.vue'
+import { DEFAULT_EXCEL_BPS_MODELS } from '@/constants/account'
+import { OPENAI_EXCEL_OAUTH_CLIENT_ID } from '@/composables/useOpenAIOAuth'
 
 const BaseDialogStub = defineComponent({
   name: 'BaseDialog',
@@ -114,9 +116,11 @@ const OAuthAuthorizationFlowStub = defineComponent({
   name: 'OAuthAuthorizationFlow',
   props: {
     showManualOption: Boolean,
+    showMobileRefreshTokenOption: Boolean,
     showCodexSessionImportOption: Boolean,
     showAgentIdentityOption: Boolean,
     showCodexPatOption: Boolean,
+    excelOauth: Boolean,
     initialInputMethod: String,
   },
   data: () => ({ inputMethod: 'manual', authCode: '', oauthState: '' }),
@@ -190,6 +194,7 @@ const ModelWhitelistSelectorStub = defineComponent({
       default: () => [],
     },
     platform: String,
+    availableModels: { type: Array, default: undefined },
     syncCredentials: Object,
   },
   emits: ['update:modelValue', 'upstream-synced'],
@@ -360,10 +365,10 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
-  it('creates BPS OAuth through the Excel client and enables only the selected BPS models', async () => {
+  it('creates BPS OAuth through the Excel client with the shared model mapping', async () => {
     const wrapper = await prepareWSAcceleration(0)
     await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
-    expect(wrapper.find('[data-testid="bps-oauth-models"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bps-oauth-models"]').exists()).toBe(false)
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     const flow = wrapper.getComponent(OAuthAuthorizationFlowStub)
     flow.vm.$emit('generate-url')
@@ -375,11 +380,22 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     await flushPromises()
     await selectButtonByText(wrapper, 'admin.accounts.oauth.completeAuth')
     expect(createAccountMock).toHaveBeenCalledTimes(1)
-    expect(createAccountMock.mock.calls[0]?.[0]).toMatchObject({
-      type: 'oauth', platform: 'openai',
-      credentials: { access_token: 'excel-at', refresh_token: 'excel-rt', client_id: 'app_fnr0pYvVwwFDocDumLG3H2Bp' },
-      extra: { openai_excel_bps: true, openai_excel_bps_models: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra'] }
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload).toMatchObject({
+      type: 'bps-oauth', platform: 'openai',
+      credentials: {
+        access_token: 'excel-at',
+        refresh_token: 'excel-rt',
+        client_id: 'app_fnr0pYvVwwFDocDumLG3H2Bp',
+        model_mapping: {
+          'gpt-6-astra': 'gpt-6-astra',
+          'gpt-5.6-sol': 'gpt-5.6-sol',
+          'gpt-5.6-terra': 'gpt-5.6-terra',
+        },
+      },
+      extra: { openai_excel_bps: true }
     })
+    expect(payload?.extra ?? {}).not.toHaveProperty('openai_excel_bps_models')
   })
 
   it.each([0, 1, 2].flatMap(clicks => [
@@ -592,16 +608,20 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     wrapper.unmount()
   })
 
-  it('renders all 15 platforms in one grid with Kiro and Adobe last', () => {
+  it('renders all 17 platforms in one grid with Adobe after Grok and Leonardo and Fish last', () => {
     const wrapper = mountModal()
     const platformSelector = wrapper.get('[data-tour="account-form-platform"]')
 
+    // 手机 3 列，sm 起 4 列。
+    expect(platformSelector.classes()).toEqual(expect.arrayContaining(['grid-cols-3', 'sm:grid-cols-4']))
+    expect(platformSelector.classes()).not.toContain('sm:grid-cols-5')
     expect(platformSelector.findAll('button').map((button) => button.text())).toEqual([
       'Anthropic',
       'OpenAI',
       'Gemini',
       'Antigravity',
       'Grok',
+      'Adobe',
       'TypeSafe / Jev',
       'Kimi',
       'Zhipu GLM',
@@ -611,7 +631,8 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       'Command Code',
       'Cline',
       'Kiro',
-      'Adobe',
+      'Leonardo',
+      'Fish Audio',
     ])
   })
 
@@ -1125,14 +1146,14 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     })
   })
 
-  it('keeps Kiro and Adobe on the last row after the generic aggregators', () => {
+  it('keeps Kiro and Leonardo on the last row after the generic aggregators', () => {
     const wrapper = mountModal()
     const labels = wrapper
       .get('[data-tour="account-form-platform"]')
       .findAll('button')
       .map((button) => button.text().trim())
-    expect(labels.slice(-5)).toEqual(['OpenCode', 'Command Code', 'Cline', 'Kiro', 'Adobe'])
-    expect(labels.slice(5, 10)).toEqual(['TypeSafe / Jev', 'Kimi', 'Zhipu GLM', 'DeepSeek', 'MiniMax'])
+    expect(labels.slice(-6)).toEqual(['OpenCode', 'Command Code', 'Cline', 'Kiro', 'Leonardo', 'Fish Audio'])
+    expect(labels.slice(6, 11)).toEqual(['TypeSafe / Jev', 'Kimi', 'Zhipu GLM', 'DeepSeek', 'MiniMax'])
   })
 
   it('creates a Cline account without an account type and with only the Chat Completions endpoint', async () => {
@@ -1398,6 +1419,145 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     expect(probeUpstreamBillingMock).toHaveBeenCalledWith(42)
   })
 
+  it('OpenAI 的 OAuth / BPS OAuth / API Key 三个类型按钮在同一行', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+
+    const grid = wrapper.get('[data-testid="openai-account-type-grid"]')
+    expect(grid.classes()).toContain('grid-cols-3')
+    expect(grid.classes()).not.toContain('grid-cols-2')
+    const labels = grid.findAll(':scope > button').map((button) => button.find('span.block').text())
+    expect(labels).toEqual(['OAuth', 'BPS OAuth', 'API Key'])
+  })
+
+  it('BPS OAuth 只保留 Excel 可用的授权入口', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
+    expect(wrapper.find('[data-testid="bps-oauth-models"]').exists()).toBe(false)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('BPS account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    const flow = wrapper.findComponent({ name: 'OAuthAuthorizationFlow' })
+    expect(flow.exists()).toBe(true)
+    expect((wrapper.vm as any).form.type).toBe('bps-oauth')
+    expect(flow.props('showMobileRefreshTokenOption')).toBe(false)
+    expect(flow.props('showCodexSessionImportOption')).toBe(false)
+    expect(flow.props('showAgentIdentityOption')).toBe(false)
+    expect(flow.props('showCodexPatOption')).toBe(false)
+  })
+
+  it('BPS OAuth 第二步提示 Excel 回调，返回上一步保留 BPS 类型与模型', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
+    const models = [...(wrapper.vm as any).allowedModels]
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('BPS account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'OAuthAuthorizationFlow' }).props('excelOauth')).toBe(true)
+
+    ;(wrapper.vm as any).goBackToBasicInfo()
+    await flushPromises()
+
+    expect((wrapper.vm as any).form.type).toBe('bps-oauth')
+    expect((wrapper.vm as any).openaiBPSOAuth).toBe(true)
+    expect((wrapper.vm as any).allowedModels).toEqual(models)
+  })
+
+  it('BPS OAuth 默认在通用模型限制里预填 BPS 模型，候选只列 BPS 模型', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    const section = () => wrapper.get('[data-testid="oauth-model-restriction-section"]')
+    // 普通 OAuth：原生目录，不限定候选
+    expect(section().getComponent(ModelWhitelistSelectorStub).props('availableModels')).toBeUndefined()
+    expect(section().getComponent(ModelWhitelistSelectorStub).props('modelValue')).toContain('gpt-image-2')
+
+    await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
+    await flushPromises()
+    const selector = section().getComponent(ModelWhitelistSelectorStub)
+    expect(selector.props('modelValue')).toEqual([...DEFAULT_EXCEL_BPS_MODELS])
+    expect(selector.props('availableModels')).toEqual([...DEFAULT_EXCEL_BPS_MODELS])
+
+    const mappingTab = section().findAll('button').find((button) => button.text() === 'admin.accounts.modelMapping')
+    await mappingTab!.trigger('click')
+    expect(section().findAll('[data-testid="oauth-preset-mapping"]').map((button) => button.text())).toEqual([
+      '+ GPT-6 Astra',
+      '+ GPT-5.6 Sol',
+      '+ GPT-5.6 Terra',
+    ])
+
+    // 切回普通 OAuth：恢复原生预设与白名单
+    await selectButtonByText(wrapper, 'admin.accounts.types.chatgptOauth')
+    await flushPromises()
+    expect(section().findAll('[data-testid="oauth-preset-mapping"]').map((button) => button.text())).toContain('+ GPT-4o')
+    const whitelistTab = section().findAll('button').find((button) => button.text() === 'admin.accounts.modelWhitelist')
+    await whitelistTab!.trigger('click')
+    await flushPromises()
+    expect(section().getComponent(ModelWhitelistSelectorStub).props('availableModels')).toBeUndefined()
+    expect(section().getComponent(ModelWhitelistSelectorStub).props('modelValue')).toContain('gpt-image-2')
+  })
+
+  it('BPS OAuth 建号把模型写进 model_mapping，不再写 openai_excel_bps_models', async () => {
+    generateAuthUrlMock.mockResolvedValue({
+      auth_url: 'https://auth.openai.com/oauth/authorize?client_id=excel&state=bps.test',
+      session_id: 'session-1',
+    })
+    exchangeCodeMock.mockResolvedValue({
+      access_token: 'at',
+      refresh_token: 'rt',
+      client_id: OPENAI_EXCEL_OAUTH_CLIENT_ID,
+    })
+    createAccountMock.mockResolvedValue({ id: 42 })
+
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('BPS account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+    await wrapper.get('[data-testid="generate-url"]').trigger('click')
+    await flushPromises()
+    expect(generateAuthUrlMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ oauth_client: 'excel' }))
+
+    await (wrapper.vm as any).handleOpenAIExchange('auth-code')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.type).toBe('bps-oauth')
+    expect(payload?.credentials?.model_mapping).toEqual({
+      'gpt-6-astra': 'gpt-6-astra',
+      'gpt-5.6-sol': 'gpt-5.6-sol',
+      'gpt-5.6-terra': 'gpt-5.6-terra',
+    })
+    expect(payload?.extra ?? {}).not.toHaveProperty('openai_excel_bps_models')
+  })
+
+  it('BPS OAuth 不受 Codex 透传开关影响，始终应用模型映射', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    ;(wrapper.vm as any).openaiPassthroughEnabled = true
+    await flushPromises()
+    expect((wrapper.vm as any).isOpenAIModelRestrictionDisabled).toBe(true)
+
+    await wrapper.get('[data-testid="openai-bps-oauth"]').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as any).isOpenAIModelRestrictionDisabled).toBe(false)
+  })
+
+  it('普通 OpenAI OAuth 仍提供 Codex 导入入口', async () => {
+    const wrapper = await openCodexImportStep()
+    const flow = wrapper.findComponent({ name: 'OAuthAuthorizationFlow' })
+    expect((wrapper.vm as any).form.type).toBe('oauth')
+    expect(flow.props('showMobileRefreshTokenOption')).toBe(true)
+    expect(flow.props('showCodexSessionImportOption')).toBe(true)
+    expect(flow.props('showAgentIdentityOption')).toBe(true)
+    expect(flow.props('showCodexPatOption')).toBe(true)
+  })
+
   it('leaves Codex session import billing ownership to the backend', async () => {
     const wrapper = await openCodexImportStep()
     await wrapper.get('[data-testid="import-codex-session"]').trigger('click')
@@ -1488,541 +1648,428 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
 })
 
 
-describe('CreateAccountModal Adobe model mapping', () => {
+describe('CreateAccountModal gemini explicit cache upstream switch', () => {
   beforeEach(() => {
     authIsSimpleMode.value = true
-    createAccountMock.mockReset().mockResolvedValue({ id: 77, platform: 'adobe', type: 'oauth' })
+    createAccountMock.mockReset().mockResolvedValue({ id: 43, platform: 'gemini', type: 'apikey' })
     probeUpstreamBillingMock.mockReset().mockResolvedValue({})
     syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
-    showWarningMock.mockReset()
   })
 
-  afterEach(() => {
-    vi.clearAllMocks()
-  })
-
-  async function openAdobeTab() {
+  it('only offers the switch for a custom base url and sends it on create', async () => {
     const wrapper = mountModal()
-    await wrapper.get('[data-testid="platform-tab-adobe"]').trigger('click')
-    await flushPromises()
-    return wrapper
-  }
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(false)
 
-  async function submitAdobe(wrapper: ReturnType<typeof mountModal>) {
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
-    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
-  }
+    const baseUrlInput = wrapper
+      .findAll('form#create-account-form input[type="text"]')
+      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
+    expect(baseUrlInput).toBeDefined()
+    await baseUrlInput!.setValue('https://upstream.example.com')
+    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(true)
 
-  function submittedCredentials() {
-    return createAccountMock.mock.calls[0]?.[0]?.credentials as Record<string, any> | undefined
-  }
-
-  it('Adobe 页签不渲染 apikey 平台的字段', async () => {
-    const wrapper = await openAdobeTab()
-
-    // form.type 缺 adobe 分支时，accountCategory 的残留会把这些区块放出来。
-    expect(wrapper.find('[data-testid="upstream-billing-auto-probe"]').exists()).toBe(false)
-    expect(wrapper.html()).not.toContain('https://api.anthropic.com')
-  })
-
-  // 这才是复现路径：accountCategory 是跨页签共享的 reactive。
-  // 只测「直接打开 Adobe」会漏掉——那种情况下它还是默认的 oauth-based。
-  it('先在 Anthropic 页签切到 API Key 再切到 Adobe，仍不串味', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'admin.accounts.claudeConsole')
-    await flushPromises()
-    expect(wrapper.find('[data-testid="upstream-billing-auto-probe"]').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="platform-tab-adobe"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="upstream-billing-auto-probe"]').exists()).toBe(false)
-    expect(wrapper.html()).not.toContain('https://api.anthropic.com')
-
-    await wrapper.get('[data-testid="adobe-account-type-relay"]').trigger('click')
-    await flushPromises()
-    expect((wrapper.get('[data-testid="adobe-relay-base-url"]').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.html()).not.toContain('https://api.anthropic.com')
-    expect(wrapper.html()).not.toContain('https://api.openai.com')
-  })
-
-  it('Adobe 用通用的模型限制区块，默认是空白名单', async () => {
-    const wrapper = await openAdobeTab()
-
-    expect(wrapper.find('[data-testid="oauth-model-restriction-section"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="model-whitelist-selector"]').exists()).toBe(true)
-    // Kiro 式的两列映射已经删掉了。
-    expect(wrapper.find('[data-testid="adobe-model-mapping-from"]').exists()).toBe(false)
-  })
-
-  it('第一步不填 Cookie，下一步之后才出现凭据', async () => {
-    const wrapper = await openAdobeTab()
-
-    expect(wrapper.find('[data-testid="adobe-cookie-input"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="adobe-access-token-input"]').exists()).toBe(false)
-
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('[data-testid="explicit-cache-upstream-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="explicit-cache-upstream-max-ttl"]').setValue('1800')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini upstream gateway')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="adobe-cookie-input"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="adobe-access-token-input"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="adobe-create-account"]').exists()).toBe(true)
-  })
-
-  it('白名单勾选项作为恒等对写进 credentials.model_mapping', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-testid="model-whitelist-selector"]').trigger('click')
-    await submitAdobe(wrapper)
-
-    const credentials = submittedCredentials()
-    expect(credentials?.cookie).toBe('aux_sid=abc; ims=def')
-    // 恒等对能被后端解析，靠的是 adobe 包里的 externalImageModelAliases。
-    expect(credentials?.model_mapping).toEqual({
-      'imagen-4': 'imagen-4',
-      'flux-pro': 'flux-pro'
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      base_url: 'https://upstream.example.com',
+      explicit_cache_upstream: true,
+      explicit_cache_upstream_max_ttl_seconds: 1800
     })
   })
 
-  it('白名单为空时完全不下发 model_mapping', async () => {
-    const wrapper = await openAdobeTab()
-    await submitAdobe(wrapper)
+  it('only offers the AI Studio tier for the official base url', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
 
-    // 发空对象会把账号锁成「没有任何可用模型」；正确行为是不发，
-    // 交给后端回落到 DefaultAdobeModelMapping（含 4 个历史别名）。
-    expect(submittedCredentials()).not.toHaveProperty('model_mapping')
-  })
+    const baseUrlInput = wrapper
+      .findAll('form#create-account-form input[type="text"]')
+      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
+    expect(baseUrlInput).toBeDefined()
+    await baseUrlInput!.setValue('https://upstream.example.com')
+    expect(wrapper.find('[data-testid="gemini-apikey-tier"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
 
-  it('粘贴 sub2api-data JSON 时只把 cookie 写进凭据', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini relay')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
-    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
-      type: 'sub2api-data',
-      version: 1,
-      exported_at: '2026-09-20T06:54:00.000Z',
-      proxies: [],
-      accounts: [
-        {
-          name: 'adobe-jane@example.com',
-          platform: 'adobe',
-          type: 'oauth',
-          credentials: { cookie: 'ims_sid=abc; aux_sid=def' },
-          concurrency: 10,
-          priority: 1
-        }
-      ]
-    }))
-    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
 
-    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    const credentials = createAccountMock.mock.calls[0]?.[0]?.credentials
+    expect(credentials).toMatchObject({ base_url: 'https://upstream.example.com' })
+    expect(credentials).not.toHaveProperty('tier_id')
   })
 
-  it('粘贴带 arp_session_id 的 sub2api-data JSON 会写入凭据', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
+  it('shows the OAuth tier fallback only on the OAuth form', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.oauthTitle')
+    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
+  })
+
+  it('keeps the selected AI Studio tier for the official base url', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini official')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('AIza-official')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
-    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
-      type: 'sub2api-data',
-      accounts: [
-        {
-          credentials: {
-            cookie: 'ims_sid=abc; aux_sid=def',
-            arp_session_id: 'arp-from-json'
-          }
-        }
-      ]
-    }))
-    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
 
-    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
-    expect(submittedCredentials()?.arp_session_id).toBe('arp-from-json')
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      base_url: 'https://generativelanguage.googleapis.com',
+      tier_id: 'aistudio_paid'
+    })
+  })
+})
+
+describe('CreateAccountModal Vertex API key auth', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    createAccountMock.mockReset().mockResolvedValue({ id: 44, platform: 'gemini', type: 'service_account' })
+    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
+    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
   })
 
-  it('粘贴带 access_token 的 sub2api-data JSON 会写入凭据，空则不下发该键', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue(JSON.stringify({
-      type: 'sub2api-data',
-      accounts: [
-        {
-          credentials: {
-            cookie: 'ims_sid=abc; aux_sid=def',
-            access_token: 'ims-from-json'
-          }
-        }
-      ]
-    }))
-    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
+  async function openGeminiVertexApiKeyForm() {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
+    await wrapper.get('[data-testid="vertex-auth-mode-apikey"]').setValue(true)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('vertex api key account')
+    await wrapper.get('[data-testid="vertex-api-key-input"]').setValue(' vertex-key ')
+    return wrapper
+  }
 
-    expect(submittedCredentials()?.cookie).toBe('ims_sid=abc; aux_sid=def')
-    expect(submittedCredentials()?.access_token).toBe('ims-from-json')
-
-    createAccountMock.mockClear()
-    const wrapperEmpty = await openAdobeTab()
-    await wrapperEmpty.get('[data-tour="account-form-name"]').setValue('adobe account')
-    await wrapperEmpty.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-    await wrapperEmpty.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
-    await wrapperEmpty.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
-    expect(submittedCredentials()).not.toHaveProperty('access_token')
-  })
-
-  it('ARP 框手填会写入凭据，空则不下发该键', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe account')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-    expect(wrapper.find('[data-testid="adobe-arp-input"]').exists()).toBe(true)
-    await wrapper.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
-    await wrapper.get('[data-testid="adobe-arp-input"]').setValue('  typed-arp  ')
-    await wrapper.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
-    expect(submittedCredentials()?.arp_session_id).toBe('typed-arp')
-
-    createAccountMock.mockClear()
-    const wrapperEmpty = await openAdobeTab()
-    await wrapperEmpty.get('[data-tour="account-form-name"]').setValue('adobe account')
-    await wrapperEmpty.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-    await wrapperEmpty.get('[data-testid="adobe-cookie-input"]').setValue('aux_sid=abc; ims=def')
-    await wrapperEmpty.get('[data-testid="adobe-create-account"]').trigger('click')
-    await flushPromises()
-    expect(submittedCredentials()).not.toHaveProperty('arp_session_id')
-  })
-
-  it('Adobe 中转号在第一步提交 type=apikey + base_url，不改默认 priority', async () => {
-    const wrapper = await openAdobeTab()
-    await wrapper.get('[data-testid="adobe-account-type-relay"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="adobe-relay-fields"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="adobe-cookie-input"]').exists()).toBe(false)
-    const relayBaseUrl = wrapper.get('[data-testid="adobe-relay-base-url"]')
-    expect((relayBaseUrl.element as HTMLInputElement).value).toBe('')
-    expect(relayBaseUrl.attributes('placeholder')).toBe('https://your-relay.example.com')
-    expect(wrapper.html()).not.toContain('https://api.anthropic.com')
-    expect(wrapper.html()).not.toContain('https://api.openai.com')
-
-    await wrapper.get('[data-tour="account-form-name"]').setValue('adobe relay')
-    await wrapper.get('[data-testid="adobe-relay-base-url"]').setValue('https://relay.example/v1')
-    await wrapper.get('[data-testid="adobe-relay-api-key"]').setValue('sk-relay')
+  it('creates a Gemini Vertex account with API key auth and no project for the express endpoint', async () => {
+    const wrapper = await openGeminiVertexApiKeyForm()
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
 
     expect(createAccountMock).toHaveBeenCalledTimes(1)
     const payload = createAccountMock.mock.calls[0]?.[0]
-    expect(payload?.platform).toBe('adobe')
+    expect(payload?.platform).toBe('gemini')
+    expect(payload?.type).toBe('service_account')
+    expect(payload?.credentials).toEqual({
+      auth_mode: 'apikey',
+      api_key: 'vertex-key',
+      location: 'global',
+      tier_id: 'vertex'
+    })
+  })
+
+  it('sends the project id when an API key account targets a project endpoint', async () => {
+    const wrapper = await openGeminiVertexApiKeyForm()
+    await wrapper.get('[data-testid="vertex-api-key-project-id-input"]').setValue(' my-project ')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      auth_mode: 'apikey',
+      api_key: 'vertex-key',
+      project_id: 'my-project',
+      location: 'global'
+    })
+  })
+
+  it('keeps Anthropic Vertex accounts on Service Account JSON only', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
+    expect(wrapper.find('[data-testid="vertex-auth-mode-apikey"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="vertex-api-key-input"]').exists()).toBe(false)
+  })
+})
+
+describe('CreateAccountModal gemini explicit cache upstream switch', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    createAccountMock.mockReset().mockResolvedValue({ id: 43, platform: 'gemini', type: 'apikey' })
+    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
+    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
+  })
+
+  it('only offers the switch for a custom base url and sends it on create', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(false)
+
+    const baseUrlInput = wrapper
+      .findAll('form#create-account-form input[type="text"]')
+      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
+    expect(baseUrlInput).toBeDefined()
+    await baseUrlInput!.setValue('https://upstream.example.com')
+    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="explicit-cache-upstream-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="explicit-cache-upstream-max-ttl"]').setValue('1800')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini upstream gateway')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      base_url: 'https://upstream.example.com',
+      explicit_cache_upstream: true,
+      explicit_cache_upstream_max_ttl_seconds: 1800
+    })
+  })
+
+  it('only offers the AI Studio tier for the official base url', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
+
+    const baseUrlInput = wrapper
+      .findAll('form#create-account-form input[type="text"]')
+      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
+    expect(baseUrlInput).toBeDefined()
+    await baseUrlInput!.setValue('https://upstream.example.com')
+    expect(wrapper.find('[data-testid="gemini-apikey-tier"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
+
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini relay')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    const credentials = createAccountMock.mock.calls[0]?.[0]?.credentials
+    expect(credentials).toMatchObject({ base_url: 'https://upstream.example.com' })
+    expect(credentials).not.toHaveProperty('tier_id')
+  })
+
+  it('shows the OAuth tier fallback only on the OAuth form', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.oauthTitle')
+    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
+  })
+
+  it('keeps the selected AI Studio tier for the official base url', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
+    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini official')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('AIza-official')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      base_url: 'https://generativelanguage.googleapis.com',
+      tier_id: 'aistudio_paid'
+    })
+  })
+})
+
+describe('CreateAccountModal Vertex API key auth', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    createAccountMock.mockReset().mockResolvedValue({ id: 44, platform: 'gemini', type: 'service_account' })
+    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
+    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
+  })
+
+  async function openGeminiVertexApiKeyForm() {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'Gemini')
+    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
+    await wrapper.get('[data-testid="vertex-auth-mode-apikey"]').setValue(true)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('vertex api key account')
+    await wrapper.get('[data-testid="vertex-api-key-input"]').setValue(' vertex-key ')
+    return wrapper
+  }
+
+  it('creates a Gemini Vertex account with API key auth and no project for the express endpoint', async () => {
+    const wrapper = await openGeminiVertexApiKeyForm()
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.platform).toBe('gemini')
+    expect(payload?.type).toBe('service_account')
+    expect(payload?.credentials).toEqual({
+      auth_mode: 'apikey',
+      api_key: 'vertex-key',
+      location: 'global',
+      tier_id: 'vertex'
+    })
+  })
+
+  it('sends the project id when an API key account targets a project endpoint', async () => {
+    const wrapper = await openGeminiVertexApiKeyForm()
+    await wrapper.get('[data-testid="vertex-api-key-project-id-input"]').setValue(' my-project ')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
+      auth_mode: 'apikey',
+      api_key: 'vertex-key',
+      project_id: 'my-project',
+      location: 'global'
+    })
+  })
+
+  it('keeps Anthropic Vertex accounts on Service Account JSON only', async () => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
+    expect(wrapper.find('[data-testid="vertex-auth-mode-apikey"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="vertex-api-key-input"]').exists()).toBe(false)
+  })
+})
+describe('CreateAccountModal Leonardo accounts', () => {
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    createAccountMock.mockReset().mockResolvedValue({ id: 7, platform: 'leonardo', type: 'oauth' })
+  })
+
+  it('moves the cookie account to the credential step instead of asking for an API key', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-tab-leonardo"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Leonardo cookie')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="leonardo-cookie-input"]').setValue('__Secure-better-auth.session_token=abc')
+    await wrapper.get('[data-testid="leonardo-create-account"]').trigger('click')
+    await flushPromises()
+
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.platform).toBe('leonardo')
+    expect(payload?.type).toBe('oauth')
+    expect(payload?.credentials).toMatchObject({ cookie: '__Secure-better-auth.session_token=abc' })
+  })
+
+  it('sends the Leonardo cookie credit unit price in extra', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-tab-leonardo"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Leonardo cookie')
+    await wrapper.get('[data-testid="leonardo-credit-unit-price-usd"]').setValue('0.0012')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="leonardo-cookie-input"]').setValue('__Secure-better-auth.session_token=abc')
+    await wrapper.get('[data-testid="leonardo-create-account"]').trigger('click')
+    await flushPromises()
+
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.type).toBe('oauth')
+    expect(payload?.extra?.leonardo_credit_unit_price_usd).toBe(0.0012)
+    // 未设出图上限：写出中性值（不限 / 默认 2 倍）。
+    expect(payload?.extra).toMatchObject({
+      leonardo_max_quality: '',
+      leonardo_max_short_edge: 0,
+      leonardo_max_upscale_factor: 2
+    })
+  })
+
+  it('sends the Leonardo cookie image limits in extra', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-tab-leonardo"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Leonardo cookie')
+    await wrapper.get('[data-testid="leonardo-max-short-edge"]').setValue('1024')
+    await wrapper.get('[data-testid="leonardo-max-upscale-factor"]').setValue('1.5')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="leonardo-cookie-input"]').setValue('__Secure-better-auth.session_token=abc')
+    await wrapper.get('[data-testid="leonardo-create-account"]').trigger('click')
+    await flushPromises()
+
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.extra).toMatchObject({ leonardo_max_short_edge: 1024, leonardo_max_upscale_factor: 1.5 })
+  })
+
+  it('creates the relay account in one step with base_url and api_key', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-tab-leonardo"]').trigger('click')
+    await wrapper.get('[data-testid="leonardo-account-type-relay"]').trigger('click')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Leonardo relay')
+    await wrapper.get('[data-testid="leonardo-relay-base-url"]').setValue('https://relay.example.com')
+    await wrapper.get('[data-testid="leonardo-relay-api-key"]').setValue('sk-relay')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    const payload = createAccountMock.mock.calls[0]?.[0]
+    expect(payload?.platform).toBe('leonardo')
     expect(payload?.type).toBe('apikey')
-    expect(payload?.priority).toBe(1)
-    expect(payload?.credentials).toEqual({
-      api_key: 'sk-relay',
-      base_url: 'https://relay.example/v1'
-    })
-    expect(wrapper.find('[data-testid="adobe-cookie-input"]').exists()).toBe(false)
+    expect(payload?.credentials).toMatchObject({ base_url: 'https://relay.example.com', api_key: 'sk-relay' })
+    expect(wrapper.find('[data-testid="leonardo-credit-unit-price-usd"]').exists()).toBe(false)
+    expect(payload?.extra?.leonardo_credit_unit_price_usd).toBeUndefined()
+    expect(payload?.extra?.leonardo_max_short_edge).toBeUndefined()
   })
 })
 
-describe('CreateAccountModal gemini explicit cache upstream switch', () => {
+describe('CreateAccountModal Fish accounts', () => {
   beforeEach(() => {
     authIsSimpleMode.value = true
-    createAccountMock.mockReset().mockResolvedValue({ id: 43, platform: 'gemini', type: 'apikey' })
-    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
-    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
+    createAccountMock.mockReset().mockResolvedValue({ id: 8, platform: 'fish', type: 'apikey' })
   })
 
-  it('only offers the switch for a custom base url and sends it on create', async () => {
+  it('shows both account types on the first step and creates a relay as apikey', async () => {
     const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="platform-tab-fish"]').trigger('click')
 
-    const baseUrlInput = wrapper
-      .findAll('form#create-account-form input[type="text"]')
-      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
-    expect(baseUrlInput).toBeDefined()
-    await baseUrlInput!.setValue('https://upstream.example.com')
-    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="fish-account-type-token"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="fish-account-type-relay"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="fish-relay-base-url"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="explicit-cache-upstream-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="explicit-cache-upstream-max-ttl"]').setValue('1800')
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini upstream gateway')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
+    await wrapper.get('[data-testid="fish-account-type-relay"]').trigger('click')
+    expect(wrapper.find('[data-testid="fish-relay-base-url"]').exists()).toBe(true)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Fish relay')
+    await wrapper.get('[data-testid="fish-relay-base-url"]').setValue('https://relay.example.com')
+    await wrapper.get('[data-testid="fish-relay-api-key"]').setValue('sk-relay')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      base_url: 'https://upstream.example.com',
-      explicit_cache_upstream: true,
-      explicit_cache_upstream_max_ttl_seconds: 1800
-    })
-  })
-
-  it('only offers the AI Studio tier for the official base url', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(true)
-    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
-
-    const baseUrlInput = wrapper
-      .findAll('form#create-account-form input[type="text"]')
-      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
-    expect(baseUrlInput).toBeDefined()
-    await baseUrlInput!.setValue('https://upstream.example.com')
-    expect(wrapper.find('[data-testid="gemini-apikey-tier"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
-
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini relay')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    const credentials = createAccountMock.mock.calls[0]?.[0]?.credentials
-    expect(credentials).toMatchObject({ base_url: 'https://upstream.example.com' })
-    expect(credentials).not.toHaveProperty('tier_id')
-  })
-
-  it('shows the OAuth tier fallback only on the OAuth form', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.oauthTitle')
-    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
-  })
-
-  it('keeps the selected AI Studio tier for the official base url', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini official')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('AIza-official')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      base_url: 'https://generativelanguage.googleapis.com',
-      tier_id: 'aistudio_paid'
-    })
-  })
-})
-
-describe('CreateAccountModal Vertex API key auth', () => {
-  beforeEach(() => {
-    authIsSimpleMode.value = true
-    createAccountMock.mockReset().mockResolvedValue({ id: 44, platform: 'gemini', type: 'service_account' })
-    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
-    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
-  })
-
-  async function openGeminiVertexApiKeyForm() {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
-    await wrapper.get('[data-testid="vertex-auth-mode-apikey"]').setValue(true)
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('vertex api key account')
-    await wrapper.get('[data-testid="vertex-api-key-input"]').setValue(' vertex-key ')
-    return wrapper
-  }
-
-  it('creates a Gemini Vertex account with API key auth and no project for the express endpoint', async () => {
-    const wrapper = await openGeminiVertexApiKeyForm()
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
     const payload = createAccountMock.mock.calls[0]?.[0]
-    expect(payload?.platform).toBe('gemini')
-    expect(payload?.type).toBe('service_account')
-    expect(payload?.credentials).toEqual({
-      auth_mode: 'apikey',
-      api_key: 'vertex-key',
-      location: 'global',
-      tier_id: 'vertex'
-    })
+    expect(payload?.platform).toBe('fish')
+    expect(payload?.type).toBe('apikey')
+    expect(payload?.credentials).toMatchObject({ base_url: 'https://relay.example.com', api_key: 'sk-relay' })
+    expect(wrapper.find('[data-testid="fish-model-restriction-section"]').exists()).toBe(true)
   })
 
-  it('sends the project id when an API key account targets a project endpoint', async () => {
-    const wrapper = await openGeminiVertexApiKeyForm()
-    await wrapper.get('[data-testid="vertex-api-key-project-id-input"]').setValue(' my-project ')
+  it('creates an oauth token account on the first step', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-tab-fish"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="fish-token-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="fish-model-restriction-section"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('admin.accounts.oauth.authMethod')
+
+    await wrapper.get('[data-tour="account-form-name"]').setValue('Fish token')
+    await wrapper.get('[data-testid="fish-token-input"]').setValue('46471c2b-7cdc-4671-acc4-c0b2fd111817')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      auth_mode: 'apikey',
-      api_key: 'vertex-key',
-      project_id: 'my-project',
-      location: 'global'
-    })
-  })
-
-  it('keeps Anthropic Vertex accounts on Service Account JSON only', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
-    expect(wrapper.find('[data-testid="vertex-auth-mode-apikey"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="vertex-api-key-input"]').exists()).toBe(false)
-  })
-})
-
-describe('CreateAccountModal gemini explicit cache upstream switch', () => {
-  beforeEach(() => {
-    authIsSimpleMode.value = true
-    createAccountMock.mockReset().mockResolvedValue({ id: 43, platform: 'gemini', type: 'apikey' })
-    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
-    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
-  })
-
-  it('only offers the switch for a custom base url and sends it on create', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(false)
-
-    const baseUrlInput = wrapper
-      .findAll('form#create-account-form input[type="text"]')
-      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
-    expect(baseUrlInput).toBeDefined()
-    await baseUrlInput!.setValue('https://upstream.example.com')
-    expect(wrapper.find('[data-testid="explicit-cache-upstream-section"]').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="explicit-cache-upstream-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="explicit-cache-upstream-max-ttl"]').setValue('1800')
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini upstream gateway')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      base_url: 'https://upstream.example.com',
-      explicit_cache_upstream: true,
-      explicit_cache_upstream_max_ttl_seconds: 1800
-    })
-  })
-
-  it('only offers the AI Studio tier for the official base url', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(true)
-    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
-
-    const baseUrlInput = wrapper
-      .findAll('form#create-account-form input[type="text"]')
-      .find((input) => (input.element as HTMLInputElement).value === 'https://generativelanguage.googleapis.com')
-    expect(baseUrlInput).toBeDefined()
-    await baseUrlInput!.setValue('https://upstream.example.com')
-    expect(wrapper.find('[data-testid="gemini-apikey-tier"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
-
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini relay')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-upstream')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    const credentials = createAccountMock.mock.calls[0]?.[0]?.credentials
-    expect(credentials).toMatchObject({ base_url: 'https://upstream.example.com' })
-    expect(credentials).not.toHaveProperty('tier_id')
-  })
-
-  it('shows the OAuth tier fallback only on the OAuth form', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.oauthTitle')
-    expect(wrapper.find('[data-testid="gemini-oauth-tier"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="gemini-apikey-note"]').exists()).toBe(false)
-  })
-
-  it('keeps the selected AI Studio tier for the official base url', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.gemini.accountType.apiKeyTitle')
-    await wrapper.get('[data-testid="gemini-apikey-tier"]').setValue('aistudio_paid')
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('gemini official')
-    await wrapper.get('form#create-account-form input[type="password"]').setValue('AIza-official')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      base_url: 'https://generativelanguage.googleapis.com',
-      tier_id: 'aistudio_paid'
-    })
-  })
-})
-
-describe('CreateAccountModal Vertex API key auth', () => {
-  beforeEach(() => {
-    authIsSimpleMode.value = true
-    createAccountMock.mockReset().mockResolvedValue({ id: 44, platform: 'gemini', type: 'service_account' })
-    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
-    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
-  })
-
-  async function openGeminiVertexApiKeyForm() {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'Gemini')
-    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
-    await wrapper.get('[data-testid="vertex-auth-mode-apikey"]').setValue(true)
-    await wrapper.get('form#create-account-form input[type="text"]').setValue('vertex api key account')
-    await wrapper.get('[data-testid="vertex-api-key-input"]').setValue(' vertex-key ')
-    return wrapper
-  }
-
-  it('creates a Gemini Vertex account with API key auth and no project for the express endpoint', async () => {
-    const wrapper = await openGeminiVertexApiKeyForm()
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock).toHaveBeenCalledTimes(1)
     const payload = createAccountMock.mock.calls[0]?.[0]
-    expect(payload?.platform).toBe('gemini')
-    expect(payload?.type).toBe('service_account')
-    expect(payload?.credentials).toEqual({
-      auth_mode: 'apikey',
-      api_key: 'vertex-key',
-      location: 'global',
-      tier_id: 'vertex'
-    })
-  })
-
-  it('sends the project id when an API key account targets a project endpoint', async () => {
-    const wrapper = await openGeminiVertexApiKeyForm()
-    await wrapper.get('[data-testid="vertex-api-key-project-id-input"]').setValue(' my-project ')
-    await wrapper.get('form#create-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(createAccountMock.mock.calls[0]?.[0]?.credentials).toMatchObject({
-      auth_mode: 'apikey',
-      api_key: 'vertex-key',
-      project_id: 'my-project',
-      location: 'global'
-    })
-  })
-
-  it('keeps Anthropic Vertex accounts on Service Account JSON only', async () => {
-    const wrapper = mountModal()
-    await selectButtonByText(wrapper, 'admin.accounts.vertexLabel')
-    expect(wrapper.find('[data-testid="vertex-auth-mode-apikey"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="vertex-api-key-input"]').exists()).toBe(false)
+    expect(payload?.platform).toBe('fish')
+    expect(payload?.type).toBe('apikey')
+    // 原生号 token 落在 api_key：调度快照只保留 api_key（见 044adb592）。
+    expect(payload?.credentials).toEqual({ api_key: '46471c2b-7cdc-4671-acc4-c0b2fd111817' })
+    expect(wrapper.find('[data-testid="fish-token-input"]').exists()).toBe(true)
   })
 })

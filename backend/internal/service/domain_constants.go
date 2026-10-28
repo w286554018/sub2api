@@ -63,6 +63,8 @@ const (
 	PlatformTypeSafe    = domain.PlatformTypeSafe
 	PlatformCommandCode = domain.PlatformCommandCode
 	PlatformCline       = domain.PlatformCline
+	PlatformLeonardo    = domain.PlatformLeonardo
+	PlatformFish        = domain.PlatformFish
 	PlatformComposite   = domain.PlatformComposite
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
@@ -175,6 +177,7 @@ const (
 	AccountTypeUpstream       = domain.AccountTypeUpstream       // 上游透传类型账号（通过 Base URL + API Key 连接上游）
 	AccountTypeBedrock        = domain.AccountTypeBedrock        // AWS Bedrock 类型账号（通过 SigV4 签名或 API Key 连接 Bedrock，由 credentials.auth_mode 区分）
 	AccountTypeServiceAccount = domain.AccountTypeServiceAccount // Google Service Account 类型账号（用于 Vertex AI）
+	AccountTypeBPSOAuth       = domain.AccountTypeBPSOAuth       // OpenAI Excel/BPS-only OAuth 账号（官方 Excel 客户端授权，只能走 BPS）
 )
 
 // Redeem type constants
@@ -704,6 +707,10 @@ const (
 	SettingKeyOpenAITTFTMode = "openai_ttft_mode"
 	OpenAITTFTModeSemantic   = "semantic"
 	OpenAITTFTModeVisible    = "visible"
+	// SettingKeyGatewayKiroTokenizer 控制 Kiro 渠道的 token 计量算法
+	// （official/charclass/weighted），仅影响 usage 与计费口径，不影响上游
+	// 请求与 max_tokens 截断行为。默认 official。
+	SettingKeyGatewayKiroTokenizer = "gateway_kiro_tokenizer"
 	// SettingKeyEnableFingerprintUnification 是否统一 OAuth 账号的 X-Stainless-* 指纹头（默认 true）
 	SettingKeyEnableFingerprintUnification = "enable_fingerprint_unification"
 	// SettingKeyEnableMetadataPassthrough 是否透传客户端原始 metadata.user_id（默认 false）
@@ -775,6 +782,12 @@ const (
 	// SettingKeyOpenAIAllowClaudeCodeCodexPlugin 已废弃：历史全局开关只作为升级迁移输入读取。
 	// 迁移后等价规则写入 SettingKeyCodexCLIOnlyWhitelist，不再参与运行时判定。
 	SettingKeyOpenAIAllowClaudeCodeCodexPlugin = "openai_allow_claude_code_codex_plugin"
+	// SettingKeyFishImageMaxCropPixels fish 原生号动态尺寸规划的最大裁剪量
+	// （按交付分辨率计的像素，居中对称裁剪）。0 = 不裁剪仅同比例缩放；默认 4。
+	SettingKeyFishImageMaxCropPixels = "fish_image_max_crop_pixels"
+	// SettingKeyFishImageMaxUpscaleFactor fish 原生号动态尺寸规划的最大本地
+	// 放大倍数（Lanczos3）。1 = 禁止放大；默认 2。规划不出的尺寸仍走中转。
+	SettingKeyFishImageMaxUpscaleFactor = "fish_image_max_upscale_factor"
 
 	// 余额不足提醒
 	SettingKeyBalanceLowNotifyEnabled     = "balance_low_notify_enabled"      // 全局开关

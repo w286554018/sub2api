@@ -1002,7 +1002,7 @@ export type KnownAccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigrav
  * `string & {}` 保留内置平台的字面量补全。
  */
 export type AccountPlatform = KnownAccountPlatform | (string & {})
-export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
+export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account' | 'bps-oauth'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
 
@@ -1405,6 +1405,11 @@ export interface Account {
     antigravity_credits_overages?: Record<string, { activated_at: string; active_until: string }>
     kiro_credit_unit_price_usd?: number
     upstream_billing_provider?: 'new_api'
+    leonardo_credit_unit_price_usd?: number
+    leonardo_max_quality?: string
+    leonardo_max_short_edge?: number
+    leonardo_max_upscale_factor?: number
+    fish_max_quality?: string
     upstream_billing_probe_enabled?: boolean
     upstream_billing_rate_sync_enabled?: boolean
     upstream_billing_probe?: UpstreamBillingProbeSnapshot
@@ -1621,25 +1626,24 @@ export interface AntigravityModelQuota {
   reset_time: string  // 重置时间 ISO8601
 }
 
-export interface AdobeCreditProgress {
-  current_usage: number
-  usage_limit: number
-  percentage_used: number
-}
-
-export interface AdobeCreditPool {
-  name: string
-  total?: number | null
-  used?: number | null
-  available?: number | null
-}
-
 export interface KiroCreditProgress {
   current_usage: number
   usage_limit: number
   percentage_used: number
   days_remaining?: number
   expiry_date?: string | null
+}
+
+// Leonardo 积分余额快照：上游只给各池剩余量，上限来自套餐常量表（未知套餐时为 0）
+export interface LeonardoCreditsSnapshot {
+  total: number
+  usable?: number
+  subscription: number
+  paid: number
+  rollover: number
+  fast_limit?: number
+  rollover_limit?: number
+  fast_daily?: boolean
 }
 
 export interface GrokQuotaWindow {
@@ -1733,11 +1737,17 @@ export interface AccountUsageInfo {
   kiro_runtime_reason?: string | null
   kiro_runtime_reset_at?: string | null
 
-  // Adobe credits/balance 快照（Step 6）：planCap 是不透明字符串（目前只见过 FREE）
-  adobe_plan_cap?: string | null
-  adobe_credit?: AdobeCreditProgress | null
-  adobe_credit_pools?: AdobeCreditPool[] | null
-  adobe_credit_reset_at?: string | null
+  // Fish token 号：钱包已用/总额、每日出图窗口、套餐
+  fish_plan?: string | null
+  fish_credits?: KiroCreditProgress | null
+  fish_daily?: KiroCreditProgress | null
+  fish_reset_at?: string | null
+
+  // Leonardo 积分余额快照
+  leonardo_plan?: string | null
+  leonardo_plan_name?: string | null
+  leonardo_credits?: LeonardoCreditsSnapshot | null
+  leonardo_token_renewal?: string | null
 
   // Antigravity 403 forbidden 状态
   is_forbidden?: boolean
@@ -2137,6 +2147,10 @@ export interface AdminUsageLog extends UsageLog {
   account_rate_multiplier?: number | null
   // 自定义定价规则计算的账号统计费用（nil 时使用 total_cost * multiplier）
   account_stats_cost?: number | null
+  // 本次消耗的上游积分（Kiro credits / Leonardo 积分，仅管理员可见）
+  upstream_credits?: number | null
+  // 按账号当前积分单价估算的上游成本（USD，未设单价时为空）
+  upstream_credit_cost?: number | null
 
   // 渠道 ID 和计费等级（仅管理员可见）
   channel_id?: number | null

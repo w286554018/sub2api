@@ -64,6 +64,9 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	// 遥测回合收尾放在这层非递归 wrapper：forwardAsChatCompletions 会尾递归重入
 	// 自己（agent identity task recovery），在内层注册会让重试各自收尾。
 	defer finishCodexTelemetryTurn(c)
+	if account.IsBPSOAuth() {
+		return nil, newBPSUnsupportedInboundFailoverError()
+	}
 	meterCtx, finish, err := s.beginRegionalMeter(ctx, c, account, body)
 	if err != nil {
 		return nil, err
@@ -255,7 +258,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 		// Normal path: convert Chat Completions → Responses.
 		// ChatCompletionsToResponses always sets Stream=true (upstream always streams).
 		chatReq.Model = upstreamModel
-		responsesReq, err = apicompat.ChatCompletionsToResponses(&chatReq)
+		responsesReq, err = chatCompletionsToResponses(s.cfg, &chatReq)
 		if err != nil {
 			return nil, fmt.Errorf("convert chat completions to responses: %w", err)
 		}

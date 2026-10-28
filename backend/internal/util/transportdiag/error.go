@@ -32,7 +32,7 @@ func Classify(err error) string {
 	if errors.Is(err, syscall.ECONNREFUSED) {
 		return "connection_refused"
 	}
-	if errors.Is(err, syscall.ECONNRESET) {
+	if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNABORTED) {
 		return "connection_reset"
 	}
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {

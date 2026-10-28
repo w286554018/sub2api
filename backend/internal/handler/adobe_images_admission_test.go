@@ -120,7 +120,7 @@ func newAdobeAdmissionFixtureWithUsage(t *testing.T, upstream service.HTTPUpstre
 	schedulerSnapshot := service.NewSchedulerSnapshotService(&fakeSchedulerCache{accounts: accounts}, nil, nil, nil, nil)
 	gatewayService := service.NewGatewayService(
 		nil, &fakeGroupRepo{group: group}, nil, nil, nil, nil, nil, nil, nil,
-		schedulerSnapshot, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		schedulerSnapshot, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	cfg := &config.Config{RunMode: config.RunModeSimple}
 	billingCacheService := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
@@ -300,7 +300,10 @@ func TestAdobeImagesHoldsSlotsUntilUpstreamFinishesAfterClientDisconnect(t *test
 	select {
 	case <-upstream.started:
 	case <-time.After(5 * time.Second):
-		t.Fatal("relay upstream was never called")
+		f.slots.mu.Lock()
+		attempts := append([]int64(nil), f.slots.accountAttempts...)
+		f.slots.mu.Unlock()
+		t.Fatalf("relay upstream was never called: status=%d body=%s account_attempts=%v", recorder.Code, recorder.Body.String(), attempts)
 	}
 	cancel()
 	// context.AfterFunc 式的提前释放会在取消后很快触发；给它足够时间暴露出来。

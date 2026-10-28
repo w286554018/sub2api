@@ -441,13 +441,16 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 			return "quota_auto_pause"
 		}
 	}
-	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+	if requestedModel != "" && !supportsOpenAIRequestModel(account, requestedModel, requireCompact) {
 		return "model_not_supported"
 	}
 	if requestedModel != "" && !account.IsModelAllowedInGroup(groupID, requestedModel) {
 		return "model_not_allowed_in_group"
 	}
-	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
+	// The BPS-aware check keeps legacy candidate filtering, sticky hits and DB
+	// rechecks on the same BPS-only rules as the advanced scheduler (model
+	// whitelist and entry points without a BPS route).
+	if !accountSupportsOpenAICapabilitiesForRequest(ctx, account, requestedModel, requiredCapability, "") {
 		if account.IsGrok() && requiredCapability == OpenAIEndpointCapabilityGrokMediaGeneration {
 			_, reason := account.GrokMediaGenerationEligibility()
 			slog.Debug("grok_media_account_ineligible", "account_id", account.ID, "reason", reason)
@@ -1001,7 +1004,6 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 		return nil
 	}
-
 	// 验证账号是否可用于当前请求
 	// Verify account is usable for current request
 	if !isOpenAICompatibleAccountEligibleForRequest(ctx, account, groupID, platform, requestedModel, false, requiredCapability) {
@@ -1019,19 +1021,6 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 	if account == nil || !s.openAIAccountMatchesSchedulingGroup(account, groupID) {
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 		return nil
-	}
-	// A stale sticky binding must not bypass BPS after it is enabled on the
-	// requested model. Clear it and let normal selection choose an eligible BPS
-	// account instead of silently forwarding this turn to /v1/responses.
-	if platform == PlatformOpenAI && strings.TrimSpace(requestedModel) != "" && !account.IsExcelBPSEnabledForModel(requestedModel) {
-		if candidates, listErr := s.listSchedulableAccountsForRequest(ctx, groupID, platform, requestedModel, requireCompact, excludedIDs); listErr == nil {
-			for i := range candidates {
-				if candidates[i].ID != account.ID && candidates[i].IsExcelBPSEnabledForModel(requestedModel) {
-					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
-					return nil
-				}
-			}
-		}
 	}
 	if groupID != nil && s.needsUpstreamChannelRestrictionCheck(ctx, groupID) &&
 		s.isUpstreamModelRestrictedByChannel(ctx, *groupID, account, requestedModel, requireCompact) {
@@ -1075,6 +1064,9 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 			filterStats.exclude("excluded")
 			continue
 		}
+		// Name the in-memory BPS cooldowns before the generic eligibility
+		// checks (which also see them as runtime blocks): an all-cooling BPS
+		// pool must report them so the handler answers 429, not 503.
 		if s.isExcelBPSModelCoolingDown(acc, requestedModel) {
 			filterStats.exclude(excelBPSModelPermissionFilterReason)
 			continue
@@ -1412,6 +1404,8 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			filterStats.exclude("shadow_parent_unhealthy")
 			continue
 		}
+		// BPS cooldowns are runtime blocks too; name them first (see
+		// selectBestAccount).
 		if s.isExcelBPSModelCoolingDown(acc, requestedModel) {
 			filterStats.exclude(excelBPSModelPermissionFilterReason)
 			continue

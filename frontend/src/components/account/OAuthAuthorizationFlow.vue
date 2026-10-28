@@ -964,6 +964,7 @@ interface Props {
   /** Grok email----password login (admin; password never persisted). */
   showEmailPasswordOption?: boolean
   showManualOption?: boolean
+  /** OpenAI authorization through the official Excel client (BPS OAuth). */
   excelOauth?: boolean
   initialInputMethod?: AuthInputMethod
   /**
@@ -1022,6 +1023,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+// The Excel client returns to its bps.openai.com callback, not localhost.
 const isExcelOAuth = computed(() => props.platform === 'openai' && props.excelOauth)
 const passwordAuthEnabled = ref(false)
 const emailPasswordOptionEnabled = computed(

@@ -5384,6 +5384,71 @@
                 </p>
               </div>
 
+              <!-- Kiro 计量算法 -->
+              <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
+                <label
+                  for="gateway-kiro-tokenizer"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.gatewayForwarding.kiroTokenizer") }}
+                </label>
+                <Select
+                  v-model="form.gateway_kiro_tokenizer"
+                  :options="kiroTokenizerOptions"
+                  data-testid="gateway-kiro-tokenizer"
+                  class="mt-2"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.kiroTokenizerHint") }}
+                </p>
+              </div>
+
+              <!-- Fish 原生号动态尺寸规划：最大裁剪 -->
+              <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
+                <label
+                  for="fish-image-max-crop-pixels"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.gatewayForwarding.fishImageMaxCropPixels") }}
+                </label>
+                <input
+                  id="fish-image-max-crop-pixels"
+                  v-model.number="form.fish_image_max_crop_pixels"
+                  type="number"
+                  min="0"
+                  max="64"
+                  step="1"
+                  data-testid="fish-image-max-crop-pixels"
+                  class="input mt-2 w-40 font-mono text-sm"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.fishImageMaxCropPixelsHint") }}
+                </p>
+              </div>
+
+              <!-- Fish 原生号动态尺寸规划：最大放大倍数 -->
+              <div class="border-b border-gray-100 pb-5 dark:border-dark-700 md:col-span-2">
+                <label
+                  for="fish-image-max-upscale-factor"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.gatewayForwarding.fishImageMaxUpscaleFactor") }}
+                </label>
+                <input
+                  id="fish-image-max-upscale-factor"
+                  v-model.number="form.fish_image_max_upscale_factor"
+                  type="number"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  data-testid="fish-image-max-upscale-factor"
+                  class="input mt-2 w-40 font-mono text-sm"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.fishImageMaxUpscaleFactorHint") }}
+                </p>
+              </div>
+
               <!-- Fingerprint Unification -->
               <div class="flex items-center justify-between">
                 <div>
@@ -9585,6 +9650,11 @@ const openaiTTFTModeOptions = computed(() => [
   { value: "semantic", label: t("admin.settings.gatewayForwarding.openaiTTFTModeSemantic") },
   { value: "visible", label: t("admin.settings.gatewayForwarding.openaiTTFTModeVisible") },
 ]);
+const kiroTokenizerOptions = computed(() => [
+  { value: "official", label: t("admin.settings.gatewayForwarding.kiroTokenizerOfficial") },
+  { value: "charclass", label: t("admin.settings.gatewayForwarding.kiroTokenizerCharClass") },
+  { value: "weighted", label: t("admin.settings.gatewayForwarding.kiroTokenizerWeighted") },
+]);
 const grokDefaultBaseURLModeOptions = computed(() => [
   { value: "cli", label: t("admin.settings.gatewayForwarding.grokBaseURLModeCLI") },
   { value: "api", label: t("admin.settings.gatewayForwarding.grokBaseURLModeAPI") },
@@ -10575,6 +10645,7 @@ const form = reactive<SettingsForm>({
   openai_advanced_scheduler_weight_session_sticky: "",
   // Gateway forwarding behavior
   openai_ttft_mode: "semantic",
+  gateway_kiro_tokenizer: "official",
   enable_fingerprint_unification: true,
   enable_metadata_passthrough: false,
   enable_cch_signing: false,
@@ -10603,6 +10674,9 @@ const form = reactive<SettingsForm>({
   claude_code_client_version_synced: "",
 	claude_code_version_auto_sync_enabled: true,
   openai_request_timezone_enabled: false,
+  // fish 原生号动态尺寸规划阈值
+  fish_image_max_crop_pixels: 4,
+  fish_image_max_upscale_factor: 2,
   // codex_cli_only 加固
   min_codex_version: "",
   max_codex_version: "",
@@ -11925,6 +11999,25 @@ const siteBillingModeHint = computed(() =>
   t(`admin.settings.features.siteBillingMode.hints.${SITE_BILLING_MODE_I18N_KEYS[siteBillingMode.value]}`),
 );
 
+// fish 原生号动态尺寸规划阈值的提交钳制（与后端校验一致：crop 0-64、factor 1-3）。
+// 清空输入框（v-model.number 得到 ""）回落默认 4，而不是被 Number("") 当成 0（不裁剪）。
+function clampFishImageMaxCropPixels(
+  value: number | string | null | undefined,
+): number {
+  if (value === null || value === undefined || value === "") return 4;
+  const crop = Number(value);
+  if (!Number.isFinite(crop) || crop < 0) return 4;
+  return Math.min(Math.round(crop), 64);
+}
+
+function clampFishImageMaxUpscaleFactor(
+  value: number | null | undefined,
+): number {
+  const factor = Number(value);
+  if (!Number.isFinite(factor) || factor <= 0) return 2;
+  return Math.min(Math.max(factor, 1), 3);
+}
+
 async function saveSettings() {
   saving.value = true;
   try {
@@ -12313,6 +12406,11 @@ async function saveSettings() {
       allow_ungrouped_key_scheduling: form.allow_ungrouped_key_scheduling,
       openai_ttft_mode:
         form.openai_ttft_mode === "visible" ? "visible" : "semantic",
+      gateway_kiro_tokenizer: ["official", "charclass", "weighted"].includes(
+        form.gateway_kiro_tokenizer,
+      )
+        ? form.gateway_kiro_tokenizer
+        : "official",
       enable_fingerprint_unification: form.enable_fingerprint_unification,
       enable_metadata_passthrough: form.enable_metadata_passthrough,
       enable_cch_signing: form.enable_cch_signing,
@@ -12352,6 +12450,12 @@ async function saveSettings() {
       claude_code_version_auto_sync_enabled:
          form.claude_code_version_auto_sync_enabled,
       openai_request_timezone_enabled: form.openai_request_timezone_enabled,
+      fish_image_max_crop_pixels: clampFishImageMaxCropPixels(
+        form.fish_image_max_crop_pixels,
+      ),
+      fish_image_max_upscale_factor: clampFishImageMaxUpscaleFactor(
+        form.fish_image_max_upscale_factor,
+      ),
       min_codex_version: form.min_codex_version?.trim() || "",
       max_codex_version: form.max_codex_version?.trim() || "",
       codex_cli_only_allow_app_server_clients:

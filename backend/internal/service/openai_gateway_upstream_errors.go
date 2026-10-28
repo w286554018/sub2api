@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -193,6 +195,63 @@ func isOpenAIRequestScopedCapacityShed(upstreamMsg string, upstreamBody []byte) 
 		(!gjson.ValidBytes(upstreamBody) && isOpenAICapacityShedMessage(string(upstreamBody)))
 }
 
+const openAIRequestScopedRetryMaxDelay = 8 * time.Second
+
+func openAIRequestScopedRetryDelay(responseHeaders http.Header, responseBody []byte) time.Duration {
+	type retryAfterValue struct {
+		raw          string
+		milliseconds bool
+	}
+	for _, value := range []retryAfterValue{
+		{raw: responseHeaders.Get("Retry-After")},
+		{raw: responseHeaders.Get("Retry-After-Ms"), milliseconds: true},
+		{raw: gjson.GetBytes(responseBody, "error.headers.retry-after").String()},
+		{raw: gjson.GetBytes(responseBody, "response.error.headers.retry-after").String()},
+		{raw: gjson.GetBytes(responseBody, "error.headers.retry-after-ms").String(), milliseconds: true},
+		{raw: gjson.GetBytes(responseBody, "response.error.headers.retry-after-ms").String(), milliseconds: true},
+	} {
+		raw := strings.TrimSpace(value.raw)
+		if raw == "" {
+			continue
+		}
+		var delay time.Duration
+		var ok bool
+		if value.milliseconds {
+			delay, ok = parseOpenAIRequestScopedRetryDelayMilliseconds(raw)
+		} else {
+			delay, ok = parseOpenAIRequestScopedRetryDelay(raw)
+		}
+		if !ok || delay <= 0 {
+			continue
+		}
+		if delay > openAIRequestScopedRetryMaxDelay {
+			return openAIRequestScopedRetryMaxDelay
+		}
+		return delay
+	}
+	return 0
+}
+
+func parseOpenAIRequestScopedRetryDelay(raw string) (time.Duration, bool) {
+	if seconds, err := strconv.ParseFloat(raw, 64); err == nil && seconds > 0 {
+		return time.Duration(seconds * float64(time.Second)), true
+	}
+	if resetAt, err := http.ParseTime(raw); err == nil {
+		delay := time.Until(resetAt)
+		if delay > 0 {
+			return delay, true
+		}
+	}
+	return 0, false
+}
+
+func parseOpenAIRequestScopedRetryDelayMilliseconds(raw string) (time.Duration, bool) {
+	if millis, err := strconv.ParseFloat(raw, 64); err == nil && millis > 0 {
+		return time.Duration(millis * float64(time.Millisecond)), true
+	}
+	return 0, false
+}
+
 func isOpenAIContextWindowError(upstreamMsg string, upstreamBody []byte) bool {
 	match := func(text string) bool {
 		lower := strings.ToLower(strings.TrimSpace(text))
@@ -335,6 +394,9 @@ func newOpenAIUpstreamFailoverError(
 		ResponseHeaders:        responseHeaders.Clone(),
 		RetryableOnSameAccount: retryableOnSameAccount || requestScopedCapacity,
 		RequestScopedTransient: requestScopedCapacity,
+	}
+	if requestScopedCapacity {
+		failoverErr.SameAccountRetryDelay = openAIRequestScopedRetryDelay(responseHeaders, responseBody)
 	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
 		failoverErr.RetryableOnSameAccount = false
@@ -733,35 +795,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	}
 
 	// Return appropriate error response
-	var errType, errMsg string
-	var statusCode int
-
-	switch resp.StatusCode {
-	case 401:
-		statusCode = http.StatusBadGateway
-		errType = "upstream_error"
-		errMsg = "Upstream authentication failed, please contact administrator"
-	case 402:
-		statusCode = http.StatusBadGateway
-		errType = "upstream_error"
-		errMsg = "Upstream payment required: insufficient balance or billing issue"
-	case 403:
-		statusCode = http.StatusBadGateway
-		errType = "upstream_error"
-		errMsg = "Upstream access forbidden, please contact administrator"
-	case 429:
-		statusCode = http.StatusTooManyRequests
-		errType = "rate_limit_error"
-		errMsg = "Upstream rate limit exceeded, please retry later"
-	default:
-		statusCode = http.StatusBadGateway
-		errType = "upstream_error"
-		errMsg = "Upstream request failed"
-	}
-	if isOpenAIContextWindowError(upstreamMsg, body) && upstreamMsg != "" {
-		errMsg = upstreamMsg
-	}
-
+	statusCode, errType, errMsg := openAIUpstreamGenericClientError(resp.StatusCode, upstreamMsg, body)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,
@@ -931,4 +965,37 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 
 	writeError(c, resp.StatusCode, errType, upstreamMsg)
 	return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
+}
+
+// openAIUpstreamGenericClientError 把非确定性的上游错误状态映射为回给客户端的
+// 状态码、type 与 message：凭据/计费类问题不暴露上游细节，上下文窗口错误保留原文。
+func openAIUpstreamGenericClientError(upstreamStatus int, upstreamMsg string, body []byte) (int, string, string) {
+	var errType, errMsg string
+	var statusCode int
+	switch upstreamStatus {
+	case 401:
+		statusCode = http.StatusBadGateway
+		errType = "upstream_error"
+		errMsg = "Upstream authentication failed, please contact administrator"
+	case 402:
+		statusCode = http.StatusBadGateway
+		errType = "upstream_error"
+		errMsg = "Upstream payment required: insufficient balance or billing issue"
+	case 403:
+		statusCode = http.StatusBadGateway
+		errType = "upstream_error"
+		errMsg = "Upstream access forbidden, please contact administrator"
+	case 429:
+		statusCode = http.StatusTooManyRequests
+		errType = "rate_limit_error"
+		errMsg = "Upstream rate limit exceeded, please retry later"
+	default:
+		statusCode = http.StatusBadGateway
+		errType = "upstream_error"
+		errMsg = "Upstream request failed"
+	}
+	if isOpenAIContextWindowError(upstreamMsg, body) && upstreamMsg != "" {
+		errMsg = upstreamMsg
+	}
+	return statusCode, errType, errMsg
 }

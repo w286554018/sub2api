@@ -61,6 +61,8 @@ type kiroCacheEmulationPlan struct {
 	usage    *kiroCacheEmulationUsage
 	cacheKey uint64
 	profile  *kiroCacheProfile
+	tracker  *kiroCacheTracker
+	remote   KiroCacheEmulationRemoteStore
 }
 
 func (p *kiroCacheEmulationPlan) result() *kiroCacheEmulationUsage {
@@ -74,7 +76,11 @@ func (p *kiroCacheEmulationPlan) commit() {
 	if p == nil || p.profile == nil || p.cacheKey == 0 {
 		return
 	}
-	globalKiroCacheTracker.update(p.cacheKey, p.profile)
+	tracker := p.tracker
+	if tracker == nil {
+		tracker = globalKiroCacheTracker
+	}
+	tracker.update(p.remote, p.cacheKey, p.profile)
 }
 
 func (s *GatewayService) buildKiroCacheEmulationUsage(ctx context.Context, account *Account, group *Group, body []byte, model string, inputTokens int) *kiroCacheEmulationUsage {
@@ -88,11 +94,11 @@ func (s *GatewayService) prepareKiroCacheEmulationUsage(ctx context.Context, acc
 	if group == nil || !group.EffectiveKiroCacheEmulationEnabled() || account == nil || account.ID <= 0 || len(body) == 0 {
 		return nil
 	}
-	profile, ok := buildKiroCacheProfile(ctx, body, model, inputTokens)
+	profile, ok := buildKiroCacheProfile(ctx, s.kiroMeteringAlgorithm(ctx), body, model, inputTokens)
 	if !ok {
 		return nil
 	}
-	return s.prepareKiroCacheEmulationPlanFromProfile(account, group, profile, inputTokens)
+	return s.prepareKiroCacheEmulationPlanFromProfile(ctx, account, group, profile, inputTokens)
 }
 
 func (s *GatewayService) buildKiroResponsesCacheEmulationUsage(ctx context.Context, account *Account, group *Group, body []byte, model string, inputTokens int) *kiroCacheEmulationUsage {
@@ -106,11 +112,11 @@ func (s *GatewayService) prepareKiroResponsesCacheEmulationUsage(ctx context.Con
 	if group == nil || !group.EffectiveKiroCacheEmulationEnabled() || account == nil || account.ID <= 0 || len(body) == 0 {
 		return nil
 	}
-	profile, ok := buildKiroResponsesCacheProfile(ctx, body, model, inputTokens)
+	profile, ok := buildKiroResponsesCacheProfile(ctx, s.kiroMeteringAlgorithm(ctx), body, model, inputTokens)
 	if !ok {
 		return nil
 	}
-	return s.prepareKiroCacheEmulationPlanFromProfile(account, group, profile, inputTokens)
+	return s.prepareKiroCacheEmulationPlanFromProfile(ctx, account, group, profile, inputTokens)
 }
 
 func (s *GatewayService) buildKiroChatCompletionsCacheEmulationUsage(ctx context.Context, account *Account, group *Group, body []byte, model string, inputTokens int) *kiroCacheEmulationUsage {
@@ -124,7 +130,7 @@ func (s *GatewayService) prepareKiroChatCompletionsCacheEmulationUsage(ctx conte
 	if group == nil || !group.EffectiveKiroCacheEmulationEnabled() || account == nil || account.ID <= 0 || len(body) == 0 {
 		return nil
 	}
-	profile, ok := buildKiroChatCompletionsCacheProfile(ctx, body, model, inputTokens)
+	profile, ok := buildKiroChatCompletionsCacheProfile(ctx, s.kiroMeteringAlgorithm(ctx), body, model, inputTokens)
 	if !ok {
 		return nil
 	}
@@ -132,10 +138,10 @@ func (s *GatewayService) prepareKiroChatCompletionsCacheEmulationUsage(ctx conte
 	if effectiveInputTokens <= 0 {
 		effectiveInputTokens = profile.totalInputTokens
 	}
-	return s.prepareKiroCacheEmulationPlanFromProfile(account, group, profile, effectiveInputTokens)
+	return s.prepareKiroCacheEmulationPlanFromProfile(ctx, account, group, profile, effectiveInputTokens)
 }
 
-func (s *GatewayService) prepareKiroCacheEmulationPlanFromProfile(account *Account, group *Group, profile *kiroCacheProfile, inputTokens int) *kiroCacheEmulationPlan {
+func (s *GatewayService) prepareKiroCacheEmulationPlanFromProfile(ctx context.Context, account *Account, group *Group, profile *kiroCacheProfile, inputTokens int) *kiroCacheEmulationPlan {
 	if group == nil || account == nil || account.ID <= 0 || profile == nil {
 		return nil
 	}
@@ -143,7 +149,8 @@ func (s *GatewayService) prepareKiroCacheEmulationPlanFromProfile(account *Accou
 	if cacheKey == 0 {
 		return nil
 	}
-	result := globalKiroCacheTracker.compute(cacheKey, profile)
+	remote := s.kiroCacheEmulationRemoteStore()
+	result := globalKiroCacheTracker.compute(ctx, remote, cacheKey, profile)
 	if group.EffectiveKiroCacheEmulationMode() == KiroCacheEmulationModeUniform {
 		ratio := group.EffectiveKiroCacheEmulationRatio()
 		result.CacheReadInputTokens = scaleKiroCacheTokens(result.CacheReadInputTokens, ratio)
@@ -168,7 +175,7 @@ func (s *GatewayService) prepareKiroCacheEmulationPlanFromProfile(account *Accou
 	if result.CacheReadInputTokens == 0 && result.CacheCreationInputTokens == 0 {
 		result = nil
 	}
-	return &kiroCacheEmulationPlan{usage: result, cacheKey: cacheKey, profile: profile}
+	return &kiroCacheEmulationPlan{usage: result, cacheKey: cacheKey, profile: profile, tracker: globalKiroCacheTracker, remote: remote}
 }
 
 func scaleKiroCacheCreationTTLTokens(tokens5m, tokens1h, scaledTotal int, ratio float64) (int, int) {
@@ -256,12 +263,12 @@ type kiroPendingBlock struct {
 	isMessageEnd  bool
 }
 
-func buildKiroCacheProfile(ctx context.Context, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
+func buildKiroCacheProfile(ctx context.Context, alg anthropictokenizer.Algorithm, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, false
 	}
-	blocks := flattenKiroCacheBlocks(ctx, payload)
+	blocks := flattenKiroCacheBlocks(ctx, alg, payload)
 	if len(blocks) == 0 {
 		return nil, false
 	}
@@ -279,7 +286,7 @@ func buildKiroCacheProfile(ctx context.Context, body []byte, model string, input
 	}
 	totalTokens := inputTokens
 	if totalTokens <= 0 {
-		totalTokens = countKiroInputTokensFromPayload(ctx, payload)
+		totalTokens = countKiroInputTokensFromPayload(ctx, alg, payload)
 	}
 	prelude := map[string]any{
 		"model":       payload["model"],
@@ -293,7 +300,7 @@ func buildKiroCacheProfile(ctx context.Context, body []byte, model string, input
 	return profile, ok
 }
 
-func buildKiroResponsesCacheProfile(ctx context.Context, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
+func buildKiroResponsesCacheProfile(ctx context.Context, alg anthropictokenizer.Algorithm, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
 	var req apicompat.ResponsesRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		return nil, false
@@ -302,7 +309,7 @@ func buildKiroResponsesCacheProfile(ctx context.Context, body []byte, model stri
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, false
 	}
-	blocks := flattenKiroResponsesCacheBlocks(ctx, payload)
+	blocks := flattenKiroResponsesCacheBlocks(ctx, alg, payload)
 	if len(blocks) == 0 {
 		return nil, false
 	}
@@ -338,12 +345,12 @@ func buildKiroResponsesCacheProfile(ctx context.Context, body []byte, model stri
 	return profile, ok
 }
 
-func buildKiroChatCompletionsCacheProfile(ctx context.Context, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
+func buildKiroChatCompletionsCacheProfile(ctx context.Context, alg anthropictokenizer.Algorithm, body []byte, model string, inputTokens int) (*kiroCacheProfile, bool) {
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, false
 	}
-	blocks := flattenKiroChatCompletionsCacheBlocks(ctx, payload)
+	blocks := flattenKiroChatCompletionsCacheBlocks(ctx, alg, payload)
 	if len(blocks) == 0 {
 		return nil, false
 	}
@@ -426,7 +433,7 @@ func buildKiroCacheProfileFromBlocks(model string, totalTokens int, preludeValue
 	return profile, true
 }
 
-func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroPendingBlock {
+func flattenKiroCacheBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, payload map[string]any) []kiroPendingBlock {
 	var blocks []kiroPendingBlock
 	if tools, ok := payload["tools"].([]any); ok {
 		for toolIndex, tool := range tools {
@@ -448,7 +455,7 @@ func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroP
 				// P1 归一化后命中率 = B_matched/B_last，T 被约掉，所以修正 B 即可解决问题；
 				// 而 T 还喂给计费兜底与 count_tokens 对外契约，改动会牵连账单。两侧工具口径
 				// 因此不一致，但归一化把 B_last 精确映射到 T，该差异不会外泄。
-				tokens:        countKiroSerializedValueTokens(value),
+				tokens:        countKiroSerializedValueTokens(alg, value),
 				breakpointTTL: extractKiroCacheTTL(tool),
 			})
 		}
@@ -458,7 +465,7 @@ func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroP
 		canonicalizeKiroSystemBlock(value)
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "system", "system_index": systemIndex, "block": value},
-			tokens: countKiroSystemBlockTokens(systemBlock), breakpointTTL: extractKiroCacheTTL(systemBlock),
+			tokens: countKiroSystemBlockTokens(alg, systemBlock), breakpointTTL: extractKiroCacheTTL(systemBlock),
 		})
 	}
 	messages, _ := payload["messages"].([]any)
@@ -472,7 +479,7 @@ func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroP
 			block := map[string]any{"type": "text", "text": typed}
 			blocks = append(blocks, kiroPendingBlock{
 				value:  map[string]any{"kind": "message", "message_index": messageIndex, "role": role, "block_index": 0, "block": block},
-				tokens: countKiroMessageContentTokens(ctx, block), messageIndex: &mi, isMessageEnd: true,
+				tokens: countKiroMessageContentTokens(ctx, alg, block), messageIndex: &mi, isMessageEnd: true,
 			})
 		case []any:
 			lastBlockIndex := len(typed) - 1
@@ -481,7 +488,7 @@ func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroP
 				value := stripKiroCacheControl(rawBlock)
 				blocks = append(blocks, kiroPendingBlock{
 					value:  map[string]any{"kind": "message", "message_index": messageIndex, "role": role, "block_index": blockIndex, "block": value},
-					tokens: countKiroMessageContentTokens(ctx, rawBlock), breakpointTTL: extractKiroCacheTTL(rawBlock), messageIndex: &mi, isMessageEnd: blockIndex == lastBlockIndex,
+					tokens: countKiroMessageContentTokens(ctx, alg, rawBlock), breakpointTTL: extractKiroCacheTTL(rawBlock), messageIndex: &mi, isMessageEnd: blockIndex == lastBlockIndex,
 				})
 			}
 		}
@@ -489,13 +496,13 @@ func flattenKiroCacheBlocks(ctx context.Context, payload map[string]any) []kiroP
 	return blocks
 }
 
-func flattenKiroResponsesCacheBlocks(ctx context.Context, payload map[string]any) []kiroPendingBlock {
+func flattenKiroResponsesCacheBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, payload map[string]any) []kiroPendingBlock {
 	var blocks []kiroPendingBlock
 	if instructions, ok := payload["instructions"].(string); strings.TrimSpace(instructions) != "" && ok {
 		block := map[string]any{"type": "input_text", "text": strings.TrimSpace(instructions)}
 		blocks = append(blocks, kiroPendingBlock{
 			value:        map[string]any{"kind": "instructions", "block": block},
-			tokens:       countKiroMessageContentTokens(ctx, block),
+			tokens:       countKiroMessageContentTokens(ctx, alg, block),
 			isMessageEnd: true,
 		})
 	}
@@ -505,7 +512,7 @@ func flattenKiroResponsesCacheBlocks(ctx context.Context, payload map[string]any
 		block := map[string]any{"type": "input_text", "text": input}
 		blocks = append(blocks, kiroPendingBlock{
 			value:        map[string]any{"kind": "input", "input_index": 0, "role": "user", "block_index": 0, "block": block},
-			tokens:       countKiroMessageContentTokens(ctx, block),
+			tokens:       countKiroMessageContentTokens(ctx, alg, block),
 			isMessageEnd: true,
 		})
 	case []any:
@@ -513,31 +520,31 @@ func flattenKiroResponsesCacheBlocks(ctx context.Context, payload map[string]any
 		seenCacheableItems := 0
 		for itemIndex, rawItem := range input {
 			if !isKiroResponsesCacheableInputItem(rawItem) {
-				blocks = appendKiroResponsesInputItemBlocks(ctx, blocks, itemIndex, rawItem, false)
+				blocks = appendKiroResponsesInputItemBlocks(ctx, alg, blocks, itemIndex, rawItem, false)
 				continue
 			}
 			seenCacheableItems++
 			isStableHistoryItem := seenCacheableItems < cacheableItemCount
-			blocks = appendKiroResponsesInputItemBlocks(ctx, blocks, itemIndex, rawItem, isStableHistoryItem)
+			blocks = appendKiroResponsesInputItemBlocks(ctx, alg, blocks, itemIndex, rawItem, isStableHistoryItem)
 		}
 	}
 	return blocks
 }
 
-func flattenKiroChatCompletionsCacheBlocks(ctx context.Context, payload map[string]any) []kiroPendingBlock {
+func flattenKiroChatCompletionsCacheBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, payload map[string]any) []kiroPendingBlock {
 	var blocks []kiroPendingBlock
 	if instructions, ok := payload["instructions"].(string); ok && strings.TrimSpace(instructions) != "" {
 		block := map[string]any{"type": "input_text", "text": strings.TrimSpace(instructions)}
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "instructions", "block": block},
-			tokens: countKiroMessageContentTokens(ctx, block),
+			tokens: countKiroMessageContentTokens(ctx, alg, block),
 		})
 	}
 
 	messages, _ := payload["messages"].([]any)
 	for messageIndex, rawMessage := range messages {
 		markMessageEnd := isKiroChatCompletionsCacheableMessage(rawMessage)
-		blocks = appendKiroChatCompletionsMessageBlocks(ctx, blocks, messageIndex, rawMessage, markMessageEnd)
+		blocks = appendKiroChatCompletionsMessageBlocks(ctx, alg, blocks, messageIndex, rawMessage, markMessageEnd)
 	}
 	return blocks
 }
@@ -551,7 +558,7 @@ func isKiroChatCompletionsCacheableMessage(rawMessage any) bool {
 	return strings.TrimSpace(role) != ""
 }
 
-func appendKiroChatCompletionsMessageBlocks(ctx context.Context, blocks []kiroPendingBlock, messageIndex int, rawMessage any, markMessageEnd bool) []kiroPendingBlock {
+func appendKiroChatCompletionsMessageBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, blocks []kiroPendingBlock, messageIndex int, rawMessage any, markMessageEnd bool) []kiroPendingBlock {
 	start := len(blocks)
 	message, ok := rawMessage.(map[string]any)
 	if !ok {
@@ -561,46 +568,46 @@ func appendKiroChatCompletionsMessageBlocks(ctx context.Context, blocks []kiroPe
 	name, _ := message["name"].(string)
 
 	if content, ok := message["content"]; ok {
-		blocks = appendKiroChatCompletionsContentBlocks(ctx, blocks, messageIndex, role, name, content)
+		blocks = appendKiroChatCompletionsContentBlocks(ctx, alg, blocks, messageIndex, role, name, content)
 	}
 	if reasoning, ok := message["reasoning_content"].(string); ok && reasoning != "" {
 		block := map[string]any{"type": "reasoning", "thinking": reasoning}
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message_reasoning", "message_index": messageIndex, "role": role, "name": name, "block": block},
-			tokens: countKiroMessageContentTokens(ctx, block),
+			tokens: countKiroMessageContentTokens(ctx, alg, block),
 		})
 	}
 	if toolCalls, ok := message["tool_calls"]; ok {
 		value := kiroJSONCompatibleValue(toolCalls)
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message_tool_calls", "message_index": messageIndex, "role": role, "name": name, "block": value},
-			tokens: countKiroSerializedValueTokens(value),
+			tokens: countKiroSerializedValueTokens(alg, value),
 		})
 	}
 	if toolCallID, ok := message["tool_call_id"].(string); ok && toolCallID != "" {
 		value := map[string]any{"tool_call_id": toolCallID}
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message_tool_call_id", "message_index": messageIndex, "role": role, "name": name, "block": value},
-			tokens: countKiroSerializedValueTokens(value),
+			tokens: countKiroSerializedValueTokens(alg, value),
 		})
 	}
 	if functionCall, ok := message["function_call"]; ok {
 		value := kiroJSONCompatibleValue(functionCall)
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message_function_call", "message_index": messageIndex, "role": role, "name": name, "block": value},
-			tokens: countKiroSerializedValueTokens(value),
+			tokens: countKiroSerializedValueTokens(alg, value),
 		})
 	}
 	return markKiroResponsesInputItemEnd(blocks, start, messageIndex, markMessageEnd)
 }
 
-func appendKiroChatCompletionsContentBlocks(ctx context.Context, blocks []kiroPendingBlock, messageIndex int, role string, name string, content any) []kiroPendingBlock {
+func appendKiroChatCompletionsContentBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, blocks []kiroPendingBlock, messageIndex int, role string, name string, content any) []kiroPendingBlock {
 	switch typed := content.(type) {
 	case string:
 		block := map[string]any{"type": "text", "text": typed}
 		return append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message", "message_index": messageIndex, "role": role, "name": name, "block_index": 0, "block": block},
-			tokens: countKiroMessageContentTokens(ctx, block),
+			tokens: countKiroMessageContentTokens(ctx, alg, block),
 		})
 	case []any:
 		for blockIndex, rawBlock := range typed {
@@ -610,13 +617,13 @@ func appendKiroChatCompletionsContentBlocks(ctx context.Context, blocks []kiroPe
 			}
 			blocks = append(blocks, kiroPendingBlock{
 				value:  map[string]any{"kind": "message", "message_index": messageIndex, "role": role, "name": name, "block_index": blockIndex, "block": kiroJSONCompatibleValue(block)},
-				tokens: countKiroMessageContentTokens(ctx, block),
+				tokens: countKiroMessageContentTokens(ctx, alg, block),
 			})
 		}
 	case map[string]any:
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "message", "message_index": messageIndex, "role": role, "name": name, "block_index": 0, "block": kiroJSONCompatibleValue(typed)},
-			tokens: countKiroMessageContentTokens(ctx, typed),
+			tokens: countKiroMessageContentTokens(ctx, alg, typed),
 		})
 	}
 	return blocks
@@ -671,13 +678,13 @@ func isKiroResponsesCacheableInputItem(rawItem any) bool {
 	return itemType != "additional_tools"
 }
 
-func appendKiroResponsesInputItemBlocks(ctx context.Context, blocks []kiroPendingBlock, itemIndex int, rawItem any, markMessageEnd bool) []kiroPendingBlock {
+func appendKiroResponsesInputItemBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, blocks []kiroPendingBlock, itemIndex int, rawItem any, markMessageEnd bool) []kiroPendingBlock {
 	start := len(blocks)
 	if text, ok := rawItem.(string); ok {
 		block := map[string]any{"type": "input_text", "text": text}
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "input", "input_index": itemIndex, "role": "user", "block_index": 0, "block": block},
-			tokens: countKiroMessageContentTokens(ctx, block),
+			tokens: countKiroMessageContentTokens(ctx, alg, block),
 		})
 		return markKiroResponsesInputItemEnd(blocks, start, itemIndex, markMessageEnd)
 	}
@@ -694,13 +701,13 @@ func appendKiroResponsesInputItemBlocks(ctx context.Context, blocks []kiroPendin
 		role = "user"
 	}
 	if content, ok := item["content"]; ok {
-		blocks = appendKiroResponsesContentBlocks(ctx, blocks, itemIndex, role, content)
+		blocks = appendKiroResponsesContentBlocks(ctx, alg, blocks, itemIndex, role, content)
 		return markKiroResponsesInputItemEnd(blocks, start, itemIndex, markMessageEnd)
 	}
 	value := kiroJSONCompatibleValue(item)
 	blocks = append(blocks, kiroPendingBlock{
 		value:  map[string]any{"kind": "input_item", "input_index": itemIndex, "type": itemType, "block": value},
-		tokens: countKiroSerializedValueTokens(value),
+		tokens: countKiroSerializedValueTokens(alg, value),
 	})
 	return markKiroResponsesInputItemEnd(blocks, start, itemIndex, markMessageEnd)
 }
@@ -716,13 +723,13 @@ func markKiroResponsesInputItemEnd(blocks []kiroPendingBlock, start, itemIndex i
 	return blocks
 }
 
-func appendKiroResponsesContentBlocks(ctx context.Context, blocks []kiroPendingBlock, itemIndex int, role string, content any) []kiroPendingBlock {
+func appendKiroResponsesContentBlocks(ctx context.Context, alg anthropictokenizer.Algorithm, blocks []kiroPendingBlock, itemIndex int, role string, content any) []kiroPendingBlock {
 	switch typed := content.(type) {
 	case string:
 		block := map[string]any{"type": "input_text", "text": typed}
 		return append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "input", "input_index": itemIndex, "role": role, "block_index": 0, "block": block},
-			tokens: countKiroMessageContentTokens(ctx, block),
+			tokens: countKiroMessageContentTokens(ctx, alg, block),
 		})
 	case []any:
 		for blockIndex, rawBlock := range typed {
@@ -732,13 +739,13 @@ func appendKiroResponsesContentBlocks(ctx context.Context, blocks []kiroPendingB
 			}
 			blocks = append(blocks, kiroPendingBlock{
 				value:  map[string]any{"kind": "input", "input_index": itemIndex, "role": role, "block_index": blockIndex, "block": kiroJSONCompatibleValue(block)},
-				tokens: countKiroMessageContentTokens(ctx, block),
+				tokens: countKiroMessageContentTokens(ctx, alg, block),
 			})
 		}
 	case map[string]any:
 		blocks = append(blocks, kiroPendingBlock{
 			value:  map[string]any{"kind": "input", "input_index": itemIndex, "role": role, "block_index": 0, "block": kiroJSONCompatibleValue(typed)},
-			tokens: countKiroMessageContentTokens(ctx, typed),
+			tokens: countKiroMessageContentTokens(ctx, alg, typed),
 		})
 	}
 	return blocks
@@ -861,7 +868,7 @@ func (p *kiroCacheProfile) lastCacheableBreakpoint() *kiroResolvedBreakpoint {
 	return &last
 }
 
-func (t *kiroCacheTracker) compute(cacheKey uint64, profile *kiroCacheProfile) *kiroCacheEmulationUsage {
+func (t *kiroCacheTracker) compute(ctx context.Context, remote KiroCacheEmulationRemoteStore, cacheKey uint64, profile *kiroCacheProfile) *kiroCacheEmulationUsage {
 	out := &kiroCacheEmulationUsage{}
 	if t == nil || profile == nil || cacheKey == 0 {
 		return out
@@ -873,7 +880,6 @@ func (t *kiroCacheTracker) compute(cacheKey uint64, profile *kiroCacheProfile) *
 	lastBreakpointTokens := profile.cacheTokensForBreakpoint(lastBreakpoint.cumulativeTokens)
 	now := time.Now()
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.pruneLocked(now)
 
 	matchedTokens := 0
@@ -895,11 +901,55 @@ func (t *kiroCacheTracker) compute(cacheKey uint64, profile *kiroCacheProfile) *
 			break
 		}
 	}
+	t.mu.Unlock()
+
+	// 本地未命中且配置了远端共享存储：把回溯窗口内的候选指纹一次性批量查询
+	// （每请求最多一次远端 RTT），命中的最深条目回填本地后再按本地命中计算。
+	// 远端读写都不能持有本地锁，避免 Redis 延迟串行化所有请求。
+	if matchedTokens == 0 && remote != nil && ctx != nil {
+		matchedTokens = t.lookupRemoteAndBackfill(ctx, remote, cacheKey, profile, now)
+	}
 	newTokens := max(lastBreakpointTokens-matchedTokens, 0)
 	out.CacheReadInputTokens = max(matchedTokens, 0)
 	out.CacheCreationInputTokens = newTokens
 	out.CacheCreation5mInputTokens, out.CacheCreation1hInputTokens = profile.ttlBreakdown(matchedTokens)
 	return out
+}
+
+// lookupRemoteAndBackfill 批量查询远端存储并回填本地。返回命中的 token 数
+// （未命中为 0）。回填条目的 expiresAt 以本机时钟 + 远端报来的 TTL 计算，仅作
+// 本地视图；跨节点存活真值始终是远端 key 自身的 TTL。
+func (t *kiroCacheTracker) lookupRemoteAndBackfill(ctx context.Context, remote KiroCacheEmulationRemoteStore, cacheKey uint64, profile *kiroCacheProfile, now time.Time) int {
+	breakpoints := profile.cacheableBreakpoints()
+	candidates := make([]kiroResolvedBreakpoint, 0, kiroCachePrefixLookbackLimit)
+	fingerprints := make([][32]byte, 0, kiroCachePrefixLookbackLimit)
+	for i, seen := len(breakpoints)-1, 0; i >= 0 && seen < kiroCachePrefixLookbackLimit; i, seen = i-1, seen+1 {
+		candidates = append(candidates, breakpoints[i])
+		fingerprints = append(fingerprints, profile.blocks[breakpoints[i].blockIndex].prefixFingerprint)
+	}
+	alive, err := remote.LookupAlive(ctx, cacheKey, fingerprints)
+	if err != nil {
+		// fail-open：远端不可用时按本地结果继续，等价单机语义。
+		return 0
+	}
+	// candidates 按从深到浅排列，取最深的远端存活断点。
+	for i := range candidates {
+		ttl, ok := alive[fingerprints[i]]
+		if !ok {
+			continue
+		}
+		block := profile.blocks[candidates[i].blockIndex]
+		t.mu.Lock()
+		accountEntries := t.entries[cacheKey]
+		if accountEntries == nil {
+			accountEntries = make(map[[32]byte]kiroCacheEntry)
+			t.entries[cacheKey] = accountEntries
+		}
+		accountEntries[fingerprints[i]] = kiroCacheEntry{tokens: block.cumulativeTokens, ttl: ttl, expiresAt: now.Add(ttl)}
+		t.mu.Unlock()
+		return profile.cacheTokensForBreakpoint(candidates[i].cumulativeTokens)
+	}
+	return 0
 }
 
 func (p *kiroCacheProfile) cacheTokensForBreakpoint(cumulativeTokens int) int {
@@ -932,13 +982,12 @@ func (p *kiroCacheProfile) ttlBreakdown(matchedTokens int) (int, int) {
 	return newTokens, 0
 }
 
-func (t *kiroCacheTracker) update(cacheKey uint64, profile *kiroCacheProfile) {
+func (t *kiroCacheTracker) update(remote KiroCacheEmulationRemoteStore, cacheKey uint64, profile *kiroCacheProfile) {
 	if t == nil || profile == nil || cacheKey == 0 {
 		return
 	}
 	now := time.Now()
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.pruneLocked(now)
 	accountEntries := t.entries[cacheKey]
 	if accountEntries == nil {
@@ -960,6 +1009,28 @@ func (t *kiroCacheTracker) update(cacheKey uint64, profile *kiroCacheProfile) {
 		}
 		accountEntries[block.prefixFingerprint] = kiroCacheEntry{tokens: block.cumulativeTokens, ttl: breakpoint.ttl, expiresAt: expiresAt}
 	}
+	t.mu.Unlock()
+
+	if remote == nil {
+		return
+	}
+	// 远端写入异步执行：不阻塞响应路径；幂等覆盖 + EX 重置即滑动续期。
+	breakpoints := profile.cacheableBreakpoints()
+	entries := make([]KiroCacheRemoteEntry, 0, len(breakpoints))
+	for _, breakpoint := range breakpoints {
+		block := profile.blocks[breakpoint.blockIndex]
+		entries = append(entries, KiroCacheRemoteEntry{
+			Fingerprint: block.prefixFingerprint,
+			Tokens:      block.cumulativeTokens,
+			TTL:         breakpoint.ttl,
+		})
+	}
+	remoteStore, cacheKeyArg := remote, cacheKey
+	kiroCacheEmulationAsyncDispatch(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), kiroCacheEmulationRemoteWriteTimeout)
+		defer cancel()
+		_ = remoteStore.StoreEntries(ctx, cacheKeyArg, entries)
+	})
 }
 
 func (t *kiroCacheTracker) pruneLocked(now time.Time) {
@@ -1057,20 +1128,20 @@ func stripKiroCacheControl(v any) any {
 	}
 }
 
-func countKiroInputTokensFromPayload(ctx context.Context, payload map[string]any) int {
+func countKiroInputTokensFromPayload(ctx context.Context, alg anthropictokenizer.Algorithm, payload map[string]any) int {
 	if payload == nil {
 		return 1
 	}
 	tokens := 0
 	for _, block := range normalizeKiroSystemBlocks(payload["system"]) {
-		tokens += countKiroSystemBlockTokens(block)
+		tokens += countKiroSystemBlockTokens(alg, block)
 	}
 	messages, _ := payload["messages"].([]any)
 	if len(messages) > 0 {
 		sanitizedMessages, imageTokens := sanitizeKiroImagesForTokenEstimate(ctx, messages)
 		canonical, err := canonicalJSON(sanitizedMessages)
 		if err == nil {
-			tokens += anthropictokenizer.CountTokens(string(canonical))
+			tokens += alg.CountTokens(string(canonical))
 		}
 		tokens += imageTokens
 		tokens += len(messages) * kiroTokensPerMessage
@@ -1081,13 +1152,13 @@ func countKiroInputTokensFromPayload(ctx context.Context, payload map[string]any
 	return max(tokens, 1)
 }
 
-func countKiroSystemBlockTokens(value any) int {
+func countKiroSystemBlockTokens(alg anthropictokenizer.Algorithm, value any) int {
 	switch typed := value.(type) {
 	case string:
-		return anthropictokenizer.CountTokens(typed)
+		return alg.CountTokens(typed)
 	case map[string]any:
 		if text, ok := typed["text"].(string); ok {
-			return anthropictokenizer.CountTokens(text)
+			return alg.CountTokens(text)
 		}
 		return 0
 	default:
@@ -1095,16 +1166,16 @@ func countKiroSystemBlockTokens(value any) int {
 	}
 }
 
-func countKiroMessageContentTokens(ctx context.Context, value any) int {
+func countKiroMessageContentTokens(ctx context.Context, alg anthropictokenizer.Algorithm, value any) int {
 	switch typed := value.(type) {
 	case nil:
 		return 0
 	case string:
-		return anthropictokenizer.CountTokens(typed)
+		return alg.CountTokens(typed)
 	case []any:
 		total := 0
 		for _, item := range typed {
-			total += countKiroMessageContentTokens(ctx, item)
+			total += countKiroMessageContentTokens(ctx, alg, item)
 		}
 		return total
 	case map[string]any:
@@ -1112,16 +1183,16 @@ func countKiroMessageContentTokens(ctx context.Context, value any) int {
 			return kiropkg.EstimateImageTokens(ctx, mediaType, source)
 		}
 		if text, ok := typed["text"].(string); ok {
-			return anthropictokenizer.CountTokens(text)
+			return alg.CountTokens(text)
 		}
 		if thinking, ok := typed["thinking"].(string); ok {
-			return anthropictokenizer.CountTokens(thinking)
+			return alg.CountTokens(thinking)
 		}
 		if input, ok := typed["input"]; ok {
-			return countKiroSerializedValueTokens(input)
+			return countKiroSerializedValueTokens(alg, input)
 		}
 		if content, ok := typed["content"]; ok {
-			return countKiroMessageContentTokens(ctx, content)
+			return countKiroMessageContentTokens(ctx, alg, content)
 		}
 		return 0
 	default:
@@ -1232,12 +1303,12 @@ func kiroImageSourceFields(value map[string]any) (mediaType, source string) {
 	return mediaType, source
 }
 
-func countKiroSerializedValueTokens(value any) int {
+func countKiroSerializedValueTokens(alg anthropictokenizer.Algorithm, value any) int {
 	canonical, err := canonicalJSON(value)
 	if err != nil {
 		return 0
 	}
-	return anthropictokenizer.CountTokens(string(canonical))
+	return alg.CountTokens(string(canonical))
 }
 
 func canonicalJSON(v any) ([]byte, error) {

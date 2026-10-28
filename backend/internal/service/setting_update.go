@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/anthropictokenizer"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -566,6 +568,28 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, fmt.Errorf("%s must be one of: %s/%s", SettingKeyOpenAITTFTMode, OpenAITTFTModeSemantic, OpenAITTFTModeVisible)
 	}
 	updates[SettingKeyOpenAITTFTMode] = mode
+	kiroTokenizer, err := normalizeGatewayKiroTokenizer(settings.GatewayKiroTokenizer)
+	if err != nil {
+		return nil, err
+	}
+	updates[SettingKeyGatewayKiroTokenizer] = kiroTokenizer
+	// fish 原生号动态尺寸规划阈值：crop 允许 0（=不裁剪仅缩放）；factor 0
+	// 视为未设置按默认写入。
+	fishCrop := settings.FishImageMaxCropPixels
+	if fishCrop < 0 || fishCrop > domain.FishFitMaxCropPixelsHardLimit {
+		return nil, infraerrors.BadRequest("INVALID_FISH_IMAGE_FIT_LIMITS",
+			fmt.Sprintf("%s must be between 0 and %d", SettingKeyFishImageMaxCropPixels, domain.FishFitMaxCropPixelsHardLimit))
+	}
+	fishFactor := settings.FishImageMaxUpscaleFactor
+	if fishFactor == 0 {
+		fishFactor = domain.FishFitDefaultMaxUpscaleFactor
+	}
+	if math.IsNaN(fishFactor) || fishFactor < 1 || fishFactor > domain.FishFitMaxUpscaleHardLimit {
+		return nil, infraerrors.BadRequest("INVALID_FISH_IMAGE_FIT_LIMITS",
+			fmt.Sprintf("%s must be between 1 and %v", SettingKeyFishImageMaxUpscaleFactor, domain.FishFitMaxUpscaleHardLimit))
+	}
+	updates[SettingKeyFishImageMaxCropPixels] = strconv.Itoa(fishCrop)
+	updates[SettingKeyFishImageMaxUpscaleFactor] = strconv.FormatFloat(fishFactor, 'f', -1, 64)
 	updates[SettingKeyEnableFingerprintUnification] = strconv.FormatBool(settings.EnableFingerprintUnification)
 	updates[SettingKeyEnableMetadataPassthrough] = strconv.FormatBool(settings.EnableMetadataPassthrough)
 	updates[SettingKeyEnableCCHSigning] = strconv.FormatBool(settings.EnableCCHSigning)
@@ -892,6 +916,7 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	gatewayForwardingSF.Forget("gateway_forwarding")
 	gatewayForwardingCache.Store(&cachedGatewayForwardingSettings{
 		openAITTFTMode:                   normalizeOpenAITTFTMode(settings.OpenAITTFTMode),
+		kiroTokenizer:                    anthropictokenizer.ParseAlgorithm(settings.GatewayKiroTokenizer),
 		fingerprintUnification:           settings.EnableFingerprintUnification,
 		metadataPassthrough:              settings.EnableMetadataPassthrough,
 		cchSigning:                       settings.EnableCCHSigning,
@@ -902,6 +927,14 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 		rewriteMessageCacheControl:       settings.RewriteMessageCacheControl,
 		clientDatelineNormalization:      settings.EnableClientDatelineNormalization,
 		expiresAt:                        time.Now().Add(gatewayForwardingCacheTTL).UnixNano(),
+	})
+	fishImageFitLimitsSF.Forget("fish_image_fit_limits")
+	fishImageFitLimitsCache.Store(&cachedFishImageFitLimits{
+		limits: domain.FishFitLimits{
+			MaxCropPixels:    settings.FishImageMaxCropPixels,
+			MaxUpscaleFactor: settings.FishImageMaxUpscaleFactor,
+		}.Normalized(),
+		expiresAt: time.Now().Add(fishImageFitLimitsCacheTTL).UnixNano(),
 	})
 	s.antigravityUAVersionSF.Forget("antigravity_user_agent_version")
 	antigravityUserAgentVersion := antigravity.NormalizeUserAgentVersion(settings.AntigravityUserAgentVersion)

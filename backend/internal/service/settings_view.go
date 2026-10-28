@@ -278,6 +278,7 @@ type SystemSettings struct {
 	OpenAICodexTicketHarvestProxyURL       string // Codex 292 打票代理 URL；空则回退 yaml/env
 	OpenAICodexTicketStaticProxyURL        string
 	OpenAICodexTicketModels                []string                          // Codex 292 打票模型列表；缺失时回退 yaml/env
+	GatewayKiroTokenizer                   string                            // Kiro 计量算法（official/charclass/weighted，默认 official）
 	OpenAICodexTicketDefaultLength         int                               // 门票默认目标长度；后台未配置时回退 yaml target_length
 	OpenAICodexTicketPlanLengthRules       []OpenAICodexTicketPlanLengthRule // 订阅档位长度规则（plan_type 子串匹配，先命中先生效）
 	MinCodexVersion                        string                            // codex_cli_only 最低 Codex 引擎版本；空=不检查
@@ -289,6 +290,8 @@ type SystemSettings struct {
 	ClaudeCodeClientVersion                string                            // 出站声明的 Claude Code CLI 客户端版本号（管理员覆写）；空值跟随自动同步值
 	ClaudeCodeClientVersionSynced          string                            // 自动同步到的官方最新版本号（只读展示）
 	ClaudeCodeVersionAutoSyncEnabled       bool                              // 是否启用 Claude Code 客户端版本号自动同步（默认 true）
+	FishImageMaxCropPixels                 int                               // fish 原生号动态尺寸规划最大裁剪量（交付分辨率像素，默认 4；0=不裁剪）
+	FishImageMaxUpscaleFactor              float64                           // fish 原生号动态尺寸规划最大本地放大倍数（默认 2）
 
 	// Web Search Emulation
 	WebSearchEmulationEnabled bool // 是否启用 web search 模拟

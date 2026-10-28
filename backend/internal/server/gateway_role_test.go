@@ -15,7 +15,7 @@ func TestGatewayRoleExposesAuthenticatedModelRoutesWithoutAdminOrPayments(t *tes
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	cfg := &config.Config{Runtime: config.RuntimeConfig{Role: config.RuntimeRoleGateway}, Gateway: config.GatewayConfig{MaxBodySize: 1024 * 1024, TextMaxBodySize: 1024 * 1024}}
-	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil)}
+	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}
 	registerRoutes(router, h, nil, nil, nil, func(c *gin.Context) { c.AbortWithStatus(http.StatusUnauthorized) }, nil, nil, nil, nil, nil, nil, nil, cfg, nil)
 	for _, tc := range []struct {
 		method, path string
@@ -40,7 +40,7 @@ func TestRegionalSchedulerPreviewBlocksBeforeAuthentication(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	cfg := &config.Config{Runtime: config.RuntimeConfig{Role: config.RuntimeRoleGateway, RegionalSchedulerFile: "preview.json"}, Gateway: config.GatewayConfig{MaxBodySize: 1024, TextMaxBodySize: 1024}}
-	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil)}
+	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}
 	registerRoutes(router, h, nil, nil, nil, func(c *gin.Context) { t.Fatal("preview reached primary authentication") }, nil, nil, nil, nil, nil, nil, nil, cfg, nil)
 	for _, path := range []string{"/v1/models", "/v1/responses", "/v1/messages", "/v1/chat/completions"} {
 		w := httptest.NewRecorder()
@@ -61,7 +61,7 @@ func TestRegionalAuthPreviewNeverFallsBackToPrimary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	cfg := &config.Config{Runtime: config.RuntimeConfig{Role: config.RuntimeRoleGateway, RegionalAuthFile: "auth.json"}, Gateway: config.GatewayConfig{MaxBodySize: 1024, TextMaxBodySize: 1024}}
-	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil)}
+	h := &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}, AsyncImage: handler.NewAsyncImageHandler(nil, nil, nil)}
 	registerRoutes(router, h, nil, nil, nil, func(c *gin.Context) { t.Fatal("regional auth reached primary middleware") }, nil, nil, nil, nil, nil, nil, nil, cfg, nil)
 	for _, path := range []string{"/v1/models", "/v1/responses", "/v1/messages", "/v1/chat/completions", "/v1beta/models"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)

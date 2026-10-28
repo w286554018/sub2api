@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/anthropictokenizer"
 	kiropkg "github.com/Wei-Shaw/sub2api/internal/pkg/kiro"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/cespare/xxhash/v2"
@@ -210,7 +211,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 		}
 	}
 
-	inputTokens := estimateKiroInputTokens(ctx, body)
+	inputTokens := estimateKiroInputTokens(ctx, s.kiroMeteringAlgorithm(ctx), body)
 	resp, requestCtx, err := s.executeKiroUpstreamWithParsed(ctx, account, parsed, body, mappedModel, originalModel, token, c.Request.Header)
 	if err != nil {
 		var failoverErr *UpstreamFailoverError
@@ -243,6 +244,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 	cacheUsage := s.buildKiroCacheEmulationUsage(ctx, account, parsed.Group, body, mappedModel, inputTokens)
 	requestCtx.CacheEmulationUsage = cacheUsage.toKiroUsage()
 	requestCtx.EstimatedInputTokens = inputTokens
+	requestCtx.TokenizerAlgorithm = s.kiroMeteringAlgorithm(ctx)
 	parseResult, err := kiropkg.ParseNonStreamingEventStreamWithContext(resp.Body, originalModel, requestCtx)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{
@@ -290,7 +292,7 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 	upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, true)
 	defer releaseUpstreamCtx()
 
-	inputTokens := estimateKiroInputTokens(ctx, anthropicBody)
+	inputTokens := estimateKiroInputTokens(ctx, s.kiroMeteringAlgorithm(ctx), anthropicBody)
 	if isOnlyWebSearchToolInBody(anthropicBody) {
 		plan := cachePlanOverride
 		if plan == nil {
@@ -314,47 +316,47 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 		}, inputTokens, nil
 	}
 
-		// Check web search mode from headers
-		webSearchMode := getKiroWebSearchMode(headers)
-		RecordSearchMode(webSearchMode)
-		var preSearchRounds []kiropkg.SearchRound
-		switch webSearchMode {
-		case "single":
-			// Single-round pre-search: extract query from user message, inject into system prompt
+	// Check web search mode from headers
+	webSearchMode := getKiroWebSearchMode(headers)
+	RecordSearchMode(webSearchMode)
+	var preSearchRounds []kiropkg.SearchRound
+	switch webSearchMode {
+	case "single":
+		// Single-round pre-search: extract query from user message, inject into system prompt
+		query := extractSearchQueryFromBody(anthropicBody)
+		if query != "" {
+			searchRound, nextToken, execErr := s.executeKiroMCPWebSearch(upstreamCtx, account, token, query)
+			if execErr == nil && searchRound != nil {
+				anthropicBody = injectSearchContextIntoBody(anthropicBody, *searchRound)
+				inputTokens = estimateKiroInputTokens(ctx, s.kiroMeteringAlgorithm(ctx), anthropicBody)
+				token = nextToken
+			}
+		}
+	case "orchestrated":
+		// Multi-round orchestrated search: use SearchOrchestrator for model-driven loop
+		if KiroWebSearchModelLoopEnabled() {
+			orchestrator := newKiroSearchOrchestrator(s)
+			rounds, finalBody, orchErr := orchestrator.runNonStreaming(
+				upstreamCtx, account, group, anthropicBody,
+				mappedModel, requestModel, token, headers,
+			)
+			if orchErr == nil && len(rounds) > 0 {
+				preSearchRounds = rounds
+				anthropicBody = finalBody
+				inputTokens = estimateKiroInputTokens(ctx, s.kiroMeteringAlgorithm(ctx), anthropicBody)
+			}
+		} else {
+			// Fallback: single-round search when model loop flag is off
 			query := extractSearchQueryFromBody(anthropicBody)
 			if query != "" {
 				searchRound, nextToken, execErr := s.executeKiroMCPWebSearch(upstreamCtx, account, token, query)
 				if execErr == nil && searchRound != nil {
-					anthropicBody = injectSearchContextIntoBody(anthropicBody, *searchRound)
-					inputTokens = estimateKiroInputTokens(ctx, anthropicBody)
+					preSearchRounds = []kiropkg.SearchRound{*searchRound}
 					token = nextToken
 				}
 			}
-		case "orchestrated":
-			// Multi-round orchestrated search: use SearchOrchestrator for model-driven loop
-			if KiroWebSearchModelLoopEnabled() {
-				orchestrator := newKiroSearchOrchestrator(s)
-				rounds, finalBody, orchErr := orchestrator.runNonStreaming(
-					upstreamCtx, account, group, anthropicBody,
-					mappedModel, requestModel, token, headers,
-				)
-				if orchErr == nil && len(rounds) > 0 {
-					preSearchRounds = rounds
-					anthropicBody = finalBody
-					inputTokens = estimateKiroInputTokens(ctx, anthropicBody)
-				}
-			} else {
-				// Fallback: single-round search when model loop flag is off
-				query := extractSearchQueryFromBody(anthropicBody)
-				if query != "" {
-					searchRound, nextToken, execErr := s.executeKiroMCPWebSearch(upstreamCtx, account, token, query)
-					if execErr == nil && searchRound != nil {
-						preSearchRounds = []kiropkg.SearchRound{*searchRound}
-						token = nextToken
-					}
-				}
-			}
 		}
+	}
 
 	resp, requestCtx, err := s.executeKiroUpstreamWithParsed(upstreamCtx, account, parsed, anthropicBody, mappedModel, requestModel, token, headers)
 	if err != nil {
@@ -374,6 +376,7 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 	// 请求已确认成功(2xx)，此时提交缓存前缀落盘才是安全的。
 	plan.commit()
 	requestCtx.CacheEmulationUsage = plan.result().toKiroUsage()
+	requestCtx.TokenizerAlgorithm = s.kiroMeteringAlgorithm(ctx)
 
 	pr, pw := io.Pipe()
 	wrappedHeaders := resp.Header.Clone()
@@ -823,13 +826,22 @@ func resetHTTPResponseBody(resp *http.Response, body []byte) {
 	resp.ContentLength = int64(len(body))
 }
 
-func estimateKiroInputTokens(ctx context.Context, body []byte) int {
+// kiroMeteringAlgorithm 返回 Kiro 渠道当前生效的 token 计量算法。
+// 设置服务不可用时归一为官方精确口径（official）。
+func (s *GatewayService) kiroMeteringAlgorithm(ctx context.Context) anthropictokenizer.Algorithm {
+	if s == nil || s.settingService == nil {
+		return anthropictokenizer.AlgorithmOfficial
+	}
+	return s.settingService.GetGatewayKiroTokenizer(ctx)
+}
+
+func estimateKiroInputTokens(ctx context.Context, alg anthropictokenizer.Algorithm, body []byte) int {
 	if len(body) == 0 {
 		return 0
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err == nil {
-		return countKiroInputTokensFromPayload(ctx, payload)
+		return countKiroInputTokensFromPayload(ctx, alg, payload)
 	}
 	tokens := len(body) / 4
 	if tokens == 0 {

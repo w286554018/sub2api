@@ -642,6 +642,7 @@ export interface SystemSettings {
 
   // Gateway forwarding behavior
   openai_ttft_mode: string;
+  gateway_kiro_tokenizer: string;
   enable_fingerprint_unification: boolean;
   enable_metadata_passthrough: boolean;
   enable_cch_signing: boolean;
@@ -673,6 +674,9 @@ export interface SystemSettings {
   claude_code_client_version: string;
   claude_code_client_version_synced: string;
   claude_code_version_auto_sync_enabled: boolean;
+  // fish 原生号动态尺寸规划阈值（网关）
+  fish_image_max_crop_pixels: number;
+  fish_image_max_upscale_factor: number;
   // codex_cli_only 加固
   min_codex_version: string;
   max_codex_version: string;
@@ -1018,6 +1022,7 @@ export interface UpdateSettingsRequest {
   max_claude_code_version?: string;
   allow_ungrouped_key_scheduling?: boolean;
   openai_ttft_mode?: string;
+  gateway_kiro_tokenizer?: string;
   enable_fingerprint_unification?: boolean;
   enable_metadata_passthrough?: boolean;
   enable_cch_signing?: boolean;
@@ -1046,6 +1051,9 @@ export interface UpdateSettingsRequest {
   openai_codex_ticket_models?: string[];
   claude_code_client_version?: string;
   claude_code_version_auto_sync_enabled?: boolean;
+  // fish 原生号动态尺寸规划阈值（网关）
+  fish_image_max_crop_pixels?: number;
+  fish_image_max_upscale_factor?: number;
   // codex_cli_only 加固
   min_codex_version?: string;
   max_codex_version?: string;

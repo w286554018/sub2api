@@ -255,6 +255,7 @@ type UpdateSettingsRequest struct {
 
 	// Gateway forwarding behavior
 	OpenAITTFTMode                         *string `json:"openai_ttft_mode"`
+	GatewayKiroTokenizer                   *string `json:"gateway_kiro_tokenizer"`
 	EnableFingerprintUnification           *bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough              *bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                       *bool   `json:"enable_cch_signing"`
@@ -270,6 +271,9 @@ type UpdateSettingsRequest struct {
 	OpenAICodexVersionAutoSyncEnabled      *bool   `json:"openai_codex_version_auto_sync_enabled"`
 	OpenAICodexTicketEnabled               *bool   `json:"openai_codex_ticket_enabled"`
 	OpenAICodexTicketHarvestProxyURL       string  `json:"openai_codex_ticket_harvest_proxy_url"`
+	// fish 原生号动态尺寸规划阈值；nil = 保持既有。
+	FishImageMaxCropPixels    *int     `json:"fish_image_max_crop_pixels"`
+	FishImageMaxUpscaleFactor *float64 `json:"fish_image_max_upscale_factor"`
 	// OpenAICodexTicketDefaultLength nil = 保持既有；OpenAICodexTicketPlanLengthRules nil = 保持既有（空数组 = 清空规则）。
 	OpenAICodexTicketDefaultLength       *int                                       `json:"openai_codex_ticket_default_length"`
 	OpenAICodexTicketPlanLengthRules     *[]service.OpenAICodexTicketPlanLengthRule `json:"openai_codex_ticket_plan_lengths"`
@@ -374,6 +378,7 @@ type UpdateSettingsRequest struct {
 	// Pelican showcase switch + gallery limits (user-facing)
 	PelicanShowcaseEnabled *bool                          `json:"pelican_showcase_enabled"`
 	PelicanShowcase        *service.PelicanShowcaseConfig `json:"pelican_showcase_config"`
+	// Excel / BPS protocol switch (gateway-wide; defaults to true)
 
 	// Subscription feature switch (user-facing subscription surface; see SettingKeySubscriptionEnabled)
 	SubscriptionEnabled *bool `json:"subscription_enabled"`
@@ -1989,6 +1994,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAITTFTMode
 		}(),
+		GatewayKiroTokenizer: func() string {
+			if req.GatewayKiroTokenizer != nil {
+				return *req.GatewayKiroTokenizer
+			}
+			return previousSettings.GatewayKiroTokenizer
+		}(),
 		EnableMetadataPassthrough: func() bool {
 			if req.EnableMetadataPassthrough != nil {
 				return *req.EnableMetadataPassthrough
@@ -2158,6 +2169,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.ClaudeCodeVersionAutoSyncEnabled
 			}
 			return previousSettings.ClaudeCodeVersionAutoSyncEnabled
+		}(),
+		FishImageMaxCropPixels: func() int {
+			if req.FishImageMaxCropPixels != nil {
+				return *req.FishImageMaxCropPixels
+			}
+			return previousSettings.FishImageMaxCropPixels
+		}(),
+		FishImageMaxUpscaleFactor: func() float64 {
+			if req.FishImageMaxUpscaleFactor != nil {
+				return *req.FishImageMaxUpscaleFactor
+			}
+			return previousSettings.FishImageMaxUpscaleFactor
 		}(),
 		MinCodexVersion:       strings.TrimSpace(req.MinCodexVersion),
 		MaxCodexVersion:       strings.TrimSpace(req.MaxCodexVersion),
@@ -2773,6 +2796,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ClaudeCodeClientVersion:                                updatedSettings.ClaudeCodeClientVersion,
 		ClaudeCodeClientVersionSynced:                          updatedSettings.ClaudeCodeClientVersionSynced,
 		ClaudeCodeVersionAutoSyncEnabled:                       updatedSettings.ClaudeCodeVersionAutoSyncEnabled,
+		FishImageMaxCropPixels:                                 updatedSettings.FishImageMaxCropPixels,
+		FishImageMaxUpscaleFactor:                              updatedSettings.FishImageMaxUpscaleFactor,
 		MinCodexVersion:                                        updatedSettings.MinCodexVersion,
 		MaxCodexVersion:                                        updatedSettings.MaxCodexVersion,
 		CodexCLIOnlyBlacklist:                                  updatedSettings.CodexCLIOnlyBlacklist,

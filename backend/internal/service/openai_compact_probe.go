@@ -14,6 +14,8 @@ const (
 	// (native v2: streaming /responses with a compaction_trigger input item).
 	AccountTestModeCompact = "compact"
 	// AccountTestModeBPSTools verifies a BPS function call and its result roundtrip.
+	// AccountTestModeBPSTools runs the Excel/BPS tool round-trip probe through
+	// the same gateway path as user Responses requests.
 	AccountTestModeBPSTools = "bps_tools"
 )
 

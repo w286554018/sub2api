@@ -1160,6 +1160,12 @@ type GatewayConfig struct {
 	// CodexGatewayPin shares qualified source routing cookies with selected targets.
 	// Disabled by default; applies only to ChatGPT HTTP Responses requests.
 	CodexGatewayPin CodexGatewayPinConfig `mapstructure:"codex_gateway_pin"`
+	// MinOutputTokens is the minimum max_output_tokens used when
+	// converting Chat Completions or Anthropic requests to Responses.
+	MinOutputTokens int `mapstructure:"min_output_tokens"`
+	// KiroCacheEmulationRedisEnabled shares Kiro cache emulation prefix state
+	// via Redis across instances instead of per-process memory. Default false.
+	KiroCacheEmulationRedisEnabled bool `mapstructure:"kiro_cache_emulation_redis_enabled"`
 	// 等待上游响应头的超时时间（秒），0表示无超时
 	// 注意：这不影响流式数据传输，只控制等待响应头的时间
 	ResponseHeaderTimeout int `mapstructure:"response_header_timeout"`
@@ -1276,9 +1282,10 @@ type GatewayConfig struct {
 
 	// StreamDataIntervalTimeout: 流数据间隔超时（秒），0表示禁用
 	StreamDataIntervalTimeout int `mapstructure:"stream_data_interval_timeout"`
-	// ExcelBPSStreamDataIntervalTimeout: BPS 上游读取无进展超时（秒），0禁用。
-	ExcelBPSStateRedisEnabled         bool `mapstructure:"excel_bps_state_redis_enabled"`
-	ExcelBPSStreamDataIntervalTimeout int  `mapstructure:"excel_bps_stream_data_interval_timeout"`
+	// ExcelBPSStateRedisEnabled shares basispoints replay/catalog state via Redis.
+	ExcelBPSStateRedisEnabled bool `mapstructure:"excel_bps_state_redis_enabled"`
+	// ExcelBPSStreamDataIntervalTimeout aborts a stalled BPS stream; 0 disables.
+	ExcelBPSStreamDataIntervalTimeout int `mapstructure:"excel_bps_stream_data_interval_timeout"`
 	// StreamKeepaliveInterval: 流式 keepalive 间隔（秒），0表示禁用
 	StreamKeepaliveInterval int `mapstructure:"stream_keepalive_interval"`
 	// KiroStreamKeepaliveInterval: Kiro 流式 keepalive 间隔（秒），0使用默认 25 秒
@@ -1289,6 +1296,9 @@ type GatewayConfig struct {
 	ImageStreamKeepaliveInterval int `mapstructure:"image_stream_keepalive_interval"`
 	// ImageNonstreamKeepaliveInterval: 图片非流式 JSON keepalive 间隔（秒），0表示禁用
 	ImageNonstreamKeepaliveInterval int `mapstructure:"image_nonstream_keepalive_interval"`
+	// LeonardoUsageTokensPerCredit: Leonardo 原生号响应 usage 的估算比例（每积分多少
+	// 输出 token；Leonardo 不报 token 用量），0 表示不返回 usage
+	LeonardoUsageTokensPerCredit float64 `mapstructure:"leonardo_usage_tokens_per_credit"`
 	// MaxLineSize: 上游 SSE 单行最大字节数（0使用默认值）
 	MaxLineSize int `mapstructure:"max_line_size"`
 
@@ -1493,7 +1503,7 @@ const DefaultOpenAIWSClientFirstMessageTimeoutSeconds = 30
 type GatewayOpenAIWSConfig struct {
 	// ModeRouterV2Enabled: 新版 WS mode 路由开关（默认 false；关闭时保持 legacy 行为）
 	ModeRouterV2Enabled bool `mapstructure:"mode_router_v2_enabled"`
-	// IngressModeDefault: ingress 默认模式（off/ctx_pool/passthrough/http_bridge）
+	// IngressModeDefault: ingress 默认模式（off/ctx_pool/passthrough/http_bridge/ws_bridge）
 	IngressModeDefault string `mapstructure:"ingress_mode_default"`
 	// ClientFirstMessageTimeoutSeconds bounds the total time to read and decompress
 	// the first client response.create message after the WebSocket upgrade.
@@ -2293,6 +2303,7 @@ func setDefaults() {
 	viper.SetDefault("server.graceful_shutdown_timeout", 5)
 	viper.SetDefault("server.shutdown_drain_delay", 0)
 	viper.SetDefault("run_mode", RunModeStandard)
+	viper.SetDefault("gateway.min_output_tokens", 128)
 	viper.SetDefault("simple_mode.auto_create_default_groups", true)
 	viper.SetDefault("simple_mode_key_rate_limit_enabled", false)
 
@@ -2830,6 +2841,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.client_idle_ttl_seconds", 900)
 	viper.SetDefault("gateway.concurrency_slot_ttl_minutes", 30) // 并发槽位过期时间（支持超长请求）
 	viper.SetDefault("gateway.stream_data_interval_timeout", 180)
+	// Excel BPS 流停滞保护（秒），0=禁用；未注册默认值时环境变量覆盖也不会生效。
 	viper.SetDefault("gateway.excel_bps_stream_data_interval_timeout", 120)
 	viper.SetDefault("gateway.excel_bps_state_redis_enabled", false)
 	viper.SetDefault("gateway.stream_keepalive_interval", 10)
@@ -2837,6 +2849,9 @@ func setDefaults() {
 	viper.SetDefault("gateway.image_stream_data_interval_timeout", 900)
 	viper.SetDefault("gateway.image_stream_keepalive_interval", 10)
 	viper.SetDefault("gateway.image_nonstream_keepalive_interval", 0)
+	// 34 token/积分：gpt-image-1 官方表 LOW 1024x1024 = 272、1536x1024 = 408 token，
+	// 对应 Leonardo gpt-image-2 LOW 的 8 / 12 积分。
+	viper.SetDefault("gateway.leonardo_usage_tokens_per_credit", 34)
 	viper.SetDefault("gateway.max_line_size", 500*1024*1024)
 	viper.SetDefault("gateway.scheduling.sticky_session_max_waiting", 3)
 	viper.SetDefault("gateway.scheduling.sticky_session_wait_timeout", 120*time.Second)
@@ -2939,6 +2954,7 @@ func setEnvReachableDefaults() {
 	viper.SetDefault("gateway.forced_codex_instructions_template_file", "")
 	viper.SetDefault("gateway.session_idle_timeout_minutes", 0)
 	viper.SetDefault("gateway.user_message_queue.mode", "")
+	viper.SetDefault("gateway.kiro_cache_emulation_redis_enabled", false)
 	viper.SetDefault("update.proxy_url", "")
 
 	// sticky_escape_enabled is the one exception to the zero-value rule: its
@@ -3011,6 +3027,9 @@ func (c *Config) Validate() error {
 	}
 	if err := c.Gateway.CodexGatewayPin.Validate(); err != nil {
 		return err
+	}
+	if c.Gateway.MinOutputTokens < 16 {
+		return fmt.Errorf("gateway.min_output_tokens must be at least 16")
 	}
 	forwardedClientIPHeaders, err := NormalizeForwardedClientIPHeaders(c.Security.ForwardedClientIPHeaders)
 	if err != nil {
@@ -3775,6 +3794,9 @@ func (c *Config) Validate() error {
 		(c.Gateway.ImageNonstreamKeepaliveInterval < 5 || c.Gateway.ImageNonstreamKeepaliveInterval > 60) {
 		return fmt.Errorf("gateway.image_nonstream_keepalive_interval must be 0 or between 5-60 seconds")
 	}
+	if c.Gateway.LeonardoUsageTokensPerCredit < 0 {
+		return fmt.Errorf("gateway.leonardo_usage_tokens_per_credit must be non-negative")
+	}
 	// 兼容旧键 sticky_previous_response_ttl_seconds
 	if c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
 		c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds = c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds
@@ -3866,11 +3888,11 @@ func (c *Config) Validate() error {
 	}
 	if mode := strings.ToLower(strings.TrimSpace(c.Gateway.OpenAIWS.IngressModeDefault)); mode != "" {
 		switch mode {
-		case "off", "ctx_pool", "passthrough", "http_bridge":
+		case "off", "ctx_pool", "passthrough", "http_bridge", "ws_bridge":
 		case "shared", "dedicated":
-			slog.Warn("gateway.openai_ws.ingress_mode_default is deprecated, treating as ctx_pool; please update to off|ctx_pool|passthrough|http_bridge", "value", mode)
+			slog.Warn("gateway.openai_ws.ingress_mode_default is deprecated, treating as ctx_pool; please update to off|ctx_pool|passthrough|http_bridge|ws_bridge", "value", mode)
 		default:
-			return fmt.Errorf("gateway.openai_ws.ingress_mode_default must be one of off|ctx_pool|passthrough|http_bridge")
+			return fmt.Errorf("gateway.openai_ws.ingress_mode_default must be one of off|ctx_pool|passthrough|http_bridge|ws_bridge")
 		}
 	}
 	if mode := strings.ToLower(strings.TrimSpace(c.Gateway.OpenAIWS.StoreDisabledConnMode)); mode != "" {

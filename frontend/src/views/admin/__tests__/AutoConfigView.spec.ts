@@ -70,7 +70,7 @@ describe('AutoConfigView', () => {
   expect(w.find('[data-testid="mapping-platform"]').exists()).toBe(false)
   expect(w.get('[data-testid="initial-model-mappings"]').element.closest('section')).toBe(w.get('[data-testid="initial-enabled"]').element.closest('section'))
   expect(w.get<HTMLInputElement>('[data-testid="mapping-from-0"]').element.value).toBe('gpt-5.4')
-  expect(w.get<HTMLInputElement>('[data-testid="mapping-to-0"]').element.value).toBe('gpt-5.5')
+  expect(w.get<HTMLInputElement>('[data-testid="mapping-to-0"]').element.value).toBe('gpt-5.6-sol')
   await w.get('[data-testid="initial-enabled"]').setValue(true)
   await w.get('[data-testid="initial-group-5"]').setValue(true)
   await w.get('[data-testid="mapping-to-0"]').setValue(' custom-model ')

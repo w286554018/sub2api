@@ -593,6 +593,9 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	if requestedModel != "" && !account.IsModelSupportedInGroup(groupID, requestedModel) {
 		return 0, nil, "", nil
 	}
+	if requestedModel != "" && !supportsOpenAIRequestModel(account, requestedModel, requireCompact) {
+		return 0, nil, "", nil
+	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
 		return 0, nil, "", nil
 	}
@@ -630,6 +633,9 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 			return 0, nil, "", nil
 		}
 		if requestedModel != "" && !latest.IsModelSupportedInGroup(groupID, requestedModel) {
+			return 0, nil, "", nil
+		}
+		if requestedModel != "" && !supportsOpenAIRequestModel(latest, requestedModel, requireCompact) {
 			return 0, nil, "", nil
 		}
 		if !latest.SupportsOpenAIEndpointCapability(requiredCapability) {

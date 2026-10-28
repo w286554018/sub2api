@@ -70,6 +70,7 @@ export function useOpenAIOAuth() {
       if (redirectUri) {
         payload.redirect_uri = redirectUri
       }
+      if (oauthClient === 'excel') payload.oauth_client = 'excel'
 
       const response = await adminAPI.accounts.generateAuthUrl(
         `${endpointPrefix}/generate-auth-url`,

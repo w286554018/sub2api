@@ -54,16 +54,17 @@ func TestExcelBPS403GroupActionTrigger(t *testing.T) {
 		status                            int
 		target                            int64
 		disabled, optIn, modelError, fail bool
+		wantReason                        GatewayFailureReason
 	}{
-		{name: "default off", status: 403},
-		{name: "move", status: 403, optIn: true, target: 7},
-		{name: "leave all", status: 403, optIn: true},
-		{name: "both switches", status: 403, optIn: true, target: 7, disabled: true},
-		{name: "group write failure still disables", status: 403, optIn: true, disabled: true, fail: true},
-		{name: "model access", status: 403, optIn: true, modelError: true},
-		{name: "unauthorized", status: 401, optIn: true},
-		{name: "rate limited", status: 429, optIn: true},
-		{name: "server error", status: 500, optIn: true},
+		{name: "default off", status: 403, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "move", status: 403, optIn: true, target: 7, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "leave all", status: 403, optIn: true, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "both switches", status: 403, optIn: true, target: 7, disabled: true, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "group write failure still disables", status: 403, optIn: true, disabled: true, fail: true, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "model access", status: 403, optIn: true, modelError: true, wantReason: ExcelBPSModelNotAllowedReason},
+		{name: "unauthorized", status: 401, optIn: true, wantReason: ExcelBPSAccountRejectedReason},
+		{name: "rate limited", status: 429, optIn: true, wantReason: ExcelBPSRateLimitedReason},
+		{name: "server error", status: 500, optIn: true, wantReason: ExcelBPSUpstreamErrorReason},
 	} {
 		for _, stream := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/stream=%t", tc.name, stream), func(t *testing.T) {
@@ -99,7 +100,13 @@ func TestExcelBPS403GroupActionTrigger(t *testing.T) {
 				c, _ := gin.CreateTestContext(rec)
 				c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 				_, err := svc.Forward(context.Background(), c, account, []byte(fmt.Sprintf("{\"model\":\"gpt-6-astra\",\"input\":\"test\",\"stream\":%t}", stream)))
-				require.Error(t, err)
+				var failover *UpstreamFailoverError
+				require.ErrorAs(t, err, &failover)
+				require.Equal(t, tc.wantReason, failover.Reason)
+				require.Equal(t, tc.status, failover.StatusCode)
+				require.True(t, failover.ShouldRetryNextAccount())
+				require.False(t, c.Writer.Written(), "leave the response to the handler")
+				require.Zero(t, rec.Body.Len())
 				triggered := tc.status == 403 && tc.optIn && !tc.modelError
 				var want []string
 				if triggered {
@@ -109,7 +116,6 @@ func TestExcelBPS403GroupActionTrigger(t *testing.T) {
 					want = append(want, "disable")
 				}
 				require.Equal(t, want, actions)
-				require.Equal(t, triggered && !tc.fail, strings.Contains(rec.Body.String(), "account groups were"))
 				require.Len(t, upstream.requests, 1)
 				require.Equal(t, []int64{1, 2}, account.GroupIDs)
 				require.True(t, account.IsExcelBPSEnabled())

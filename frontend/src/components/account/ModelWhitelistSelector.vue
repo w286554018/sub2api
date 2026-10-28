@@ -209,29 +209,34 @@ const normalizedPlatforms = computed(() => {
 })
 
 // 清单驱动的通用判断（多协议供应商 + anthropic/openai/gemini/antigravity/grok），
-// 再加上 fork 定制的 kiro（relay）与 adobe（仅 API Key 中转号）上游模型同步。
-const isUpstreamSyncable = (platform: string, type: string | undefined) => {
+// 再加上 fork 定制的 kiro（relay）上游模型同步。
+const isUpstreamSyncable = (platform: string) => {
   const normalized = platform.toLowerCase()
   if (supportsUpstreamModelSync(normalized)) return true
-  if (normalized === 'kiro') return true
-  // Adobe 只有 API Key 中转号（base_url + api_key）能拉上游 /v1/models；Cookie 号没有静态 Key。
-  return normalized === 'adobe' && type === 'apikey'
+  return normalized === 'kiro'
 }
 const canSyncUpstream = computed(() => {
   if (!props.allowUpstreamSync) return false
   if (props.accountId) {
     if (normalizedPlatforms.value.length === 0) return true
-    return normalizedPlatforms.value.some(platform => isUpstreamSyncable(platform, props.accountType))
+    return normalizedPlatforms.value.some(platform => isUpstreamSyncable(platform))
   }
   if (props.syncCredentials) {
-    return isUpstreamSyncable(props.syncCredentials.platform, props.syncCredentials.type)
+    return isUpstreamSyncable(props.syncCredentials.platform)
   }
   return false
 })
 
+// 调用方给了候选列表时，下拉候选和「填入相关模型」都只用这份列表。
+const explicitModels = computed(() =>
+  props.availableModels === undefined
+    ? undefined
+    : Array.from(new Set(props.availableModels.map(model => model.trim()).filter(Boolean)))
+)
+
 const availableOptions = computed(() => {
-  if (props.availableModels !== undefined) {
-    return Array.from(new Set(props.availableModels.map(model => model.trim()).filter(Boolean)))
+  if (explicitModels.value !== undefined) {
+    return [...explicitModels.value]
       .sort()
       .map(model => ({ value: model, label: model }))
   }
@@ -301,12 +306,11 @@ const handleEnter = () => {
 }
 
 const fillRelated = () => {
+  const related = explicitModels.value ?? normalizedPlatforms.value.flatMap(platform => getModelsByPlatform(platform))
   const newModels = [...props.modelValue]
-  for (const platform of normalizedPlatforms.value) {
-    for (const model of getModelsByPlatform(platform)) {
-      if (!newModels.includes(model)) {
-        newModels.push(model)
-      }
+  for (const model of related) {
+    if (!newModels.includes(model)) {
+      newModels.push(model)
     }
   }
   emit('update:modelValue', newModels)

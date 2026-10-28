@@ -57,6 +57,12 @@ func TestExcelBPSErrorDoesNotAppendFallback(t *testing.T) {
 			_, err := gateway.Forward(context.Background(), c, account, []byte(body))
 			require.Error(t, err)
 			response := rec.Body.String()
+			if tt.name == "model_denied" {
+				var failover *service.UpstreamFailoverError
+				require.ErrorAs(t, err, &failover)
+				require.Empty(t, response, "the handler owns the final response after a failover error")
+				return
+			}
 			require.NotEmpty(t, response, "forward error: %v", err)
 			h := &OpenAIGatewayHandler{}
 			if !openAIForwardErrorAlreadyCommunicated(c, before, err) {

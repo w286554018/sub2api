@@ -55,3 +55,41 @@ func TestExcelOAuthRejectsWithoutEchoingCredentialBody(t *testing.T) {
 	require.ErrorContains(t, err, "status 401")
 	require.NotContains(t, err.Error(), "private-credential")
 }
+
+// The token refresh service recognizes a revoked Excel grant by its OAuth error
+// code, so an allowlisted code survives while the rest of the body is dropped.
+func TestExcelOAuthKeepsAllowlistedErrorCode(t *testing.T) {
+	for body, want := range map[string]string{
+		`{"error":"invalid_grant","error_description":"private-credential"}`:       "error: invalid_grant",
+		`{"error":{"code":"refresh_token_reused","message":"private-credential"}}`: "error: refresh_token_reused",
+		`{"error":"private_credential"}`:                                           "status 400",
+	} {
+		server := newLocalTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(body))
+		}))
+		client := &openaiOAuthService{tokenURL: server.URL}
+		_, err := client.RefreshTokenWithClientID(context.Background(), "excel-rt", "", openai.ExcelClientID)
+		server.Close()
+		require.ErrorContains(t, err, "status 400")
+		require.ErrorContains(t, err, want)
+		require.NotContains(t, err.Error(), "private")
+	}
+}
+
+func TestCodexOAuthTokenContractUnchanged(t *testing.T) {
+	var got *http.Request
+	server := newLocalTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		got = r
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"new-at","refresh_token":"new-rt","expires_in":3600}`))
+	}))
+	defer server.Close()
+	client := &openaiOAuthService{tokenURL: server.URL + "/oauth/token"}
+	_, err := client.RefreshTokenWithClientID(context.Background(), "codex-rt", "", openai.ClientID)
+	require.NoError(t, err)
+	require.False(t, got.URL.Query().Has("unified"))
+	require.Equal(t, openai.RefreshScopes, got.PostForm.Get("scope"))
+	require.NotEmpty(t, got.Header.Get("originator"))
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  defaultAllowImageGenerationForPlatform,
   getDefaultImagePreviewPrice,
   getDefaultVideoPreviewPrice,
   getImagePricePlaceholder,
@@ -27,14 +28,19 @@ describe("groups image pricing platform support", () => {
     expect(supportsImagePricingPlatform("anthropic")).toBe(false);
   });
 
+  it("defaults image generation on for Grok and Gemini-family groups only", () => {
+    expect(defaultAllowImageGenerationForPlatform("grok")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("gemini")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("antigravity")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("leonardo")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("fish")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("composite")).toBe(false);
+    expect(defaultAllowImageGenerationForPlatform("openai")).toBe(false);
+  });
+
   it("includes Composite groups in image pricing controls", () => {
     expect(supportsImagePricingPlatform("composite")).toBe(true);
     expect(imagePricingPlatforms.has("composite")).toBe(true);
-  });
-
-  it("includes Adobe image groups", () => {
-    expect(supportsImagePricingPlatform("adobe")).toBe(true);
-    expect(imagePricingPlatforms.has("adobe")).toBe(true);
   });
 
   it("keeps image and video pricing copy separate", () => {

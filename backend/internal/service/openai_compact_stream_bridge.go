@@ -117,6 +117,13 @@ func writeOpenAICompactSSEFailureMessageParam(c *gin.Context, statusCode int, er
 		return
 	}
 	MarkOpsStreamError(c, errType, message, statusCode)
+	errorBody := map[string]any{
+		"code":    errType,
+		"message": message,
+	}
+	if param != "" {
+		errorBody["param"] = param
+	}
 	payload, err := json.Marshal(map[string]any{
 		"type":            "response.failed",
 		"sequence_number": 0,
@@ -128,16 +135,7 @@ func writeOpenAICompactSSEFailureMessageParam(c *gin.Context, statusCode int, er
 			"created_at": time.Now().Unix(),
 			"status":     "failed",
 			"output":     []any{},
-			"error": func() map[string]any {
-				errorBody := map[string]any{
-					"code":    errType,
-					"message": message,
-				}
-				if param != "" {
-					errorBody["param"] = param
-				}
-				return errorBody
-			}(),
+			"error":      errorBody,
 		},
 	})
 	if err != nil {

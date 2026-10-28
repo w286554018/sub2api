@@ -21,6 +21,8 @@ const (
 	// ExcelClientID is the production client published by the official Excel
 	// add-in (x-square-G80magJa.js, verified 2026-10-08). Existing Codex tokens
 	// cannot be converted into Excel sessions by changing this value.
+	// add-in. Existing Codex tokens cannot be converted into Excel sessions
+	// by changing this value.
 	ExcelClientID     = "app_fnr0pYvVwwFDocDumLG3H2Bp"
 	ExcelAuthorizeURL = "https://auth.openai.com/api/accounts/authorize"
 	ExcelRedirectURI  = "https://bps.openai.com/basispoints/extension/360590d7-f8f9-4d88-bf75-0edfe0a4b9f3/auth/callback"

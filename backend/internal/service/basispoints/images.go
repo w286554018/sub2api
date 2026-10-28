@@ -22,7 +22,9 @@ func validateImage(part object) error {
 			return fmt.Errorf("basispoints input_image requires an HTTPS image_url or file_id")
 		}
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(raw)), "data:") {
-			return fmt.Errorf("basispoints does not accept data:image input while image support is disabled; ask an administrator to enable BPS image support, provide an HTTPS image URL, or disable Basispoints and start a new conversation")
+			// Data URLs are uploaded natively before validation; one that reaches
+			// this point was not part of the validated native image plan.
+			return fmt.Errorf("basispoints accepts data:image input only as message content or tool output; provide an HTTPS image URL or file_id instead")
 		}
 		parsed, err := url.Parse(raw)
 		if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.Opaque != "" || strings.TrimSpace(raw) != raw {

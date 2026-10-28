@@ -221,6 +221,33 @@ func TestCompositeRouteResolverDoesNotGuessAmbiguousAccountOwnership(t *testing.
 	require.False(t, decision.Matched)
 	require.Empty(t, decision.TargetPlatform)
 	require.Equal(t, "model is exposed by multiple provider platforms", decision.Reason)
+	require.False(t, decision.OAuthAmbiguous())
+}
+
+// Scenario: 含 OAuth 账号的跨平台歧义必须被识别为需拒绝的配置错误
+func TestCompositeRouteResolverFlagsOAuthAmbiguousOwnership(t *testing.T) {
+	resolver := NewCompositeRouteResolver(nil)
+	resolver.SetModelOwnershipResolver(func(context.Context, int64, string) (CompositeModelOwnership, error) {
+		return CompositeModelOwnership{Ambiguous: true, OpenAIGatewayOAuthClaimed: true}, nil
+	})
+
+	// gpt-* 可被内置探测器识别，验证歧义不会退化为按模型名猜平台。
+	decision, err := resolver.Resolve(context.Background(), 7, "gpt-6-astra", CompositeRouteEndpointResponses)
+
+	require.NoError(t, err)
+	require.False(t, decision.Matched)
+	require.Empty(t, decision.TargetPlatform)
+	require.True(t, decision.OAuthAmbiguous())
+	require.Contains(t, decision.AmbiguousMessage(), `"gpt-6-astra"`)
+
+	// 兜底按模型名落到 Anthropic（如 OpenAI OAuth 映射 claude-* 给 Claude Code 用）
+	// 或无法兜底的自定义别名：OpenAI 网关 OAuth 不会被选中，保持原有行为。
+	for _, model := range []string{"claude-sonnet-4-6", "team-alias"} {
+		decision, err := resolver.Resolve(context.Background(), 7, model, CompositeRouteEndpointMessages)
+		require.NoError(t, err)
+		require.False(t, decision.OAuthAmbiguous(), "model=%s", model)
+		require.Equal(t, CompositeRouteReasonAmbiguous, decision.Reason, "model=%s", model)
+	}
 }
 
 func TestCompositeRouteResolverOwnershipLookupErrorFallsBackOnlyForDetectableModels(t *testing.T) {
@@ -472,8 +499,8 @@ func TestCompositeRouteResolverSharedGeminiImageUsesEndpoint(t *testing.T) {
 		{CompositeRouteEndpointMessages, PlatformGemini, true},
 		{CompositeRouteEndpointCountTokens, PlatformGemini, true},
 		{CompositeRouteEndpointEmbeddings, PlatformGemini, true},
-		{CompositeRouteEndpointGemini, "", false},
-		{CompositeRouteEndpointAny, "", false},
+		{CompositeRouteEndpointGemini, PlatformGemini, true},
+		{CompositeRouteEndpointAny, PlatformGemini, true},
 	}
 	resolver := NewCompositeRouteResolver(nil)
 	for _, model := range models {
@@ -533,7 +560,9 @@ func TestCompositeRouteResolverSharedGeminiImageOwnershipErrorDoesNotFail(t *tes
 
 	decision, err := resolver.Resolve(context.Background(), 7, "gemini-3-pro-image", CompositeRouteEndpointGemini)
 	require.NoError(t, err)
-	require.False(t, decision.Matched)
+	require.True(t, decision.Matched)
+	require.Equal(t, CompositeRouteSourceDetector, decision.Source)
+	require.Equal(t, PlatformGemini, decision.TargetPlatform)
 }
 
 func TestCompositeExactRouteCatalogKeepsTypeSafeOutOfLLMCatalogs(t *testing.T) {

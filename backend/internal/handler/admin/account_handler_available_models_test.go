@@ -354,11 +354,12 @@ func TestAccountHandlerGetAvailableModels_Antigravity(t *testing.T) {
 		{name: "empty JSON mapping", credentials: map[string]any{"model_mapping": map[string]any{}}, want: defaults},
 		{name: "empty string mapping", credentials: map[string]any{"model_mapping": map[string]string{}}, want: defaults},
 		{name: "blank key", credentials: map[string]any{"model_mapping": map[string]any{" ": "upstream-model"}}, want: defaults},
-		{name: "JSON mapping keys and metadata", credentials: map[string]any{"model_mapping": map[string]any{
-			known.ID: known.ID, custom.ID: "upstream-model",
+		{name: "wildcard only falls back to defaults", credentials: map[string]any{"model_mapping": map[string]any{"claude-*": "claude-sonnet-4-6", "gemini-3*": "gemini-3-flash"}}, want: defaults},
+		{name: "JSON mapping keys and metadata skips wildcards", credentials: map[string]any{"model_mapping": map[string]any{
+			known.ID: known.ID, custom.ID: "upstream-model", "claude-*": "claude-sonnet-4-6",
 		}}, want: []antigravity.ClaudeModel{custom, known}},
-		{name: "string mapping keys and metadata", credentials: map[string]any{"model_mapping": map[string]string{
-			known.ID: known.ID, custom.ID: "upstream-model",
+		{name: "string mapping keys and metadata skips wildcards", credentials: map[string]any{"model_mapping": map[string]string{
+			known.ID: known.ID, custom.ID: "upstream-model", "gemini-*": "gemini-3-flash",
 		}}, want: []antigravity.ClaudeModel{custom, known}},
 	}
 	for _, tc := range cases {
@@ -872,5 +873,55 @@ func TestAccountHandlerGetAvailableModels_TypeSafeOnlyReturnsJev(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, "jev-latest", resp.Data[0].ID)
+	}
+}
+
+// A BPS-only account's test picker lists its configured models in a stable
+// order: the model restriction keys, or the default BPS models while it is
+// empty. It never lists the native defaults and never calls BPS.
+func TestAccountHandlerGetAvailableModels_BPSOAuthListsConfiguredModels(t *testing.T) {
+	for name, tc := range map[string]struct {
+		credentials map[string]any
+		extra       map[string]any
+		want        []string
+	}{
+		"model restriction": {
+			credentials: map[string]any{"client_id": "excel", "model_mapping": map[string]any{
+				"gpt-7-new": "gpt-7-new", "z-sol": "gpt-5.6-sol", "a-terra": "gpt-5.6-terra",
+			}},
+			want: []string{"a-terra", "gpt-7-new", "z-sol"},
+		},
+		"empty restriction uses the defaults": {
+			credentials: map[string]any{"client_id": "excel"},
+			extra:       map[string]any{"openai_excel_bps_models": []any{"gpt-5.6-sol"}},
+			want:        service.ExcelBPSDefaultModels,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc := &availableModelsAdminService{
+				stubAdminService: newStubAdminService(),
+				account: service.Account{
+					ID: 48, Name: "bps", Platform: service.PlatformOpenAI, Type: service.AccountTypeBPSOAuth,
+					Status: service.StatusActive, Credentials: tc.credentials, Extra: tc.extra,
+				},
+			}
+			router := setupAvailableModelsRouter(svc)
+			for i := 0; i < 3; i++ {
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/48/models", nil))
+				require.Equal(t, http.StatusOK, rec.Code)
+				var resp struct {
+					Data []struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				}
+				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+				ids := make([]string, 0, len(resp.Data))
+				for _, model := range resp.Data {
+					ids = append(ids, model.ID)
+				}
+				require.Equal(t, tc.want, ids)
+			}
+		})
 	}
 }

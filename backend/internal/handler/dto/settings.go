@@ -211,6 +211,7 @@ type SystemSettings struct {
 
 	// Gateway forwarding behavior
 	OpenAITTFTMode                          string `json:"openai_ttft_mode"`
+	GatewayKiroTokenizer                    string `json:"gateway_kiro_tokenizer"`
 	EnableFingerprintUnification            bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough               bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                        bool   `json:"enable_cch_signing"`
@@ -238,6 +239,8 @@ type SystemSettings struct {
 	OpenAIRequestTimezoneEnabled     bool                                      `json:"openai_request_timezone_enabled"`
 	OpenAICodexTicketStaticProxyURL  string                                    `json:"openai_codex_ticket_static_proxy_url,omitempty"`
 	OpenAICodexTicketModels          []string                                  `json:"openai_codex_ticket_models"`
+	FishImageMaxCropPixels           int                                       `json:"fish_image_max_crop_pixels"`
+	FishImageMaxUpscaleFactor        float64                                   `json:"fish_image_max_upscale_factor"`
 
 	// codex_cli_only 加固
 	MinCodexVersion                      string `json:"min_codex_version"`

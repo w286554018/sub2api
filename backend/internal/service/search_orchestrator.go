@@ -110,7 +110,7 @@ func (o *kiroSearchOrchestrator) runNonStreaming(
 	var rounds []kiropkg.SearchRound
 	seenQueries := make(map[string]bool)
 	var totalResultBytes int
-	inputTokens := estimateKiroInputTokens(ctx, anthropicBody)
+	inputTokens := estimateKiroInputTokens(ctx, o.svc.kiroMeteringAlgorithm(ctx), anthropicBody)
 
 	for i := 0; i < o.cfg.MaxRounds; i++ {
 		// Check context

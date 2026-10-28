@@ -34,16 +34,18 @@ func TestExcelBPSAutoDisableOn403(t *testing.T) {
 		changed    bool
 		writeErr   error
 		wantCalls  int
+		failover   GatewayFailureReason
 	}{
-		{name: "default off", status: 403},
-		{name: "enabled", status: 403, optIn: true, changed: true, wantCalls: 1},
-		{name: "settings already changed", status: 403, optIn: true, wantCalls: 1},
-		{name: "write failed", status: 403, optIn: true, writeErr: errors.New("write failed"), wantCalls: 1},
-		{name: "model access denied", status: 403, optIn: true, modelError: true},
+		{name: "default off", status: 403, failover: ExcelBPSAccountRejectedReason},
+		{name: "enabled", status: 403, optIn: true, changed: true, wantCalls: 1, failover: ExcelBPSAccountRejectedReason},
+		{name: "settings already changed", status: 403, optIn: true, wantCalls: 1, failover: ExcelBPSAccountRejectedReason},
+		{name: "write failed", status: 403, optIn: true, writeErr: errors.New("write failed"), wantCalls: 1, failover: ExcelBPSAccountRejectedReason},
+		{name: "model access denied", status: 403, optIn: true, modelError: true, failover: ExcelBPSModelNotAllowedReason},
 		{name: "bad request", status: 400, optIn: true},
-		{name: "unauthorized", status: 401, optIn: true},
-		{name: "rate limited", status: 429, optIn: true},
-		{name: "server error", status: 500, optIn: true},
+		{name: "unauthorized", status: 401, optIn: true, failover: ExcelBPSAccountRejectedReason},
+		{name: "payment required", status: 402, optIn: true, failover: ExcelBPSAccountRejectedReason},
+		{name: "rate limited", status: 429, optIn: true, failover: ExcelBPSRateLimitedReason},
+		{name: "server error", status: 500, optIn: true, failover: ExcelBPSUpstreamErrorReason},
 	} {
 		for _, stream := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/stream=%v", tc.name, stream), func(t *testing.T) {
@@ -70,17 +72,24 @@ func TestExcelBPSAutoDisableOn403(t *testing.T) {
 				c, _ := gin.CreateTestContext(rec)
 				c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 				_, err := svc.Forward(context.Background(), c, account, []byte(fmt.Sprintf(`{"model":"gpt-6-astra","input":"test","stream":%v}`, stream)))
-				if tc.status == http.StatusTooManyRequests {
+				if tc.failover == ExcelBPSRateLimitedReason {
 					// The handler answers after trying other accounts.
 					requireExcelBPSRateLimitFailover(t, err, c)
-					wantCode = ""
+				} else if tc.failover != "" {
+					var failover *UpstreamFailoverError
+					require.ErrorAs(t, err, &failover)
+					require.Equal(t, tc.failover, failover.Reason)
+					require.Equal(t, tc.status, failover.StatusCode)
+					require.True(t, failover.ShouldRetryNextAccount())
+					require.Empty(t, failover.ResponseBody)
+					require.False(t, c.Writer.Written(), "leave the response to the handler")
+					require.Zero(t, rec.Body.Len())
 				} else {
 					require.EqualError(t, err, "excel BPS: "+wantCode)
 					require.Equal(t, tc.status, rec.Code)
+					require.Equal(t, wantCode, gjson.Get(rec.Body.String(), "error.code").String())
+					require.NotContains(t, rec.Body.String(), "PRIVATE_UPSTREAM")
 				}
-				require.Equal(t, wantCode, gjson.Get(rec.Body.String(), "error.code").String())
-				require.Equal(t, tc.changed && tc.writeErr == nil, strings.Contains(rec.Body.String(), "automatically disabled"))
-				require.NotContains(t, rec.Body.String(), "PRIVATE_UPSTREAM")
 				require.Equal(t, tc.wantCalls, calls)
 				require.Len(t, upstream.requests, 1, "do not replay the failed request")
 				require.True(t, account.IsExcelBPSEnabled(), "do not mutate a shared scheduler snapshot")
