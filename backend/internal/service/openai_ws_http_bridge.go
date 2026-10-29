@@ -446,6 +446,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	// 一次调用 = 一个对话回合（ingress 的 for turn := 1; ; turn++ 循环），所以收尾
 	// 也按回合注册：既覆盖本回合的重试循环，又让下一个回合从干净的 memo 重新开始。
 	defer finishCodexTelemetryTurn(c)
+	ctx = withOpenAITransportMode(ctx, "http_bridge")
 	responseModelObserver := &upstreamResponseModelObserver{}
 
 	body, err := prepareOpenAIWSHTTPBridgeBody(account, payload)
@@ -563,7 +564,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			return nil, buildErr
 		}
 		telemetryAttempt := s.beginCodexTelemetry(c, account, body, upstreamReq.Header)
-		latest, admissionErr := s.admitOpenAITurn(ctx, c, account, actualModel)
+		latest, admissionErr := s.admitOpenAITurn(ctx, c, account, actualModel, body)
 		if admissionErr == nil {
 			admissionErr = s.applyOpenAICodexTicket(ctx, latest, actualModel, upstreamReq.Header)
 		}
@@ -610,7 +611,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if resp.StatusCode == http.StatusBadRequest &&
 			extractUpstreamErrorCode(respBody) == openAIWSFallbackReasonInvalidEncryptedContent {
 			s.markOpenAIWSInvalidEncryptedContentLineageFromPayload(
-				c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn,
+				c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn, respBody,
 			)
 		}
 		retryBody, retryReason, changed, retryErr := normalizeOpenAIResponsesRejectedFieldRetryBody(resp.StatusCode, body, respBody)
@@ -867,9 +868,12 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				}
 				if reason, _ := classifyOpenAIWSErrorEventFromRaw(errCodeRaw, errTypeRaw, errMessage); reason == openAIWSFallbackReasonInvalidEncryptedContent {
 					s.markOpenAIWSInvalidEncryptedContentLineageFromPayload(
-						c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn,
+						c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn, upstreamMessage,
 					)
 				}
+			}
+			if eventType == "response.failed" && isOpenAIInvalidEncryptedContentSSE(upstreamMessage, eventType) {
+				s.markOpenAIWSInvalidEncryptedContentLineageFromPayload(c, body, "ingress_ws_http_bridge_invalid_encrypted_lineage_mark", account.ID, turn, upstreamMessage)
 			}
 			requestScopedCapacity := isOpenAIUpstreamCapacityShedEvent(upstreamMessage)
 			if account.Platform == PlatformGrok && (eventType == "error" || eventType == "response.failed") {

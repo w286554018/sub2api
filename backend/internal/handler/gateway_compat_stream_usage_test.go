@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
+	"github.com/Wei-Shaw/sub2api/internal/repository"
 	middleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -68,8 +69,14 @@ type compatStreamUsageRun struct {
 // runCompatStreamUsageHandler 经 GatewayHandler 转发一次流式请求；上游写完 upstreamStream 后，
 // closeUpstream 为 false 时保持连接不再发送数据。
 func runCompatStreamUsageHandler(t *testing.T, endpoint, upstreamStream string, closeUpstream bool) compatStreamUsageRun {
+	return runCompatStreamUsageHandlerWithDelivery(t, endpoint, upstreamStream, closeUpstream, nil, "")
+}
+
+func runCompatStreamUsageHandlerWithDelivery(t *testing.T, endpoint, upstreamStream string, closeUpstream bool, durable service.UsageBillingRepository, baseURL string) compatStreamUsageRun {
 	t.Helper()
 	cfg := &config.Config{Gateway: config.GatewayConfig{StreamDataIntervalTimeout: 1}}
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 	groupID := int64(9300)
 	group := &service.Group{ID: groupID, Hydrated: true, Platform: service.PlatformAnthropic, Status: service.StatusActive, RateMultiplier: 1}
 	account := &service.Account{
@@ -99,9 +106,18 @@ func runCompatStreamUsageHandler(t *testing.T, endpoint, upstreamStream string, 
 		StatusCode: http.StatusOK, Body: pr,
 		Header: http.Header{"X-Request-Id": []string{"compat-stream-usage"}},
 	}}
+	var billing service.UsageBillingRepository = run.billingRepo
+	var transport service.HTTPUpstream = run.upstream
+	if durable != nil {
+		billing = durable
+	}
+	if baseURL != "" {
+		account.Credentials["base_url"] = baseURL
+		transport = repository.NewHTTPUpstream(cfg)
+	}
 	gw := service.NewGatewayService(
-		nil, &fakeGroupRepo{group: group}, run.usageRepo, run.billingRepo, nil, nil, nil, nil, cfg,
-		snapshot, nil, service.NewBillingService(cfg, nil), nil, nil, nil, run.upstream,
+		nil, &fakeGroupRepo{group: group}, run.usageRepo, billing, nil, nil, nil, nil, cfg,
+		snapshot, nil, service.NewBillingService(cfg, nil), nil, nil, nil, transport,
 		&service.DeferredService{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 	h := &GatewayHandler{
@@ -225,5 +241,29 @@ func TestGatewayCompatibilityHandlers_UpstreamErrorEventAfterOutputIsNotBilled(t
 			require.Empty(t, run.billingRepo.commands, "an upstream error event is not billed while the client is online")
 			require.Empty(t, run.usageRepo.created)
 		})
+	}
+}
+
+// Runs the actual handlers and HTTP adapter: a refusal before any output must
+// terminate the request, even when a success stream is queued behind it.
+func TestGatewayCompatibilityHandlersSafetyRefusalNeverReplays(t *testing.T) {
+	for _, endpoint := range []string{"chat/completions", "responses"} {
+		for _, rejection := range []string{
+			`{"type":"error","error":{"type":"permission_error","code":"cyber_policy","message":"blocked"}}`,
+			`{"type":"error","error":{"type":"invalid_request_error","message":"This request was blocked by safeguard policy."}}`,
+		} {
+			t.Run(endpoint+"/"+rejection, func(t *testing.T) {
+				stream := "event: error\ndata: " + rejection + "\n\n" + compatStreamUsagePartialStream + compatStreamUsageCompletion
+				run := runCompatStreamUsageHandler(t, endpoint, stream, true)
+				require.Equal(t, 1, run.upstream.calls, "safety rejection must never replay")
+				require.NotContains(t, run.rec.Body.String(), "partial", "queued output after refusal must not be forwarded")
+				success, failure := compatStreamUsageMarkers(endpoint)
+				require.NotContains(t, run.rec.Body.String(), success)
+				require.Contains(t, run.rec.Body.String(), failure)
+				run.billingRepo.mu.Lock()
+				defer run.billingRepo.mu.Unlock()
+				require.Empty(t, run.billingRepo.commands, "refusal must not create a successful usage debit")
+			})
+		}
 	}
 }

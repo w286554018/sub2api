@@ -590,7 +590,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}
-	if requestedModel != "" && !account.IsModelSupportedInGroup(groupID, requestedModel) {
+	if requestedModel != "" && (!supportsOpenAIRequestModel(account, requestedModel, requireCompact) || !account.IsModelAllowedInGroup(groupID, requestedModel)) {
 		return 0, nil, "", nil
 	}
 	if requestedModel != "" && !supportsOpenAIRequestModel(account, requestedModel, requireCompact) {
@@ -632,7 +632,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
-		if requestedModel != "" && !latest.IsModelSupportedInGroup(groupID, requestedModel) {
+		if requestedModel != "" && (!supportsOpenAIRequestModel(latest, requestedModel, requireCompact) || !latest.IsModelAllowedInGroup(groupID, requestedModel)) {
 			return 0, nil, "", nil
 		}
 		if requestedModel != "" && !supportsOpenAIRequestModel(latest, requestedModel, requireCompact) {

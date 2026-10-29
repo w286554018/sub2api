@@ -1177,6 +1177,10 @@ type GatewayConfig struct {
 	GrokResponseHeaderTimeout int `mapstructure:"grok_response_header_timeout"`
 	// OpenAIFirstOutputTimeoutSeconds: native HTTP Responses 首个语义输出超时（秒），0表示禁用。
 	OpenAIFirstOutputTimeoutSeconds int `mapstructure:"openai_first_output_timeout_seconds"`
+	// HTTP submission deadline shared across retries; zero disables it.
+	OpenAIUploadTimeoutSeconds int `mapstructure:"openai_upload_timeout_seconds"`
+	// Shared HTTP budget before the first complete model output event; zero disables it.
+	OpenAIPreOutputBudgetSeconds int `mapstructure:"openai_pre_output_budget_seconds"`
 	// OpenAIHighEffortFirstOutputTimeoutSeconds: high/xhigh/max 推理的首个语义输出超时（秒）。
 	// 0 表示回退到 OpenAIFirstOutputTimeoutSeconds。
 	OpenAIHighEffortFirstOutputTimeoutSeconds int `mapstructure:"openai_high_effort_first_output_timeout_seconds"`
@@ -1236,7 +1240,7 @@ type GatewayConfig struct {
 	// OpenAICompactModel: /responses/compact 上游使用的模型。
 	// compact 端点支持模型滞后于普通 /responses 时，可用该配置降级规避上游错误。
 	OpenAICompactModel string `mapstructure:"openai_compact_model"`
-	// OpenAICodexTicket: ChatGPT OAuth 账号按 (账号, 模型) 捕获 292 长度
+	// OpenAICodexTicket: ChatGPT OAuth 账号按 (账号, 模型) 捕获配置长度
 	// x-codex-turn-state，并在住宅 IP 业务请求中注入该头。默认关闭。
 	OpenAICodexTicket OpenAICodexTicketConfig `mapstructure:"openai_codex_ticket"`
 	// OpenAIWS: OpenAI Responses WebSocket 配置（默认开启，可按需回滚到 HTTP）
@@ -1472,7 +1476,7 @@ func (c *UserMessageQueueConfig) GetEffectiveMode() string {
 
 // OpenAICodexTicketConfig 控制 ChatGPT OAuth 的 x-codex-turn-state 门票。
 // 打票走 harvest_proxy_url（SOCKS），业务出站仍用账号住宅 proxy_id，只替换该请求头。
-// 门票默认有效 3600 秒，临近过期前 refresh_before_seconds 重新打票。
+// 780 长度门票最多有效 240 秒，其他支持长度约 1 小时；刷新提前量单独配置。
 type OpenAICodexTicketPlanLengthRule struct {
 	Plan   string `json:"plan"`
 	Length int    `json:"length"`
@@ -2292,6 +2296,14 @@ func configureConfigSource(setConfigFile, addConfigPath func(string)) {
 func setDefaults() {
 	viper.SetDefault("gateway.upstream_routing.enabled", false)
 	viper.SetDefault("runtime.role", RuntimeRoleFull)
+	viper.SetDefault("runtime.node_id", "")
+	viper.SetDefault("runtime.image_relay_owner_origin", "")
+	viper.SetDefault("runtime.ws_node_owner.enabled", false)
+	viper.SetDefault("runtime.ws_node_owner.node_id", "")
+	viper.SetDefault("runtime.scheduler_snapshot_mode", SchedulerSnapshotModeAuto)
+	viper.SetDefault("runtime.scheduler_readiness.enabled", false)
+	viper.SetDefault("runtime.scheduler_readiness.buckets", []string{})
+	viper.SetDefault("runtime.scheduler_readiness.max_age_seconds", 900)
 	viper.SetDefault("runtime.regional_scheduler_file", "")
 	viper.SetDefault("runtime.regional_auth_file", "")
 	viper.SetDefault("runtime.regional_concurrency_file", "")
@@ -2693,6 +2705,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_response_header_timeout", 0)
 	viper.SetDefault("gateway.grok_response_header_timeout", 120)
 	viper.SetDefault("gateway.openai_first_output_timeout_seconds", 0)
+	viper.SetDefault("gateway.openai_upload_timeout_seconds", 0)
+	viper.SetDefault("gateway.openai_pre_output_budget_seconds", 0)
 	viper.SetDefault("gateway.openai_high_effort_first_output_timeout_seconds", 0)
 	viper.SetDefault("gateway.log_upstream_error_body", true)
 	viper.SetDefault("gateway.log_upstream_error_body_max_bytes", 2048)
@@ -2720,16 +2734,16 @@ func setDefaults() {
 	viper.SetDefault("gateway.codex_statsig_api_key", "")
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
-	viper.SetDefault("gateway.openai_compact_model", "gpt-5.5")
+	viper.SetDefault("gateway.openai_compact_model", "gpt-6.1-sol")
 	viper.SetDefault("gateway.prism_browser.enabled", false)
 	viper.SetDefault("gateway.prism_browser.base_url", "http://127.0.0.1:8319/v1")
 	viper.SetDefault("gateway.prism_browser.api_key", "")
 	viper.SetDefault("gateway.openai_codex_ticket.enabled", false)
-	viper.SetDefault("gateway.openai_codex_ticket.target_length", 292)
-	viper.SetDefault("gateway.openai_codex_ticket.ttl_seconds", 3600)
-	viper.SetDefault("gateway.openai_codex_ticket.refresh_before_seconds", 600)
+	viper.SetDefault("gateway.openai_codex_ticket.target_length", 780)
+	viper.SetDefault("gateway.openai_codex_ticket.ttl_seconds", 240)
+	viper.SetDefault("gateway.openai_codex_ticket.refresh_before_seconds", 60)
 	viper.SetDefault("gateway.openai_codex_ticket.harvest_proxy_url", "")
-	viper.SetDefault("gateway.openai_codex_ticket.harvest_probe_interval_seconds", 6)
+	viper.SetDefault("gateway.openai_codex_ticket.harvest_probe_interval_seconds", 180)
 	viper.SetDefault("gateway.openai_codex_ticket.harvest_cooldown_seconds", 180)
 	viper.SetDefault("gateway.openai_codex_ticket.max_probes_per_round", 6)
 	viper.SetDefault("gateway.openai_codex_ticket.harvest_attempt_timeout_seconds", 25)
@@ -3690,6 +3704,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Gateway.GrokResponseHeaderTimeout < 0 || c.Gateway.GrokResponseHeaderTimeout > 1800 {
 		return fmt.Errorf("gateway.grok_response_header_timeout must be between 0-1800 seconds")
+	}
+	if c.Gateway.OpenAIUploadTimeoutSeconds < 0 || c.Gateway.OpenAIUploadTimeoutSeconds > 1800 {
+		return fmt.Errorf("gateway.openai_upload_timeout_seconds must be between 0-1800 seconds")
+	}
+	if c.Gateway.OpenAIPreOutputBudgetSeconds < 0 || c.Gateway.OpenAIPreOutputBudgetSeconds > 3600 {
+		return fmt.Errorf("gateway.openai_pre_output_budget_seconds must be between 0-3600 seconds")
 	}
 	if c.Gateway.OpenAIFirstOutputTimeoutSeconds < 0 || c.Gateway.OpenAIFirstOutputTimeoutSeconds > 600 ||
 		(c.Gateway.OpenAIFirstOutputTimeoutSeconds > 0 && c.Gateway.OpenAIFirstOutputTimeoutSeconds < 30) {

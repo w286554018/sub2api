@@ -32,7 +32,7 @@ func TestCodexTicketCookiesRefreshOnlyFromAcceptedState(t *testing.T) {
 	state := fakeCodexTicketState(292)
 
 	t.Run("312 does not refresh frozen cookies", func(t *testing.T) {
-		svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, nil)
+		svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, nil)
 		require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 			Model: "gpt-6-astra", State: state, Length: 292, CapturedAt: oldAt, ExpiresAt: time.Now().Add(time.Hour),
 			HarvestCookies: []string{"__cflb=good"}, HarvestCookiesAt: oldAt,
@@ -50,7 +50,7 @@ func TestCodexTicketCookiesRefreshOnlyFromAcceptedState(t *testing.T) {
 	})
 
 	t.Run("292 refreshes and merges frozen cookies", func(t *testing.T) {
-		svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, nil)
+		svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, nil)
 		require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 			Model: "gpt-6-astra", State: state, Length: 292, CapturedAt: oldAt, ExpiresAt: time.Now().Add(time.Hour),
 			HarvestCookies: []string{"__cflb=old", "stable=keep"}, HarvestCookiesAt: oldAt,

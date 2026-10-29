@@ -413,6 +413,31 @@ func TestHandleResponsesBufferedStreamingResponse_PreservesMessageStartCacheUsag
 	require.Contains(t, rec.Body.String(), `"cached_tokens":9`)
 }
 
+func TestHandleResponsesBufferedStreamingResponseSafetyRejectionNeverReplays(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	resp := &http.Response{
+		Header: http.Header{"x-request-id": []string{"rid_safety"}},
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			`event: error`,
+			`data: {"type":"error","error":{"type":"permission_error","code":"cyber_policy","message":"blocked"}}`,
+			``,
+			`event: message_start`,
+			`data: {"type":"message_start","message":{"id":"msg_queued","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4.5"}}`,
+			``,
+		}, "\n"))),
+	}
+
+	result, err := (&GatewayService{}).handleResponsesBufferedStreamingResponse(resp, c, "claude-sonnet-4.5", "claude-sonnet-4.5", nil, time.Now(), apicompat.ResponsesClientToolMapping{})
+	require.ErrorContains(t, err, "upstream safety rejection")
+	require.Nil(t, result)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.True(t, IsResponseCommitted(c))
+	require.Contains(t, rec.Body.String(), "permission_error")
+	require.NotContains(t, rec.Body.String(), "msg_queued")
+}
+
 func TestHandleResponsesStreamingResponse_PreservesMessageStartCacheUsage(t *testing.T) {
 	t.Parallel()
 	gin.SetMode(gin.TestMode)

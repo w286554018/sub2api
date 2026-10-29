@@ -68,8 +68,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 初始化默认设置
 	defaults := map[string]string{
 		SettingKeyRegistrationEnabled:                       "true",
+		SettingKeyLoginRateLimitEnabled:                     "true",
+		SettingKeyRegistrationIPLimitEnabled:                "true",
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
+		SettingKeyRegistrationEmailAliasBlockEnabled:        "true",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
 		SettingKeyLoginAgreementEnabled:                     "false",
@@ -275,6 +278,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpenAICodexClientVersion:                           "",
 		SettingKeyOpenAICodexClientVersionSynced:                     "",
 		SettingKeyOpenAICodexVersionAutoSyncEnabled:                  "true",
+		SettingKeyOpenAIRequestTimezoneEnabled:                       "true",
+		SettingKeyOpenAIRequestTimezoneAuto:                          "true",
 		SettingKeyOpenAICodexTicketHarvestProxyURL:                   "",
 		SettingKeyClaudeCodeClientVersion:                            "",
 		SettingKeyClaudeCodeClientVersionSynced:                      "",
@@ -303,21 +308,22 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyExcelBPSImageRelayEnabled:  "true",
 		SettingKeyExcelBPSImageBaseURL:       "",
 
-		SettingKeyUsageShowLongContextBadge:     "true",
-		SettingKeyUsageShowCacheRate:            "true",
-		SettingKeyUsageShowCacheRateToUsers:     "false",
-		SettingKeyExcelBPSImageBodyLimitMiB:     strconv.Itoa(DefaultExcelBPSImageBodyLimitMiB),
-		SettingKeyExcelBPSImageBudgetMiB:        strconv.Itoa(DefaultExcelBPSImageBudgetMiB),
-		SettingKeyExcelBPSImageMaxRequests:      strconv.Itoa(DefaultExcelBPSImageMaxRequests),
-		SettingKeyExcelBPSImageMaxImageMiB:      "20",
-		SettingKeyExcelBPSImageLimitPolicy:      "off",
-		SettingKeyExcelBPSImageWarningRemaining: "8",
-		SettingKeyExcelBPSImageCompactReserve:   "3",
-		SettingKeyExcelBPSImageMaxImages:        "20",
-		SettingKeyExcelBPSImageMaxTotalMiB:      "32",
-		SettingKeyExcelBPSImageStorageMiB:       "1024",
-		SettingKeyExcelBPSImageStorageEntries:   "512",
-		SettingKeyExcelBPSImageTTLMinutes:       "30",
+		SettingKeyUsageShowLongContextBadge:             "true",
+		SettingKeyUsageShowCacheRate:                    "true",
+		SettingKeyUsageShowCacheRateToUsers:             "false",
+		SettingKeyUsageShowUpstreamResponseModelToUsers: "false",
+		SettingKeyExcelBPSImageBodyLimitMiB:             strconv.Itoa(DefaultExcelBPSImageBodyLimitMiB),
+		SettingKeyExcelBPSImageBudgetMiB:                strconv.Itoa(DefaultExcelBPSImageBudgetMiB),
+		SettingKeyExcelBPSImageMaxRequests:              strconv.Itoa(DefaultExcelBPSImageMaxRequests),
+		SettingKeyExcelBPSImageMaxImageMiB:              "20",
+		SettingKeyExcelBPSImageLimitPolicy:              "off",
+		SettingKeyExcelBPSImageWarningRemaining:         "8",
+		SettingKeyExcelBPSImageCompactReserve:           "3",
+		SettingKeyExcelBPSImageMaxImages:                "20",
+		SettingKeyExcelBPSImageMaxTotalMiB:              "32",
+		SettingKeyExcelBPSImageStorageMiB:               "1024",
+		SettingKeyExcelBPSImageStorageEntries:           "512",
+		SettingKeyExcelBPSImageTTLMinutes:               "30",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -368,8 +374,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result := &SystemSettings{
 		RegistrationEnabled:                    settings[SettingKeyRegistrationEnabled] == "true",
+		LoginRateLimitEnabled:                  settings[SettingKeyLoginRateLimitEnabled] != "false",
+		RegistrationIPLimitEnabled:             settings[SettingKeyRegistrationIPLimitEnabled] != "false",
 		EmailVerifyEnabled:                     emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
+		RegistrationEmailAliasBlockEnabled:     settings[SettingKeyRegistrationEmailAliasBlockEnabled] != "false",
 		RegistrationEmailDomainQuotaEnabled:    settings[SettingKeyRegistrationEmailDomainQuotaEnabled] == "true",
 		PromoCodeEnabled:                       settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
@@ -976,8 +985,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.OpenAICodexVersionAutoSyncEnabled = true
 	}
-	result.OpenAIRequestTimezoneEnabled = settings[SettingKeyOpenAIRequestTimezoneEnabled] == "true"
-	result.OpenAIRequestTimezoneAuto = settings[SettingKeyOpenAIRequestTimezoneAuto] == "true"
+	result.OpenAIRequestTimezoneEnabled = strings.TrimSpace(settings[SettingKeyOpenAIRequestTimezoneEnabled]) == "" || settings[SettingKeyOpenAIRequestTimezoneEnabled] == "true"
+	result.OpenAIRequestTimezoneAuto = strings.TrimSpace(settings[SettingKeyOpenAIRequestTimezoneAuto]) == "" || settings[SettingKeyOpenAIRequestTimezoneAuto] == "true"
 	if v, ok := settings[SettingKeyOpenAICodexTicketEnabled]; ok && v != "" {
 		result.OpenAICodexTicketEnabled = v == "true"
 	} else if s != nil && s.cfg != nil {
@@ -1013,7 +1022,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else if s != nil && s.cfg != nil {
 		result.OpenAICodexTicketFailClosed = s.cfg.Gateway.OpenAICodexTicket.FailClosed
 	}
-	// 门票默认长度：后台值优先，缺失/非法回退 yaml target_length（兜底 292）。
+	// 门票默认长度：后台值优先，缺失/非法回退 yaml target_length（兜底 780）。
 	result.OpenAICodexTicketDefaultLength = 0
 	if s != nil && s.cfg != nil {
 		result.OpenAICodexTicketDefaultLength = s.cfg.Gateway.OpenAICodexTicket.TargetLength
@@ -1024,7 +1033,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		}
 	}
 	if result.OpenAICodexTicketDefaultLength <= 0 {
-		result.OpenAICodexTicketDefaultLength = 292
+		result.OpenAICodexTicketDefaultLength = 780
 	}
 	result.OpenAICodexTicketPlanLengthRules = parseOpenAICodexTicketPlanLengthRules(settings[SettingKeyOpenAICodexTicketPlanLengths])
 	result.ClaudeCodeClientVersion = NormalizeClaudeCodeClientVersion(settings[SettingKeyClaudeCodeClientVersion])
@@ -1122,10 +1131,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		}
 	}
 
-	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
-	result.UsageShowLongContextBadge = settings[SettingKeyUsageShowLongContextBadge] != "false"  // 默认开启
-	result.UsageShowCacheRate = settings[SettingKeyUsageShowCacheRate] != "false"                // 默认开启
-	result.UsageShowCacheRateToUsers = settings[SettingKeyUsageShowCacheRateToUsers] == "true"   // 默认不向用户展示
+	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true"                       // default false
+	result.UsageShowLongContextBadge = settings[SettingKeyUsageShowLongContextBadge] != "false"                        // 默认开启
+	result.UsageShowCacheRate = settings[SettingKeyUsageShowCacheRate] != "false"                                      // 默认开启
+	result.UsageShowCacheRateToUsers = settings[SettingKeyUsageShowCacheRateToUsers] == "true"                         // 默认不向用户展示
+	result.UsageShowUpstreamResponseModelToUsers = settings[SettingKeyUsageShowUpstreamResponseModelToUsers] == "true" // 默认不向用户展示
 	result.RequestCaptureEnabled = settings[SettingKeyRequestCaptureEnabled] == "true"
 	result.RequestCaptureQuotaMiB, _ = strconv.ParseInt(settings[SettingKeyRequestCaptureQuotaMiB], 10, 64)
 	if result.RequestCaptureQuotaMiB <= 0 {

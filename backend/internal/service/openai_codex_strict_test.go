@@ -17,7 +17,7 @@ func TestTicketStrictResponseIsTerminalAndDoesNotReadBody(t *testing.T) {
 		t.Run(map[bool]string{false: "compatible", true: "strict"}[strict], func(t *testing.T) {
 			body := &codexTicketHeaderOnlyBody{}
 			upstream := &httpUpstreamRecorder{responses: []*http.Response{{StatusCode: 200, Header: http.Header{http.CanonicalHeaderKey(openAICodexTurnStateHeader): []string{"malformed"}}, Body: body}}}
-			svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, upstream)
+			svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, upstream)
 			values := map[string]string{}
 			if strict {
 				values[SettingKeyOpenAICodexTicketStrict] = "true"

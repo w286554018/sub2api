@@ -438,7 +438,6 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if action == "generateContent" || action == "streamGenerateContent" {
 		body = injectMatchingPromptRules(reqLog, h.promptRuleService, apiKey.GroupID, modelName, service.PromptRuleProtocolGemini, body)
 	}
-
 	if channelMapping.Mapped {
 		modelName = channelMapping.MappedModel
 	}
@@ -1186,7 +1185,6 @@ func isAdobeGeminiV1Beta(c *gin.Context, apiKey *service.APIKey) bool {
 	}
 	return effectiveAPIKeyPlatform(c, apiKey) == service.PlatformAdobe
 }
-
 func servesCompositeAntigravityGemini(apiKey *service.APIKey, effectivePlatform string) bool {
 	return apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite && effectivePlatform == service.PlatformAntigravity
 }

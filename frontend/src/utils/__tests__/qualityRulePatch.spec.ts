@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildQualityRulePatch, qualityBPSError, qualityBPSForm, qualityBPSPayload, type QualityRuleDraft } from '../qualityRulePatch'
+import { buildQualityRulePatch, copyQualityRuleConfig, qualityBPSError, qualityBPSForm, qualityBPSPayload, qualityJudgeConfigured, qualityRuleFieldValue, type QualityRuleDraft } from '../qualityRulePatch'
 import type { QualityBPSPolicy, ScheduledTestPlan } from '@/types'
 
 const draft = (): QualityRuleDraft => ({
@@ -28,7 +28,79 @@ const probePlan = () => {
   return rule
 }
 
+describe('quality rule copy inputs', () => {
+  it('retains Jev choice in copy and bulk patches without importing arbitrary fields', () => {
+    const source = draft()
+    source.pelican_config.quality.judge = { kind: 'jev', group_id: 0, model_id: '', prompt: 'Compare values' }
+    Object.assign(source.pelican_config.quality.judge, { api_key: 'synthetic-secret', base_url: 'https://example.com?key=secret' })
+    const copy = copyQualityRuleConfig(source.pelican_config)
+    expect(copy.quality.judge).toEqual({ kind: 'jev', group_id: 0, model_id: '', prompt: 'Compare values' })
+    expect(qualityJudgeConfigured(copy.quality.judge)).toBe(true)
+    const patch = buildQualityRulePatch(plan(), source, ['test'])
+    expect(patch.pelican_config!.quality!.judge).toEqual(copy.quality.judge)
+    expect(JSON.stringify(patch)).not.toContain('synthetic-secret')
+    expect(qualityRuleFieldValue({ ...plan(), pelican_config: copy }, 'test')).not.toEqual(qualityRuleFieldValue(plan(), 'test'))
+    expect(qualityJudgeConfigured({ kind: 'jev', group_id: 21, model_id: 'chat', prompt: 'grade' })).toBe(false)
+    expect(qualityJudgeConfigured({ group_id: 21, model_id: 'chat', prompt: 'grade' })).toBe(true)
+    expect(qualityJudgeConfigured({ kind: 'llm', group_id: 0, model_id: '', prompt: 'grade' })).toBe(false)
+  })
+  it('accepts null group and BPS model arrays returned by normalized observation and BPS rules', () => {
+    const source = plan().pelican_config!
+    source.quality!.action = 'enable_bps'
+    Object.assign(source.quality!, { remove_group_ids: null, bps: { ...bps(), all_models: true, models: null } })
+    const copy = copyQualityRuleConfig(source)
+    expect(copy.quality.remove_group_ids).toEqual([])
+    expect(copy.quality.bps!.models).toEqual([])
+  })
+
+  it('copies editable answer and cooldown settings with independent nested values', () => {
+    const source = plan().pelican_config!
+    source.model_ids = ['first', 'second']
+    source.quality!.action = 'remove_models'
+    source.quality!.remove_models = ['first']
+    source.quality!.recovery_concurrency = 9
+    const original = JSON.stringify(source)
+    const copy = copyQualityRuleConfig(source)
+    expect(copy).toMatchObject({ prompt: source.prompt, reasoning_effort: 'low', parallel_count: 2, model_ids: ['first', 'second'],
+      quality: { action: 'remove_models', remove_models: ['first'], recovery_concurrency: 9, judge: source.quality!.judge } })
+    copy.model_ids!.push('third')
+    copy.quality.remove_group_ids.push(100)
+    copy.quality.remove_models!.push('second')
+    copy.quality.judge!.prompt = 'Changed'
+    expect(JSON.stringify(source)).toBe(original)
+  })
+
+  it('drops generated questions, runtime state and unknown nested fields while preserving reusable random-test inputs', () => {
+    const source = plan().pelican_config!
+    source.question_kind = 'random_reasoning'
+    source.random_question = { id: 'previous-question', family: 'paths', version: 'v1' }
+    Object.assign(source, { trigger_source: 'upstream_5xx', model_id: 'result-model', quality_round_id: 'round',
+      quality_model_actions: { first: 'cooled' }, quality_model_outcomes: { first: 'failed' },
+      quality_restore_diagnostic: { ownership_retained: true }, credentials: 'synthetic-secret' })
+    Object.assign(source.quality!, { admission: { enabled: true }, owner_plan_id: 1, failure_count: 3 })
+    Object.assign(source.quality!.judge!, { credentials: 'synthetic-secret' })
+    const copy = copyQualityRuleConfig(source)
+    expect(copy.prompt).toBe('')
+    expect(copy.quality.expected_answer).toBe('')
+    expect(copy.quality.judge).toEqual({ group_id: 99, model_id: 'own-judge', prompt: 'Own grading instructions' })
+    expect(Object.keys(copy).sort()).toEqual(['model_ids', 'parallel_count', 'prompt', 'quality', 'question_kind', 'reasoning_effort', 'rule_name', 'test_channel'])
+    for (const key of ['admission', 'owner_plan_id', 'failure_count']) expect(copy.quality).not.toHaveProperty(key)
+  })
+})
+
 describe('quality rule partial updates', () => {
+  it('bulk switches to generated questions without requiring fixed inputs or changing the judge', () => {
+    const input = draft()
+    input.pelican_config.question_kind = 'random_reasoning'
+    input.pelican_config.prompt = ''
+    input.pelican_config.quality.expected_answer = ''
+    input.pelican_config.quality.action = 'isolate_models'
+    const updated = buildQualityRulePatch(plan(), input, ['test', 'action'])
+    expect(updated.pelican_config).toMatchObject({ question_kind: 'random_reasoning', prompt: '', parallel_count: 3,
+      quality: { expected_answer: '', action: 'isolate_models', judge: input.pelican_config.quality.judge } })
+    expect(updated.pelican_config).not.toHaveProperty('random_question')
+  })
+
   it('sends only selected top-level fields, including an explicit false value', () => {
     expect(buildQualityRulePatch(plan(), draft(), ['model', 'schedule', 'enabled'])).toEqual({
       model_id: 'new-model', cron_expression: '0 * * * *', enabled: false,
@@ -176,5 +248,59 @@ describe('BPS recovery interval in quality rules', () => {
   })
   it.each([0, -1, 1.5, 10081, NaN, Infinity])('rejects invalid interval %s', (minutes) => {
     expect(qualityBPSError({ ...bps(), recovery_interval_minutes: minutes })).toBe('admin.accounts.openai.excelBPS403RecoveryIntervalInvalid')
+  })
+})
+
+describe('composed model isolation', () => {
+  it('uses tested models and selected groups without legacy cooldown or concurrency fields', () => {
+    const input = draft()
+    input.pelican_config.quality.action = 'isolate_models'
+    input.pelican_config.quality.remove_models = ['stale-target']
+    input.pelican_config.quality.recovery_concurrency = 2
+    input.pelican_config.model_ids = ['sol', 'astra']
+    const patch = buildQualityRulePatch(plan(), input, ['action', 'model'])
+    expect(patch.pelican_config).toMatchObject({ model_ids: ['new-model', 'sol', 'astra'], quality: {
+      action: 'isolate_models', remove_group_ids: [21], expected_answer: '7', auto_restore: false,
+    } })
+    expect(patch.pelican_config!.quality).not.toHaveProperty('remove_models')
+    expect(patch.pelican_config!.quality).not.toHaveProperty('recovery_concurrency')
+    expect(patch.pelican_config!.quality).not.toHaveProperty('bps')
+  })
+
+  it('requires explicit groups and per-model answer tests for bulk changes', () => {
+    const input = draft()
+    input.pelican_config.quality.action = 'isolate_models'
+    input.pelican_config.quality.remove_group_ids = []
+    expect(() => buildQualityRulePatch(plan(), input, ['action'])).toThrow('qualityOps.selectGroups')
+    input.pelican_config.quality.remove_group_ids = [21]
+    expect(() => buildQualityRulePatch(probePlan(), input, ['action'])).toThrow('qualityOps.isolationRequiresCandy')
+  })
+})
+
+
+describe('complete template selected fields', () => {
+  it('imports retention and 5xx trigger only with their explicit bulk checkboxes', () => {
+    const source = { ...draft(), max_results: 173 }
+    source.pelican_config.quality.trigger_on_upstream_5xx = true
+    const untouched = buildQualityRulePatch(plan(), source, ['enabled'])
+    expect(untouched).toEqual({ enabled: false })
+    const retention = buildQualityRulePatch(plan(), source, ['retention'])
+    expect(retention).toEqual({ max_results: 173 })
+    const triggered = buildQualityRulePatch(plan(), source, ['trigger'])
+    expect(triggered.pelican_config!.quality!.trigger_on_upstream_5xx).toBe(true)
+    expect(triggered.pelican_config!.quality!.action).toBe(plan().pelican_config!.quality!.action)
+    expect(triggered).not.toHaveProperty('max_results')
+  })
+  it('rejects retention too small for the targets existing samples when only retention is selected', () => {
+    const target = plan(); target.pelican_config!.model_ids = ['first', 'second']; target.pelican_config!.parallel_count = 3
+    expect(() => buildQualityRulePatch(target, { ...draft(), max_results: 5 }, ['retention'])).toThrow('qualityOps.retentionTooSmall')
+    expect(buildQualityRulePatch(target, { ...draft(), max_results: 6 }, ['retention'])).toEqual({ max_results: 6 })
+  })
+  it('never inherits a punitive action for old presets and removes hidden restrictions', () => {
+    const source = draft().pelican_config
+    delete (source.quality as any).action
+    const copied = copyQualityRuleConfig(source)
+    expect(copied.quality.action).toBe('observe_only'); expect(copied.quality.remove_group_ids).toEqual([]); expect(copied.quality.auto_restore).toBe(false)
+    expect(copied.quality.remove_models).toBeUndefined(); expect(copied.quality.bps).toBeUndefined()
   })
 })

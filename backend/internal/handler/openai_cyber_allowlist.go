@@ -22,11 +22,14 @@ func (h *OpenAIGatewayHandler) findBlockedCyberSessionForAPIKey(c *gin.Context, 
 }
 
 // Session identity is still resolved and observed by the caller.
-func (h *OpenAIGatewayHandler) findBlockedCyberSessionForIdentity(c *gin.Context, apiKey *service.APIKey, identity service.CyberSessionIdentityResolution) string {
+// findBlockedCyberSessionForRequest also uses the content fingerprint fallback
+// when the client supplied no explicit session identity, so an identical retry
+// of a cyber-blocked request is rejected before account selection.
+func (h *OpenAIGatewayHandler) findBlockedCyberSessionForRequest(c *gin.Context, apiKey *service.APIKey, identity service.CyberSessionIdentityResolution, body []byte) string {
 	if apiKey == nil || h.cyberPolicyLogOnly(c, apiKey) {
 		return ""
 	}
-	return h.gatewayService.FindCyberSessionBlockedForIdentity(c.Request.Context(), identity)
+	return h.gatewayService.FindCyberSessionBlockedForIdentityAndBody(c.Request.Context(), apiKey.ID, identity, body)
 }
 
 func findBlockedCyberSessionKey(ctx context.Context, gatewayService *service.OpenAIGatewayService, apiKeyID int64, c *gin.Context, body []byte) string {

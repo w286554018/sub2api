@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -58,7 +59,14 @@ func (s *GatewayService) handleResponsesCompactionResponse(
 		heartbeat = hb.tick
 	}
 
-	finalResp, usage := s.collectAnthropicResponseFromSSE(resp.Body, requestID, heartbeat, c)
+	finalResp, usage, err := s.collectAnthropicResponseFromSSE(resp.Body, requestID, heartbeat, c)
+	if err != nil {
+		var rejection *anthropicSafetyRejectionError
+		if errors.As(err, &rejection) {
+			return nil, s.failCompaction(c, clientStream, http.StatusForbidden, rejection.Message, requestID)
+		}
+		return nil, err
+	}
 	if finalResp == nil {
 		return nil, s.failCompaction(c, clientStream, http.StatusBadGateway,
 			"Upstream stream ended without a response", requestID)

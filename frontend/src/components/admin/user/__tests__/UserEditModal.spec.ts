@@ -11,6 +11,7 @@ const { update, updateUserAttributeValues, showSuccess, showError, authState } =
   authState: {
     isSuperAdmin: false,
     isSimpleMode: false,
+    isAdmin: false,
     user: { id: 99, role: 'admin' },
   },
 }))
@@ -60,6 +61,7 @@ const mountModal = (concurrency: number, user: Record<string, unknown> = {}) => 
       ObserverGroupSelector: true,
       Icon: true,
       UserAttributeForm: true,
+      ModerationUserPanel: true,
       TotpStepUpDialog: true
     }
   }
@@ -68,6 +70,7 @@ const mountModal = (concurrency: number, user: Record<string, unknown> = {}) => 
 describe('UserEditModal concurrency', () => {
   beforeEach(() => {
     authState.isSimpleMode = false
+    authState.isAdmin = false
     update.mockReset()
     updateUserAttributeValues.mockReset()
     showSuccess.mockReset()
@@ -225,5 +228,20 @@ describe('UserEditModal concurrency', () => {
     expect(update.mock.calls[1][1]).toEqual(expect.objectContaining({ concurrency: 1005, observer_group_ids: [41] }))
     expect(update.mock.calls[1][1]).not.toHaveProperty('observer_setup')
     expect(wrapper.emitted('success')).toBeTruthy()
+  })
+})
+
+
+describe('UserEditModal content moderation controls', () => {
+  it('exposes the persisted controls for the selected user only to administrators', async () => {
+    authState.isAdmin = true
+    const wrapper = mountModal(1)
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'ModerationUserPanel' }).props('userId')).toBe(7)
+    wrapper.unmount()
+    authState.isAdmin = false
+    const observer = mountModal(1)
+    await flushPromises()
+    expect(observer.findComponent({ name: 'ModerationUserPanel' }).exists()).toBe(false)
   })
 })

@@ -226,6 +226,12 @@ func (s *GatewayService) ForwardAsResponses(
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 
+		if isAnthropicCompatSafetyRejection(respBody) {
+			writeResponsesError(c, http.StatusForbidden, "permission_error", upstreamMsg)
+			MarkResponseCommitted(c)
+			return nil, fmt.Errorf("upstream safety rejection: %s", upstreamMsg)
+		}
+
 		if s.shouldFailoverUpstreamError(resp.StatusCode) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				ProxyID:            opsUpstreamProxyID(account),
@@ -486,7 +492,15 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 	clientToolMapping apicompat.ResponsesClientToolMapping,
 ) (*ForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
-	finalResp, usage := s.collectAnthropicResponseFromSSE(resp.Body, requestID, nil, c)
+	finalResp, usage, err := s.collectAnthropicResponseFromSSE(resp.Body, requestID, nil, c)
+	if err != nil {
+		var rejection *anthropicSafetyRejectionError
+		if errors.As(err, &rejection) {
+			writeResponsesError(c, http.StatusForbidden, "permission_error", rejection.Message)
+			MarkResponseCommitted(c)
+		}
+		return nil, err
+	}
 
 	if finalResp == nil {
 		writeResponsesError(c, http.StatusBadGateway, "server_error", "Upstream stream ended without a response")
@@ -506,7 +520,7 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 	requestID string,
 	onEvent func(),
 	contexts ...*gin.Context,
-) (*apicompat.AnthropicResponse, ClaudeUsage) {
+) (*apicompat.AnthropicResponse, ClaudeUsage, error) {
 	scanner := bufio.NewScanner(body)
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
@@ -551,7 +565,12 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 			onEvent()
 		}
 
-		// message_start carries the initial response structure
+		// Stop queued success events after a terminal safety rejection.
+		if event.Type == "error" && isAnthropicCompatSafetyRejection([]byte(payload)) {
+			message := sanitizeUpstreamErrorMessage(gjson.Get(payload, "error.message").String())
+			return nil, usage, &anthropicSafetyRejectionError{Message: message}
+		}
+
 		if event.Type == "message_start" && event.Message != nil {
 			finalResp = event.Message
 			mergeAnthropicUsage(&usage, event.Message.Usage)
@@ -597,7 +616,15 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 			)
 		}
 	}
-	return finalResp, usage
+	return finalResp, usage, nil
+}
+
+type anthropicSafetyRejectionError struct {
+	Message string
+}
+
+func (e *anthropicSafetyRejectionError) Error() string {
+	return fmt.Sprintf("upstream safety rejection: %s", e.Message)
 }
 
 // writeResponsesBufferedResult 把聚合好的 Anthropic 响应转成 Responses JSON 写回。
@@ -830,7 +857,6 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 		}
 
 		mergeKiroCreditsFromAnthropicPayload(&usage, payload)
-
 		stream.observe(&event, payload)
 		if stream.upstreamErrType != "" {
 			break

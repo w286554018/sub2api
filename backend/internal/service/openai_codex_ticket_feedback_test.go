@@ -10,7 +10,7 @@ import (
 )
 
 func TestTicketStandbyFeedbackDoesNotRevokeReplacement(t *testing.T) {
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, nil)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, nil)
 	account := ticketTestAccount(41)
 	makeTicket := func(state string) *openAICodexTicket {
 		return &openAICodexTicket{Model: "gpt-6-astra", State: state, Length: 292, CapturedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour)}
@@ -35,7 +35,7 @@ func TestTicketStandbyFeedbackDoesNotRevokeReplacement(t *testing.T) {
 }
 
 func TestTicket429DoesNotInvalidate(t *testing.T) {
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, nil)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, nil)
 	account := ticketTestAccount(41)
 	state := fakeCodexTicketState(292)
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{Model: "gpt-6-astra", State: state, Length: 292, ExpiresAt: time.Now().Add(time.Hour)}))
@@ -54,9 +54,9 @@ func TestTicketStandbyRecoveredAfterRestart(t *testing.T) {
 		State: state, Length: 292, ExpiresAt: time.Now().Add(-time.Second), Identity: ticketIdentity(account),
 		Standby: &openAICodexTicket{State: state, Length: 292, Identity: ticketIdentity(account), ExpiresAt: time.Now().Add(time.Hour)},
 	}}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true}, nil)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292}, nil)
 	require.True(t, svc.lookupOpenAICodexTicket(account, "gpt-6-astra").valid(time.Now(), 292))
-	statuses := OpenAICodexTicketStatuses(account, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, time.Now())
+	statuses := OpenAICodexTicketStatuses(account, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, time.Now())
 	require.True(t, statuses[0].Ready)
 }
 

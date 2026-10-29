@@ -55,6 +55,7 @@ type AccountHandler struct {
 	adminService            service.AdminService
 	oauthService            *service.OAuthService
 	openaiOAuthService      *service.OpenAIOAuthService
+	openaiOAuthReauth       *service.OpenAIOAuthReauthService
 	geminiOAuthService      *service.GeminiOAuthService
 	antigravityOAuthService *service.AntigravityOAuthService
 	kiroOAuthService        *service.KiroOAuthService
@@ -102,6 +103,10 @@ func (h *AccountHandler) SetOpenAIGatewayService(gateway *service.OpenAIGatewayS
 
 func (h *AccountHandler) SetOpenCodeGoUsageService(usage *service.OpenCodeGoUsageService) {
 	h.opencodeGoUsage = usage
+}
+
+func (h *AccountHandler) SetOpenAIOAuthReauthService(reauth *service.OpenAIOAuthReauthService) {
+	h.openaiOAuthReauth = reauth
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -2528,7 +2533,7 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{
+	result, err := h.adminService.BulkUpdateAccounts(accountManualSchedulingContext(c, req.Schedulable != nil), &service.BulkUpdateAccountsInput{
 		AccountIDs:            req.AccountIDs,
 		Filters:               toServiceBulkUpdateAccountFilters(req.Filters),
 		Name:                  req.Name,
@@ -2966,7 +2971,7 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 		return
 	}
 
-	account, err := h.adminService.SetAccountSchedulable(c.Request.Context(), accountID, req.Schedulable)
+	account, err := h.adminService.SetAccountSchedulable(accountManualSchedulingContext(c, true), accountID, req.Schedulable)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -3113,25 +3118,34 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 
 	// Handle OpenAI accounts
 	if account.IsOpenAI() {
-		if account.IsExcelBPSEnabled() {
-			if h.accountTestService == nil {
-				response.Error(c, http.StatusBadGateway, "Excel BPS model discovery is unavailable")
+		// Prefer the shared, account-keyed upstream catalog. If discovery fails,
+		// retain the local catalog unless credentials are known to be invalid.
+		if h.accountTestService != nil {
+			if models, fetchErr := h.accountTestService.FetchOpenAIAccountModels(c.Request.Context(), account); fetchErr == nil {
+				if account.IsExcelBPSEnabled() && len(models) == 0 {
+					response.Error(c, http.StatusBadGateway, "Excel BPS model discovery is unavailable")
+					return
+				}
+				response.Success(c, models)
 				return
-			}
-			models, fetchErr := h.accountTestService.FetchOpenAIAccountModels(c.Request.Context(), account)
-			if fetchErr != nil {
+			} else if infraerrors.Reason(fetchErr) == "OPENAI_CODEX_MODELS_CREDENTIALS_INVALID" {
+				response.ErrorFrom(c, fetchErr)
+				return
+			} else if account.IsExcelBPSEnabled() {
 				if service.IsExcelAuthorizationError(fetchErr) {
 					response.ErrorFrom(c, fetchErr)
-				} else {
-					response.Error(c, http.StatusBadGateway, "Excel BPS model discovery is unavailable")
+					return
 				}
-				return
-			}
-			if len(models) == 0 {
 				response.Error(c, http.StatusBadGateway, "Excel BPS model discovery is unavailable")
 				return
 			}
-			response.Success(c, models)
+		} else if account.IsExcelBPSEnabled() {
+			response.Error(c, http.StatusBadGateway, "Excel BPS model discovery is unavailable")
+			return
+		}
+		// OpenAI 自动透传会绕过常规模型改写，测试/模型列表也应回落到默认模型集。
+		if account.IsOpenAIPassthroughEnabled() {
+			response.Success(c, openai.DefaultModels)
 			return
 		}
 		if !account.IsOpenAIPassthroughEnabled() {
@@ -3150,12 +3164,6 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 					}
 					models = merged
 				}
-				response.Success(c, models)
-				return
-			}
-		}
-		if h.accountTestService != nil {
-			if models, fetchErr := h.accountTestService.FetchOpenAIAccountModels(c.Request.Context(), account); fetchErr == nil && len(models) > 0 {
 				response.Success(c, models)
 				return
 			}

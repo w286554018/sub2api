@@ -231,6 +231,7 @@ func TestAPIContracts(t *testing.T) {
 					"key": "sk_custom_1234567890",
 					"name": "Key One",
 					"group_id": null,
+					"group_ids": [],
 					"status": "active",
 					"ip_whitelist": null,
 					"ip_blacklist": null,
@@ -283,6 +284,7 @@ func TestAPIContracts(t *testing.T) {
 							"key": "sk_custom_1234567890",
 							"name": "Key One",
 							"group_id": null,
+							"group_ids": [],
 							"status": "active",
 							"ip_whitelist": null,
 							"ip_blacklist": null,
@@ -726,8 +728,11 @@ func TestAPIContracts(t *testing.T) {
 				"message": "success",
 				"data": {
 					"registration_enabled": true,
+					"login_rate_limit_enabled": true,
+					"registration_ip_limit_enabled": true,
 					"email_verify_enabled": false,
 					"registration_email_suffix_whitelist": [],
+					"registration_email_alias_block_enabled": true,
 					"registration_email_domain_quota_enabled": false,
 					"promo_code_enabled": true,
 					"password_reset_enabled": false,
@@ -932,8 +937,8 @@ func TestAPIContracts(t *testing.T) {
 						"table_page_size_options": [10, 20, 50, 100],
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
-					"openai_request_timezone_enabled": false,
-					"openai_request_timezone_auto": false,
+					"openai_request_timezone_enabled": true,
+					"openai_request_timezone_auto": true,
 					"openai_codex_ticket_enabled": false,
 					"openai_codex_ticket_fail_closed": false,
 					"openai_codex_ticket_candy_observation": false,
@@ -1095,7 +1100,8 @@ func TestAPIContracts(t *testing.T) {
 					"allow_user_view_error_requests": false,
 					"usage_show_long_context_badge": true,
 					"usage_show_cache_rate": true,
-					"usage_show_cache_rate_to_users": false
+					"usage_show_cache_rate_to_users": false,
+					"usage_show_upstream_response_model_to_users": false
 				}
 			}`,
 		},
@@ -1141,8 +1147,11 @@ func TestAPIContracts(t *testing.T) {
 				"message": "success",
 				"data": {
 					"registration_enabled": true,
+					"login_rate_limit_enabled": true,
+					"registration_ip_limit_enabled": true,
 					"email_verify_enabled": false,
 					"registration_email_suffix_whitelist": [],
+					"registration_email_alias_block_enabled": true,
 					"registration_email_domain_quota_enabled": false,
 					"promo_code_enabled": true,
 					"password_reset_enabled": false,
@@ -1325,8 +1334,8 @@ func TestAPIContracts(t *testing.T) {
 					"rewrite_message_cache_control": false,
 					"enable_client_dateline_normalization": true,
 					"antigravity_user_agent_version": "",
-					"openai_request_timezone_enabled": false,
-					"openai_request_timezone_auto": false,
+					"openai_request_timezone_enabled": true,
+					"openai_request_timezone_auto": true,
 					"openai_codex_ticket_enabled": false,
 					"openai_codex_ticket_fail_closed": false,
 					"openai_codex_ticket_candy_observation": false,
@@ -1510,7 +1519,8 @@ func TestAPIContracts(t *testing.T) {
 					"allow_user_view_error_requests": false,
 					"usage_show_long_context_badge": true,
 					"usage_show_cache_rate": true,
-					"usage_show_cache_rate_to_users": false
+					"usage_show_cache_rate_to_users": false,
+					"usage_show_upstream_response_model_to_users": false
 				}
 			}`,
 		},

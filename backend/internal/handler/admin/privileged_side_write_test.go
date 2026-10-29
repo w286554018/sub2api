@@ -40,6 +40,18 @@ func TestContentModerationUnban_BlocksPrivilegedTarget(t *testing.T) {
 	requirePrivilegedMutationDenied(t, recorder, adminService, 42)
 }
 
+func TestContentModerationActions_BlockPrivilegedTarget(t *testing.T) {
+	adminService := newStubAdminService()
+	adminService.authorizeUserMutationErr = service.ErrInsufficientPerms
+	h := &ContentModerationHandler{adminService: adminService}
+	c, recorder := privilegedMutationRequest(t, http.MethodPost, `{"action":"reset","version":0,"confirm":true,"reason":"review"}`)
+	c.Params = []gin.Param{{Key: "user_id", Value: "42"}}
+
+	h.ManageUser(c)
+
+	requirePrivilegedMutationDenied(t, recorder, adminService, 42)
+}
+
 func TestAffiliateMutations_BlockPrivilegedTargets(t *testing.T) {
 	tests := []struct {
 		name   string

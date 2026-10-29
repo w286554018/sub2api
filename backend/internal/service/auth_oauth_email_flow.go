@@ -39,6 +39,9 @@ func (s *AuthService) SendPendingOAuthVerifyCode(ctx context.Context, email stri
 	if isReservedEmail(email) {
 		return nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, err
+	}
 	if s == nil || s.emailService == nil {
 		return nil, ErrServiceUnavailable
 	}
@@ -121,6 +124,9 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	if isReservedEmail(email) {
 		return nil, nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, nil, err
+	}
 	if err := s.VerifyOAuthEmailCode(ctx, email, verifyCode); err != nil {
 		slog.Error("oauth email register: verify code failed", "email", email, "error", err.Error())
 		return nil, nil, err
@@ -165,10 +171,14 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 
 	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
 		switch {
+		case errors.Is(err, ErrEmailAliasNotAllowed):
+			return nil, nil, ErrEmailAliasNotAllowed
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):
 			return nil, nil, ErrEmailDomainRegistrationLimit
+		case errors.Is(err, ErrRegistrationIPLimit):
+			return nil, nil, ErrRegistrationIPLimit
 		default:
 			slog.Error("oauth email register: userRepo.Create failed", "email", email, "signup_source", signupSource, "error", err.Error())
 			return nil, nil, ErrServiceUnavailable
@@ -208,6 +218,9 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 	if isReservedEmail(email) {
 		return nil, nil, ErrEmailReserved
+	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, nil, err
 	}
 	if strings.TrimSpace(password) == "" {
 		return nil, nil, infraerrors.BadRequest("PASSWORD_REQUIRED", "password is required")
@@ -252,10 +265,14 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 
 	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
 		switch {
+		case errors.Is(err, ErrEmailAliasNotAllowed):
+			return nil, nil, ErrEmailAliasNotAllowed
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):
 			return nil, nil, ErrEmailDomainRegistrationLimit
+		case errors.Is(err, ErrRegistrationIPLimit):
+			return nil, nil, ErrRegistrationIPLimit
 		default:
 			return nil, nil, ErrServiceUnavailable
 		}

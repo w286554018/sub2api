@@ -51,7 +51,7 @@ func TestOpenAIOAuthService_GenerateAuthURLCanonicalOriginator(t *testing.T) {
 		return "codex_cli_rs/0.200.1 (Ubuntu 22.4.0; x86_64) xterm-256color"
 	})
 	t.Cleanup(func() { SetCodexCanonicalUserAgentResolver(nil) })
-	svc := ProvideOpenAIOAuthService(nil, &openaiOAuthClientAuthURLStub{}, nil)
+	svc := ProvideOpenAIOAuthService(nil, &openaiOAuthClientAuthURLStub{}, nil, nil)
 	defer svc.Stop()
 	redirect := "http://localhost:1455/auth/callback?custom=a+b&value=one"
 	result, err := svc.GenerateAuthURL(context.Background(), nil, redirect, PlatformOpenAI)

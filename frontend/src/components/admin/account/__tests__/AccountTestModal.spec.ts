@@ -90,6 +90,20 @@ function mountModal(account: Record<string, unknown> = {
   })
 }
 
+async function setGrokMode(wrapper: ReturnType<typeof mountModal>, mode: string) {
+  (wrapper.vm as any).grokTestMode = mode
+  await flushPromises()
+}
+
+async function uploadFile(wrapper: ReturnType<typeof mountModal>, selector: string, file: File) {
+  const input = wrapper.get(selector)
+  Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+  await input.trigger('change')
+  await vi.waitFor(() => {
+    expect((wrapper.vm as any).uploadImageDataURL || (wrapper.vm as any).uploadAudioDataURL).toBeTruthy()
+  })
+}
+
 describe('AccountTestModal', () => {
   beforeEach(() => {
     getAvailableModels.mockResolvedValue([
@@ -185,6 +199,71 @@ describe('AccountTestModal', () => {
       model_id: 'grok-4.3',
       prompt: '',
       mode: 'text'
+    })
+  })
+
+  it('grok 图片模式会上传参考图并发送图片生成请求', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'grok-imagine-image-1', display_name: 'Grok Imagine Image' }
+    ])
+    const wrapper = mountModal({ id: 14, name: 'Grok Account', platform: 'grok', type: 'oauth', status: 'active' })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await setGrokMode(wrapper, 'image')
+    ;(wrapper.vm as any).testPrompt = 'draw a red fox'
+    await uploadFile(wrapper, 'input[type="file"][accept^="image/"]', new File(['image'], 'reference.png', { type: 'image/png' }))
+
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'grok-imagine-image-1',
+      prompt: 'draw a red fox',
+      mode: 'image',
+      image_data_url: 'data:image/png;base64,aW1hZ2U='
+    })
+  })
+
+  it('grok 视频模式会将上传图片作为首帧发送', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'grok-video-1', display_name: 'Grok Video 1' }
+    ])
+    const wrapper = mountModal({ id: 15, name: 'Grok Account', platform: 'grok', type: 'oauth', status: 'active' })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await setGrokMode(wrapper, 'video')
+    ;(wrapper.vm as any).testPrompt = 'animate this still'
+    await uploadFile(wrapper, 'input[type="file"][accept^="image/"]', new File(['frame'], 'first-frame.png', { type: 'image/png' }))
+
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'grok-video-1',
+      prompt: 'animate this still',
+      mode: 'video',
+      image_data_url: 'data:image/png;base64,ZnJhbWU='
+    })
+  })
+
+  it('grok STT 模式会上传音频并调用语音识别请求', async () => {
+    const wrapper = mountModal({ id: 16, name: 'Grok Account', platform: 'grok', type: 'oauth', status: 'active' })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await setGrokMode(wrapper, 'stt')
+    await uploadFile(wrapper, 'input[type="file"][accept^="audio/"]', new File(['audio'], 'sample.wav', { type: 'audio/wav' }))
+
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: '',
+      prompt: '',
+      mode: 'stt',
+      audio_data_url: 'data:audio/wav;base64,YXVkaW8='
     })
   })
 

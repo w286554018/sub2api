@@ -157,7 +157,7 @@ func prepareNativeOpenAIInputTokensCountRequest(body []byte, account *Account) (
 // BPS-enabled accounts: BPS has no token-counting endpoint, and an Excel-client
 // token must never reach the native api.openai.com preflight.
 func shouldEstimateOpenAIInputTokensLocally(account *Account) bool {
-	if account == nil || account.IsGrok() || account.RoutesProtocolByInbound() || account.Type == AccountTypeUpstream || account.IsBPSOAuth() || account.IsExcelBPSEnabled() {
+	if account == nil || account.IsGrok() || account.RoutesProtocolByInbound() || account.Type == AccountTypeUpstream || account.IsBPSOAuth() || account.IsExcelBPSEnabled() || account.IsSIWCEnabled() {
 		return true
 	}
 	if account.Type != AccountTypeAPIKey {

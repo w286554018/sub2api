@@ -54,6 +54,18 @@ func TestLeonardoAccountsServeGPTImageFamily(t *testing.T) {
 	require.False(t, bare.IsModelSupported("gpt-image-2"))
 }
 
+func TestLeonardoPassthroughDoesNotWidenSupportedModels(t *testing.T) {
+	accounts := []*Account{
+		{Platform: PlatformLeonardo, Type: AccountTypeOAuth, Credentials: map[string]any{"cookie": "c"}},
+		{Platform: PlatformLeonardo, Type: AccountTypeAPIKey, Credentials: map[string]any{"base_url": "https://relay.example.com", "api_key": "sk-x"}},
+	}
+	for _, account := range accounts {
+		account.Extra = map[string]any{"openai_passthrough": true}
+		require.True(t, account.IsModelSupported("gpt-image-2"))
+		require.False(t, account.IsModelSupported("gpt-5.4"))
+	}
+}
+
 func TestLeonardoGenerateCallRejectsUnsupportedUpstreamModel(t *testing.T) {
 	svc := NewLeonardoImageService(nil)
 	account := &Account{ID: 1, Platform: PlatformLeonardo, Type: AccountTypeOAuth, Credentials: map[string]any{

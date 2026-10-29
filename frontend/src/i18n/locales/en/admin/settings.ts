@@ -1,5 +1,8 @@
+import ipRisk from './ipRisk'
+
 export default {
     settings: {
+      ipRisk,
       title: 'System Settings',
       description: 'Manage registration, email verification, default values, and SMTP settings',
       tabs: {
@@ -146,7 +149,7 @@ export default {
           enabled: 'Enable Risk Control',
           enabledHint: 'When off, the admin sidebar entry is hidden and gateway moderation is skipped.',
           cyberSessionBlock: 'Cyber session auto-block',
-          cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected.',
+          cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected. If no explicit session ID is available, an identical retry is blocked using a fingerprint of the visible request content; other requests still go upstream. IP, client type, cache keys and history length never identify a blocked session.',
           riskControlUserAllowlist: 'Risk control allowlist',
           riskControlUserAllowlistHint: 'Enter any email keyword to search for matching users. Allowlisted users will not trigger account bans or local blocking, but upstream restrictions still apply. This feature is typically used for trusted downstream relays.',
           cyberSessionBlockTTL: 'Block TTL (seconds)',
@@ -225,6 +228,8 @@ export default {
           "Only email addresses from the specified domains can register; leave empty for no restriction (for example, {'@'}qq.com, {'@'}gmail.com, *.edu.cn)",
         emailSuffixWhitelistPlaceholder: "{'@'}example.com, *.edu.cn",
         emailSuffixWhitelistInputHint: 'Leave empty for no restriction. Use *.edu.cn to match edu.cn and its subdomains.',
+        emailAliasBlock: 'Block Email Alias Registration',
+        emailAliasBlockHint: 'Enabled by default: reject Gmail/Googlemail usernames containing dots, +tag addresses, and trailing domain dots, including new OAuth accounts. Dots in usernames on other domains are allowed; existing accounts can still sign in. Disabling this switch keeps duplicate-inbox checks active.',
         emailDomainQuota: 'Non-allowlist Domain Quota',
         emailDomainQuotaHint:
           'When enabled and the allowlist is not empty, every other registrable domain can register one account. When disabled, non-allowlist domains are rejected. Has no effect while the allowlist is empty',
@@ -243,6 +248,10 @@ export default {
           'Please configure TOTP_ENCRYPTION_KEY in environment variables first. Generate a key with: openssl rand -hex 32'
       },
       security: {
+        loginRateLimit: 'Login rate limiting',
+        registrationIPLimit: 'Registration account limit per IP',
+        registrationIPLimitHint: 'Enabled by default: at most 2 accounts per IP, including email and OAuth signups. Shared networks may block legitimate users. Disabling removes only this quota; CAPTCHA, email verification, request limits and login protection are unchanged. Saving takes effect immediately. Existing counts are retained, signups while disabled are not counted, and re-enabling resumes the retained counts.',
+        loginRateLimitHint: 'Enabled by default. Limits sign-in requests and bans an IP for 1 hour after 10 failed verifications within 15 minutes. Disabling bypasses request limits and IP bans for password, two-factor, Passkey, and OAuth account-binding sign-ins. Saving takes effect immediately for admins and users. Existing bans retain their original expiry when re-enabled.',
         passkey: 'Passkey Sign-in',
         passkeyHint: 'Allow passwordless sign-in and user-managed passkeys when the relying party configuration is valid.',
         passkeyConfigured: 'WebAuthn relying party configuration is valid.',
@@ -639,7 +648,7 @@ export default {
         claudeCodeVersionSyncedValue: 'Currently synced: {version}',
         codexHardeningTitle: "Codex Settings",
         requestTimezoneEnabled: 'Bind request timezone',
-        requestTimezoneEnabledDesc: 'Choose a manual account timezone or automatic egress IP detection for existing environment context, web search timezone fields and supported timezone headers. Dates and ordinary text stay unchanged. Disabled means no rewriting. This does not guarantee improved model quality.',
+        requestTimezoneEnabledDesc: 'Enabled with automatic egress IP detection by default. Choose a manual account timezone or automatic egress IP detection for existing environment context, web search timezone fields and supported timezone headers. Dates and ordinary text stay unchanged. Disabled means no rewriting. This does not guarantee improved model quality.',
         requestTimezoneMode: 'Timezone source',
         requestTimezoneManual: 'Manual: account setting',
         requestTimezoneAuto: 'Automatic: egress IP',
@@ -820,8 +829,12 @@ export default {
         title: 'Custom Menu Pages',
         description: 'Add custom iframe pages to the sidebar navigation. Each page can be visible to regular users or administrators.',
         itemLabel: 'Menu Item #{n}',
-        name: 'Menu Name',
-        namePlaceholder: 'e.g. Help Center',
+        nameZh: 'Chinese Name',
+        nameZhPlaceholder: 'e.g. 帮助中心',
+        nameEn: 'English Name',
+        nameEnPlaceholder: 'e.g. Help Center',
+        fallbackName: 'Legacy Name Fallback',
+        fallbackNamePlaceholder: 'Leave blank to use the Chinese name, then the English name',
         url: 'Page URL',
         urlPlaceholder: 'https://example.com/page',
         hideOpenButton: 'Hide the “Open in new tab” button',
@@ -1422,6 +1435,10 @@ export default {
       cache_rate_to_users: {
         label: 'Show cache rate to users',
         description: 'When enabled, users can see the per-request cache rate on their own usage page. Off by default, so only admins see it.',
+      },
+      upstream_response_model_to_users: {
+        label: 'Show users the actual upstream response model',
+        description: 'When enabled, users can see the model declared by the upstream response on their usage records. Off by default, so only admins see it. Billing is unchanged, and mapped request models and account details stay hidden.',
       },
       saveSettings: 'Save Settings',
       saving: 'Saving...',

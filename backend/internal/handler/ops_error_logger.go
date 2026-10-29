@@ -1124,7 +1124,10 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		w.finalizeCapture()
 		observeAutoConfigRequest(c, ops, w, requestStart)
 
-		if _, rejected := middleware2.GetIngressRejectReason(c); rejected {
+		if reason, rejected := middleware2.GetIngressRejectReason(c); rejected {
+			if reason == middleware2.IngressRejectSubagentsBlocked {
+				logOpsSubagentRejection(c, ops)
+			}
 			return
 		}
 
@@ -1143,6 +1146,13 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		}
 
 		status := c.Writer.Status()
+		// Trust only the forwarding boundary's local marker. The captured SSE
+		// parser cannot distinguish a bridge failure from an upstream failure and
+		// otherwise overwrites real HTTP 200 evidence with a synthetic 502.
+		if marked, ok := service.GetOpsStreamError(c); ok && marked.BridgeFailure != nil {
+			logOpsStreamErrorValue(c, ops, status, marked)
+			return
+		}
 		body := w.capturedBytes()
 		parsed := parseOpsErrorResponse(body)
 		if !parsed.StreamFailure {
@@ -1523,6 +1533,11 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 			errorBody = string(payload)
 		}
 	}
+	if streamErr.BridgeFailure != nil {
+		if payload, err := json.Marshal(gin.H{"error": streamErr.BridgeFailure.Details()}); err == nil {
+			errorBody = string(payload)
+		}
+	}
 
 	apiKey := getOpsAPIKey(c)
 	clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
@@ -1610,6 +1625,17 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 	}
 	if streamErr.Turn > 0 && !streamErr.RequestScoped {
 		applyOpsStreamErrorSnapshot(entry, streamErr)
+	}
+	if streamErr.BridgeFailure != nil {
+		entry.ErrorPhase, entry.ErrorOwner, entry.ErrorSource = "internal", "platform", "gateway"
+		entry.IsBusinessLimited = false
+		// Snapshot the actual final HTTP boundary, independent of earlier attempts.
+		entry.UpstreamStatusCode = nil
+		if streamErr.UpstreamStatus > 0 {
+			status := streamErr.UpstreamStatus
+			entry.UpstreamStatusCode = &status
+		}
+		entry.UpstreamErrorMessage, entry.UpstreamErrorDetail = nil, nil
 	}
 	suppressOpsUpstreamAttributionForClientRejection(entry)
 
@@ -2304,14 +2330,17 @@ func classifyOpsErrorLog(c *gin.Context, errType, message, code string, status i
 	if clientBusinessLimited && !upstreamError && !routingCapacityLimited && !localModelConfiguration {
 		phase = "auth"
 	}
-	if routingCapacityLimited {
+	if routingCapacityLimited && !localModelConfiguration {
 		phase = "routing"
 	}
 	msg := strings.ToLower(message)
 	effectiveUpstreamError := upstreamError && !localModelConfiguration
 	localClientAuthError := !effectiveUpstreamError && phase == "auth" && isOpsClientAuthError(code, msg)
 	localBusinessLimited := !effectiveUpstreamError && classifyOpsIsBusinessLimited(errType, phase, code, status, message, localClientAuthError)
-	isBusinessLimited = localModelConfiguration || routingCapacityLimited || (clientBusinessLimited && !effectiveUpstreamError) || localBusinessLimited
+	// An exhausted account pool is a platform capacity failure, even if the
+	// request also carries an earlier user-limit marker. Explicit local model
+	// configuration rejections still take precedence.
+	isBusinessLimited = localModelConfiguration || (!routingCapacityLimited && ((clientBusinessLimited && !effectiveUpstreamError) || localBusinessLimited))
 	errorOwner = classifyOpsErrorOwner(phase, message)
 	errorSource = classifyOpsErrorSource(phase, message)
 	return phase, isBusinessLimited, errorOwner, errorSource

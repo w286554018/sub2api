@@ -28,7 +28,7 @@ func TestResolveOpenAICodexTicketTargetLength(t *testing.T) {
 	// 越界长度的规则视为无效，跳过后继续匹配。
 	invalid := append(rules, OpenAICodexTicketPlanLengthRule{Plan: "team", Length: 9999})
 	require.Equal(t, 332, resolveOpenAICodexTicketTargetLength("team", invalid, 292))
-	require.Equal(t, 292, resolveOpenAICodexTicketTargetLength("whatever", rules, 0), "默认长度非正数时兜底 292")
+	require.Equal(t, 780, resolveOpenAICodexTicketTargetLength("whatever", rules, 0), "默认长度非正数时兜底 780")
 	// 先命中先生效：business 规则排在 team 之前。
 	ordered := []OpenAICodexTicketPlanLengthRule{
 		{Plan: "team", Length: 316},
@@ -49,7 +49,8 @@ func TestValidateOpenAICodexTicketTargetLengthSettings(t *testing.T) {
 	require.NoError(t, validateOpenAICodexTicketTargetLengthSettings(0, nil), "0 表示未提交，不校验")
 	require.NoError(t, validateOpenAICodexTicketTargetLengthSettings(292, []OpenAICodexTicketPlanLengthRule{{Plan: "team", Length: 332}}))
 	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(99, nil))
-	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(513, nil))
+	require.NoError(t, validateOpenAICodexTicketTargetLengthSettings(780, nil))
+	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(781, nil))
 	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(292, []OpenAICodexTicketPlanLengthRule{{Plan: "team", Length: 99}}))
 	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(292, []OpenAICodexTicketPlanLengthRule{{Plan: " ", Length: 332}}))
 	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(292, []OpenAICodexTicketPlanLengthRule{
@@ -60,6 +61,17 @@ func TestValidateOpenAICodexTicketTargetLengthSettings(t *testing.T) {
 		many = append(many, OpenAICodexTicketPlanLengthRule{Plan: strings.Repeat("p", i+1), Length: 332})
 	}
 	require.Error(t, validateOpenAICodexTicketTargetLengthSettings(292, many))
+}
+
+func TestOpenAICodexTicketDefaultLengthIs780(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	require.Equal(t, 780, svc.openAICodexTicketConfig().TargetLength)
+
+	var nilGateway *OpenAIGatewayService
+	require.Equal(t, 780, nilGateway.openAICodexTicketTargetLengthContext(context.Background(), nil))
+
+	var nilSettings *SettingService
+	require.Equal(t, 780, nilSettings.GetOpenAICodexTicketTargetLengthConfig(context.Background(), 0).DefaultLength)
 }
 
 func TestOpenAICodexTicketTargetLengthRuntimeSettingOverridesYaml(t *testing.T) {

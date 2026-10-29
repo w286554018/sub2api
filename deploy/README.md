@@ -2,6 +2,8 @@
 
 This directory contains files for deploying Sub2API on Linux servers and Apple-silicon Macs.
 
+网页注册额度、登录失败封禁及可信代理升级要求见 [网页认证 IP 防护](AUTH_IP_GUARD.md)。
+
 ## Deployment Methods
 
 | Method | Best For | Setup Wizard |
@@ -23,6 +25,7 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | `.env.example` | Container environment variables template |
 | `DOCKER.md` | GHCR image documentation |
 | `install.sh` | One-click binary installation script |
+| `migrate-reauth-managed.py` | 将旧登录 Worker 迁入随主程序版本自动升级的内置管理器，见 [迁移说明](MANAGED_WORKER.md) |
 | `install-datamanagementd.sh` | datamanagementd 一键安装脚本 |
 | `sub2api.service` | Systemd service unit file |
 | `sub2api-datamanagementd.service` | datamanagementd systemd service unit file |
@@ -133,6 +136,20 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
 
 **Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
+
+### Docker behind host Nginx: trusted client IPs
+
+Registration quotas and authentication abuse protection always use the trusted
+proxy chain. With host Nginx and a Docker published port, the application's TCP
+peer may be a bridge gateway, which is not trusted by default. Configure only
+the actual proxy IPs through `SERVER_TRUSTED_PROXIES` in `.env` or the persistent
+`/app/data/config.yaml`. Leave the environment variable **unset**, not empty, to
+keep YAML configuration. Updating `.env` alone has no effect with an older
+Compose template that does not pass this variable through.
+
+See [Docker + host Nginx trusted proxy configuration](../docs/docker-trusted-proxies.md)
+for peer inspection, exact proxy configuration, application-only recreation,
+registration IP diagnostics and preserving site settings across template updates.
 
 ### How Auto-Setup Works
 
@@ -579,6 +596,10 @@ If you need to use AI Studio OAuth for Gemini accounts, add the OAuth client cre
 #### Application Configuration
 
 The main config file is at `/etc/sub2api/config.yaml` (created by Setup Wizard).
+
+Login rate limiting can be toggled in **System Settings → Security → Login rate limiting** (enabled by default). Saving applies immediately to admins and users, including password, two-factor, Passkey, and OAuth account-binding sign-ins. Disabling skips both the request counter and the IP failure guard, including existing bans and Redis/Lua failures on these login paths. Other authentication endpoints retain their protection. Existing counters and bans keep their original expiry and apply again if re-enabled before expiry. The setting is stored as `login_rate_limit_enabled` in the database; no `.env` change or restart is required. An older settings client that omits this field preserves the current value.
+
+The independent **System Settings → Security → Registration account limit per IP** switch defaults to enabled (at most two registered accounts per IP, including email and OAuth signups). Administrators can disable it for shared/NAT networks without disabling CAPTCHA, email verification, request throttling or login abuse protection. Saving `registration_ip_limit_enabled` takes effect on the next auth request without a restart. Missing/invalid values and lookup failures retain the quota; older settings clients that omit the field preserve its current value. This uses the existing settings store and requires no schema migration. Existing IP quota rows are never deleted or reset. Signups while disabled do not increment the quota, and re-enabling resumes the previously retained counts rather than backfilling those signups. Disabling the quota can increase signup abuse, so retain other verification controls. Reverting to a binary without this switch restores the original always-on quota.
 
 ### Prerequisites
 

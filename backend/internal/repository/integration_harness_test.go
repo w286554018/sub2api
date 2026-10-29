@@ -39,6 +39,8 @@ var (
 	integrationEntClient   *dbent.Client
 	integrationRedis       *redisclient.Client
 	integrationDatabaseDSN string
+	// Container-only connection string for tests that need a separate database.
+	integrationPostgresDSN string
 
 	redisNamespaceSeq uint64
 )
@@ -92,6 +94,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	integrationDatabaseDSN = dsn
+	integrationPostgresDSN = dsn
 
 	integrationDB, err = openSQLWithRetry(ctx, dsn, 30*time.Second)
 	if err != nil {

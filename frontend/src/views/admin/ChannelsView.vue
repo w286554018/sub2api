@@ -637,6 +637,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -664,6 +665,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
 import { getModelsByPlatform } from '@/composables/useModelWhitelist'
 
+const operationsRoute = useRoute()
 const { t } = useI18n()
 const appStore = useAppStore()
 
@@ -1749,6 +1751,10 @@ async function confirmDelete() {
 
 // ── Lifecycle ──
 onMounted(() => {
+  const editId = Number(operationsRoute?.query.edit_channel)
+  if (Number.isSafeInteger(editId) && editId > 0) {
+    void adminAPI.channels.getById(editId).then(openEditDialog).catch(() => appStore.showError(t('channelOps.failed')))
+  }
   loadChannels()
   loadGroups()
   loadWebSearchGlobalState()

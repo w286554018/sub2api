@@ -44,6 +44,8 @@ function config(): MonitorConfig {
     group_ids: [42],
     candy_probes: [],
     candy_history_limit: 100,
+    card_timeline_mode: 'windows',
+    group_order: [],
     ignored_error_categories: [],
     health_thresholds: {
       minimum_sample: 70, warning_error_rate: 0.1, critical_error_rate: 0.3,

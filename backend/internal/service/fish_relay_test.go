@@ -69,6 +69,18 @@ func TestFishAccountSupportsModel(t *testing.T) {
 	}
 }
 
+func TestFishPassthroughDoesNotWidenSupportedModels(t *testing.T) {
+	for _, account := range []*Account{fishRelayAccount(), fishNativeAccount()} {
+		account.Extra = map[string]any{"openai_passthrough": true}
+		if !account.IsModelSupported("gpt-image-2") {
+			t.Fatalf("%v should keep supporting gpt-image-2 in passthrough mode", account.Type)
+		}
+		if account.IsModelSupported("gpt-5.4") {
+			t.Fatalf("%v passthrough must not widen Fish model support", account.Type)
+		}
+	}
+}
+
 func TestFishAccountBaseURLAndAPIKeyHooks(t *testing.T) {
 	relay := fishRelayAccount()
 	if got := relay.GetOpenAIBaseURL(); got != "https://api.openai.com" {

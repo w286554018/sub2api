@@ -368,11 +368,9 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	return s.TestConnectionWithPrompt(ctx, account, modelID, "")
 }
 
-// TestConnectionWithPrompt runs the same account-bound probe with an optional
-// semantic prompt. Empty prompts preserve the original one-token connectivity
-// check; intelligent tests receive enough output budget for evaluation.
+// TestConnectionWithPrompt runs an account-bound probe with an optional prompt.
+// Empty text probes stay minimal; image model probes use the image generation path.
 func (s *AntigravityGatewayService) TestConnectionWithPrompt(ctx context.Context, account *Account, modelID, prompt string) (*TestConnectionResult, error) {
-	// TestConnectionWithPrompt 测试 Antigravity 账号连接，支持为图片生成模型指定测试提示词。
 
 	// 获取 token
 	if s.tokenProvider == nil {

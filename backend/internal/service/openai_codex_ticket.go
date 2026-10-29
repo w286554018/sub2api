@@ -39,7 +39,7 @@ const (
 	openAICodexCredentialTTL         = 240 * time.Second
 )
 
-// ErrOpenAICodexTicketUnavailable 表示该号该模型没有可用的 292 门票，
+// ErrOpenAICodexTicketUnavailable 表示该号该模型没有可用的配置长度门票，
 // 且 fail_closed 禁止裸打业务请求。
 var ErrOpenAICodexTicketUnavailable = errors.New("codex turn-state ticket unavailable")
 
@@ -217,7 +217,7 @@ func (s *OpenAIGatewayService) openAICodexTicketConfig() config.OpenAICodexTicke
 		cfg = s.cfg.Gateway.OpenAICodexTicket
 	}
 	if cfg.TargetLength <= 0 {
-		cfg.TargetLength = 292
+		cfg.TargetLength = 780
 	}
 	if cfg.TTLSeconds <= 0 {
 		cfg.TTLSeconds = 3600
@@ -262,9 +262,9 @@ type OpenAICodexTicketPlanLengthRule = config.OpenAICodexTicketPlanLengthRule
 
 const (
 	// OpenAICodexTicketMinTargetLength / MaxTargetLength 门票目标长度的合法区间，
-	// 覆盖个人订阅 292 与 Team/Business 332 等已知取值。
+	// 覆盖传统 292/332 票与 Astra Cookie Pool 的 780 票。
 	OpenAICodexTicketMinTargetLength = 100
-	OpenAICodexTicketMaxTargetLength = 512
+	OpenAICodexTicketMaxTargetLength = 780
 	openAICodexTicketMaxPlanRules    = 16
 )
 
@@ -278,7 +278,7 @@ func openAICodexTicketAccountPlanType(account *Account) string {
 // resolveOpenAICodexTicketTargetLength 按账号订阅档位解析门票目标长度。
 func resolveOpenAICodexTicketTargetLength(planType string, rules []OpenAICodexTicketPlanLengthRule, defaultLen int) int {
 	if defaultLen <= 0 {
-		defaultLen = 292
+		defaultLen = 780
 	}
 	plan := strings.ToLower(strings.TrimSpace(planType))
 	if plan == "" {
@@ -297,7 +297,7 @@ func resolveOpenAICodexTicketTargetLength(planType string, rules []OpenAICodexTi
 }
 
 // openAICodexTicketTargetLength 返回该账号的门票目标长度：后台档位规则按
-// plan_type 匹配优先，未命中用后台默认长度，再回退 yaml target_length（292）。
+// plan_type 匹配优先，未命中用后台默认长度，再回退 yaml target_length（780）。
 func (s *OpenAIGatewayService) openAICodexTicketTargetLength(account *Account) int {
 	return s.openAICodexTicketTargetLengthContext(context.Background(), account)
 }
@@ -329,7 +329,7 @@ func parseOpenAICodexTicketPlanLengthRules(raw string) []OpenAICodexTicketPlanLe
 
 func (s *OpenAIGatewayService) openAICodexTicketTargetLengthContext(ctx context.Context, account *Account) int {
 	if s == nil {
-		return 292
+		return 780
 	}
 	cfg := s.openAICodexTicketConfig()
 	if s.settingService == nil {
@@ -1573,6 +1573,9 @@ func IsMaskedProxyURL(raw string) bool {
 // Credential shadows do not own tickets. Keep their existing forwarding policy
 // instead of imposing a gate for a key the harvester never populates.
 func isOpenAICodexTicketAccount(account *Account, upstreamModels ...string) bool {
+	if account.IsSIWCEnabled() {
+		return false
+	}
 	if account == nil || !account.IsOpenAIOAuthLike() || account.IsShadow() || account.isExcelBPSAllModelsEnabled() {
 		return false
 	}

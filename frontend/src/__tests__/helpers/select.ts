@@ -27,6 +27,15 @@ export function selectOptionValues(wrapper: VueWrapper, selector: string): unkno
   return options.map((option) => option !== null && typeof option === 'object' ? option[valueKey] : option)
 }
 
+/** Whether the matching Select option is disabled. */
+export function selectOptionDisabled(wrapper: VueWrapper, selector: string, value: unknown): boolean {
+  const select = findSelect(wrapper, selector)
+  const valueKey = (select.props('valueKey') as string | undefined) ?? 'value'
+  const options = select.props('options') as Array<Record<string, unknown> | string | number | boolean | null>
+  const option = options.find((candidate) => candidate !== null && typeof candidate === 'object' && candidate[valueKey] === value)
+  return option !== undefined && option !== null && typeof option === 'object' && option.disabled === true
+}
+
 /** Open the dropdown of the Select matched by `selector` through its trigger button. */
 export async function openSelectDropdown(wrapper: VueWrapper, selector: string): Promise<HTMLElement> {
   const root = wrapper.get(selector)

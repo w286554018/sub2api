@@ -61,6 +61,21 @@ func TestBPSOAuthModelSupportFollowsModelRestriction(t *testing.T) {
 	require.True(t, native.IsModelSupported("gpt-5.5"), "other account types keep their own rules")
 }
 
+func TestBPSOAuthPassthroughDoesNotBypassModelRestriction(t *testing.T) {
+	account := bpsOAuthAccount()
+	account.Credentials["model_mapping"] = map[string]any{"gpt-6.1-sol": "gpt-6.1-sol"}
+	account.Extra["openai_passthrough"] = true
+
+	require.True(t, account.IsModelSupported("gpt-6.1-sol"))
+	require.False(t, account.IsModelSupported("gpt-5.6-sol"))
+
+	delete(account.Credentials, "model_mapping")
+	for _, model := range ExcelBPSDefaultModels {
+		require.True(t, account.IsModelSupported(model), model)
+	}
+	require.False(t, account.IsModelSupported("gpt-6.1-sol"))
+}
+
 func TestIsOpenAIOAuthCredentialAccountCoversBPSOAuth(t *testing.T) {
 	require.True(t, excelAccount().IsOpenAIOAuthCredentialAccount())
 	require.True(t, (&Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}).IsOpenAIOAuthCredentialAccount())

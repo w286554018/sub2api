@@ -45,6 +45,16 @@ type qualityGroup struct {
 	AllowedModels json.RawMessage `json:"allowed_models"`
 }
 type qualityState struct {
+	// Transaction-local evidence, copied to the result even when restore rolls
+	// back. Never persist diagnostics as ownership or use them as a restore guard.
+	RestoreDiagnostic *service.QualityRestoreDiagnostic `json:"-"`
+	// Composite policies compose the same model/group transitions used by the
+	// standalone actions. Persistent entries never share native cooldown storage.
+	PersistentModels  bool            `json:"persistent_models,omitempty"`
+	Models            *qualityState   `json:"models,omitempty"`
+	Groups            *qualityState   `json:"groups,omitempty"`
+	IsolationModels   []string        `json:"isolation_models,omitempty"`
+	IsolationGroupIDs []int64         `json:"isolation_group_ids,omitempty"`
 	Quality5xxEpisode int64           `json:"quality_5xx_episode,omitempty"`
 	Action            string          `json:"action"`
 	AccountVersion    time.Time       `json:"account_version"`
@@ -70,6 +80,7 @@ type qualityState struct {
 // Lease/version checks, account mutation, ownership and scheduler invalidation
 // commit together. A paused, edited, deleted or expired run cannot change accounts.
 func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, plan *service.ScheduledTestPlan, until time.Time, outcome string) (string, error) {
+	plan.QualityRestoreDiagnostic = nil
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", err
@@ -84,7 +95,35 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 	if err != nil {
 		return "", err
 	}
-	if plan.PelicanConfig.Quality.Action == service.QualityActionObserveOnly {
+
+	if plan.PelicanConfig.Quality.Action == service.QualityActionOpenAITwoFAAdmission {
+		action, applyErr := applyOpenAITwoFAAdmissionOutcome(ctx, tx, plan, until, outcome)
+		if applyErr != nil {
+			return "", applyErr
+		}
+		if err := tx.Commit(); err != nil {
+			return "", err
+		}
+		return action, nil
+	}
+
+	var raw []byte
+	err = tx.QueryRowContext(ctx, `SELECT state FROM account_quality_states WHERE plan_id=$1`, plan.ID).Scan(&raw)
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	}
+	var state qualityState
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &state); err != nil {
+			return "", err
+		}
+	}
+
+	if err = checkQualityIsolationScope(plan, &state); err != nil {
+		return "action_conflict", nil
+	}
+
+	if plan.PelicanConfig.Quality.Action == service.QualityActionObserveOnly && state.Action != service.QualityActionIsolateModels {
 		// Relinquish any former action without restoring or changing account
 		// settings; observation leaves BPS lifecycle to independent policies.
 		if _, err = tx.ExecContext(ctx, `DELETE FROM account_quality_states WHERE plan_id=$1`, plan.ID); err != nil {
@@ -105,22 +144,28 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 	if err != nil {
 		return "", err
 	}
-	var raw []byte
-	err = tx.QueryRowContext(ctx, `SELECT state FROM account_quality_states WHERE plan_id=$1`, plan.ID).Scan(&raw)
-	if err != nil && err != sql.ErrNoRows {
-		return "", err
-	}
-	var state qualityState
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &state); err != nil {
-			return "", err
-		}
-	}
 	// Checked under the same account/plan locks as restoration. A 5xx that
 	// arrives during a probe invalidates that probe even across replicas.
 	if state.Quality5xxEpisode != plan.Quality5xxEpisode {
 		return "stale_run", nil
 	}
+	defer func() {
+		diagnostic := plan.QualityRestoreDiagnostic
+		if diagnostic == nil {
+			diagnostic = state.RestoreDiagnostic
+		}
+		if diagnostic == nil {
+			return
+		}
+		diagnostic.Scope = state.Action
+		diagnostic.AccountStatus = status
+		diagnostic.Schedulable = &schedulable
+		diagnostic.AccountVersion = &version
+		if !state.AccountVersion.IsZero() {
+			diagnostic.OwnedAccountVersion = &state.AccountVersion
+		}
+		plan.QualityRestoreDiagnostic = diagnostic
+	}()
 	q := plan.PelicanConfig.Quality
 	// Changing a rule's action does not discard its previous ownership. While
 	// holding the account lock, keep another rule from taking over that scope
@@ -137,6 +182,19 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 		if owned {
 			return "action_conflict", nil
 		}
+	}
+	if state.Action == service.QualityActionIsolateModels || (state.Action == "" && plan.PelicanConfig.Quality.Action == service.QualityActionIsolateModels) {
+		action, applyErr := applyQualityIsolation(ctx, tx, plan, status, &state)
+		if applyErr != nil {
+			return "", applyErr
+		}
+		if action == "action_conflict" || action == "restore_conflict" {
+			return action, nil
+		}
+		if err = tx.Commit(); err != nil {
+			return "", err
+		}
+		return action, nil
 	}
 	// 已被本规则开过 BPS 的账号即便规则后来改了动作，也由 BPS 分支负责恢复。
 	if state.Action == service.QualityActionRemoveModel || (state.Action == "" && q.Action == service.QualityActionRemoveModel) {
@@ -191,26 +249,10 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 				action = "scheduling_disabled"
 			}
 		case "remove_groups":
-			var all []qualityGroup
-			if err = json.Unmarshal(groups, &all); err != nil {
-				return "", err
-			}
-			selected := map[int64]bool{}
-			for _, id := range q.RemoveGroupIDs {
-				selected[id] = true
-			}
-			for _, group := range all {
-				if selected[group.GroupID] {
-					if _, err = tx.ExecContext(ctx, `DELETE FROM account_groups WHERE account_id=$1 AND group_id=$2`, plan.AccountID, group.GroupID); err != nil {
-						return "", err
-					}
-					state.Removed = append(state.Removed, group)
-				}
-			}
+			err = removeQualityGroups(ctx, tx, plan.AccountID, q.RemoveGroupIDs, &state)
 			changed = len(state.Removed) > 0
 			if changed {
 				action = "groups_removed"
-				_, err = tx.ExecContext(ctx, `UPDATE accounts SET updated_at=clock_timestamp() WHERE id=$1`, plan.AccountID)
 			}
 		}
 		if err != nil {
@@ -233,6 +275,7 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 		// membership edits must not turn an enabled auto-restore rule into a
 		// manual cleanup task. A non-active account is not safe to reactivate.
 		if status != "active" {
+			state.RestoreDiagnostic = qualityRestoreConflict("account_not_active")
 			return "restore_conflict", nil
 		}
 		switch state.Action {
@@ -242,27 +285,16 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 				var enabled bool
 				err = tx.QueryRowContext(ctx, `SELECT schedulable FROM accounts WHERE id=$1`, plan.AccountID).Scan(&enabled)
 				if err == nil && !enabled {
+					state.RestoreDiagnostic = qualityRestoreConflict("account_expired")
 					return "restore_conflict", nil
 				}
 			}
 		case "remove_groups":
-			for _, group := range state.Removed {
-				var exists bool
-				if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM groups WHERE id=$1 AND deleted_at IS NULL)`, group.GroupID).Scan(&exists); err != nil {
-					return "", err
-				}
-				if !exists {
-					return "restore_conflict", nil
-				}
-				var allowed any
-				if len(group.AllowedModels) > 0 && string(group.AllowedModels) != "null" {
-					allowed = string(group.AllowedModels)
-				}
-				if _, err = tx.ExecContext(ctx, `INSERT INTO account_groups(account_id,group_id,priority,created_at,allowed_models) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, plan.AccountID, group.GroupID, group.Priority, group.CreatedAt, allowed); err != nil {
-					return "", err
-				}
+			var conflict bool
+			conflict, err = restoreQualityGroups(ctx, tx, plan.AccountID, &state)
+			if conflict {
+				return "restore_conflict", nil
 			}
-			_, err = tx.ExecContext(ctx, `UPDATE accounts SET updated_at=clock_timestamp() WHERE id=$1`, plan.AccountID)
 		}
 		if err != nil {
 			return "", err
@@ -276,26 +308,11 @@ func (r *scheduledTestPlanRepository) ApplyQualityOutcome(ctx context.Context, p
 		action = "passed"
 	}
 	if changed {
-		// Include removed groups so their cached scheduling buckets are rebuilt too.
-		var all []qualityGroup
-		if err = json.Unmarshal(groups, &all); err != nil {
-			return "", err
-		}
-		ids := make([]int64, 0, len(all)+len(state.Removed))
-		for _, g := range all {
-			ids = append(ids, g.GroupID)
-		}
-		for _, g := range state.Removed {
-			ids = append(ids, g.GroupID)
-		}
-		payload, marshalErr := json.Marshal(map[string]any{"group_ids": ids})
-		if marshalErr != nil {
-			return "", marshalErr
-		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO scheduler_outbox(event_type,account_id,payload) VALUES('account_groups_changed',$1,$2)`, plan.AccountID, string(payload)); err != nil {
+		if err = qualityGroupsChanged(ctx, tx, plan.AccountID, groups, state.Removed); err != nil {
 			return "", err
 		}
 	}
+
 	if err = tx.Commit(); err != nil {
 		return "", err
 	}

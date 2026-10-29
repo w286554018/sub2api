@@ -1148,6 +1148,7 @@ func TestImportCodexSessionsSkipExistingPreservesAccount(t *testing.T) {
 		t.Fatal("legacy create-only behavior changed")
 	}
 }
+
 // An Excel-client session only works through BPS: importing it as a Codex
 // account would send its token to native Codex, so the item is rejected.
 func TestNormalizeCodexImportRejectsExcelClientSessions(t *testing.T) {
@@ -1203,5 +1204,26 @@ func TestEnrichCredentialsFromIDTokenCoversBPSOAuth(t *testing.T) {
 	enrichCredentialsFromIDToken(apiKey)
 	if _, ok := apiKey.Credentials["plan_type"]; ok {
 		t.Fatal("API key accounts are not enriched")
+	}
+
+}
+
+func TestImportCodexSessionsAdmissionSourceOnlyInitializesNewAccounts(t *testing.T) {
+	for _, source := range []bool{false, true} {
+		svc := newCodexImportMemoryAdminService(nil)
+		h := NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		entries := []codexImportEntry{{Index: 1, Value: buildCodexRefreshImportValue(t, "admission-workspace", "admission-user", "test-refresh")}}
+		req := CodexSessionImportRequest{InitializeOpenAITwoFA: source, SkipDefaultGroupBind: boolPtr(true), UpdateExisting: boolPtr(false), SkipExisting: true}
+		first, err := h.importCodexSessions(context.Background(), req, entries)
+		if err != nil || first.Created != 1 {
+			t.Fatal("initial import did not create an account")
+		}
+		if svc.createdAccounts[0].InitialOpenAITwoFA != source {
+			t.Fatal("2FA source was not forwarded on create")
+		}
+		second, err := h.importCodexSessions(context.Background(), req, entries)
+		if err != nil || second.Skipped != 1 || len(svc.createdAccounts) != 1 || len(svc.updatedAccounts) != 0 {
+			t.Fatal("duplicate import reinitialized the account")
+		}
 	}
 }

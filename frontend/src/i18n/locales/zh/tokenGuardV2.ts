@@ -1,4 +1,49 @@
 export default {
+  operationFailure: {
+  manual: {"busy": "已有操作正在进行，请等待完成后查看原任务。", "worker": "重登服务不可用，请检查 Worker 状态。", "configuration": "请先保存完整登录配置。", "encryption": "请先启用凭据加密。", "changed": "账号凭据或任务已变化，请刷新列表并人工核对。"},
+  refreshAttempt: '最近刷新失败尝试（可能已被后续重试恢复）',
+  "details": "查看本次异常详情",
+  "code": "安全短码",
+  "stage": "失败阶段",
+  "time": "发生时间",
+  "unknownTime": "时间未记录",
+  "automationBlocked": "自动操作受限，请查看本次异常与重登预算",
+  "reasons": {
+    "phone_verification_required": "需要手机号验证",
+    "account_deactivated": "账号已被停用",
+    "account_deleted": "账号已删除",
+    "account_retired": "账号已删除或停用",
+    "requires_relogin": "凭据失效，需重新登录",
+    "password_rejected": "密码错误或被拒绝",
+    "mfa_required": "需要 MFA / 验证码",
+    "security_check": "需要安全验证",
+    "authorization_denied": "授权被拒绝",
+    "rate_limited": "上游限流",
+    "timeout": "请求超时",
+    "transport_error": "网络连接异常",
+    "service_error": "上游服务异常",
+    "unknown": "未知异常，原因未确认"
+  },
+  "actions": {
+    "complete_phone_verification": "请在官方页面人工完成手机号验证，再检查凭证。",
+    "contact_provider": "请通过官方渠道确认账号状态或联系支持。",
+    "reauthorize": "请检查登录配置并重新授权。",
+    "update_password": "请确认并更新已保存的登录密码。",
+    "complete_verification": "请人工完成官方验证，并检查 MFA / 验证码配置。",
+    "review_authorization": "请人工检查官方授权或安全验证要求。",
+    "check_service_later": "请检查网络或服务可用性，稍后按既有策略重试。",
+    "review_diagnostics": "请查看本次安全阶段和短码，人工确认原因。"
+  }
+},
+  reloginBudgetCount: '重登失败预算：{count}/{limit}',
+  reloginBudgetExhausted: '自动重登预算已耗尽，巡检继续',
+  reloginBackoffUntil: '重登冷却至',
+  resumeReloginBudget: '恢复预算（不立即重登）',
+  resumeReloginBudgetConfirm: '确认恢复自动重登预算？不会创建任务、启用开关或更改账号状态；保留现有冷却，且至少等待一次基础冷却。存在活跃任务或巡检时会拒绝。',
+  reloginBudgetResumed: '已恢复重登预算，等待冷却和下一次巡检',
+  ruleReloginBackoffMax: '重登递增冷却上限',
+  ruleReloginMaxFailures: '连续重登失败上限',
+  reloginBudgetHint: '达到上限只暂停自动重登；保存成功后还须巡检鉴权通过才清零。',
   totpManage: {
   "close": "关闭",
   "title": "2FA 管理",
@@ -16,6 +61,43 @@ export default {
   "previous": "原凭据（恢复用）",
   "includePassword": "包含登录密码",
   "export": "显示并导出凭据",
+sessionExport: {
+        button: "使用 2FA 导出 ChatGPT Session",
+        title: "使用 2FA 导出 ChatGPT Session",
+        hint: "系统将使用凭证运营中保存的邮箱、密码和 TOTP，通过本地 Worker 登录 ChatGPT 并下载经过身份校验的 Session。密码、TOTP 和 Cookie 不会写入任务或日志。",
+        starting: "正在启动导出任务…",
+        exporting: "正在登录并导出…",
+        download: "重新导出",
+        failed: "Session 导出失败，请稍后重试。",
+        stages: {
+          queued: "排队中",
+          starting: "准备凭证",
+          connecting: "连接本地 Worker",
+          passwordSubmitted: "提交密码",
+          totpSubmitted: "验证 TOTP",
+          sessionRequest: "请求 ChatGPT Session",
+          identityVerification: "校验账号身份",
+          succeeded: "导出完成",
+          failed: "导出失败"
+        },
+        errors: {
+          password_rejected: "密码错误或已被 ChatGPT 拒绝。",
+          totp_rejected: "TOTP 验证失败，请检查凭证运营配置。",
+          identity_mismatch: "登录身份与托管账号不匹配。",
+          upstream_rejected: "ChatGPT 拒绝了登录或 Session 请求。",
+          worker_timeout: "本地 Worker 执行超时。",
+          worker_offline: "没有可用的本地 Worker。",
+          proxy_unavailable: "账号代理不可用，请启动 127.0.0.1:7890 的代理或更新账号代理配置。",
+          session_token_missing: "ChatGPT 没有返回可用的 Web Session Token。",
+          OPENAI_SESSION_EXPORT_CONFIG_REQUIRED: "账号尚未配置邮箱、密码和 TOTP。",
+          OPENAI_REAUTH_WORKER_UNAVAILABLE: "没有可用的本地 Worker。",
+          OPENAI_SESSION_EXPORT_ACCOUNT_INVALID: "仅支持独立的 OpenAI OAuth 父账号。",
+          credentials_required: "账号尚未配置邮箱、密码和 TOTP。",
+          task_expired: "导出任务已过期，请重新发起。",
+          expired: "导出任务已过期，请重新发起。",
+          failed: "Session 导出失败，请稍后重试。"
+        }
+      },
   "recoveryLabel": "待确认凭据：请保留文件，验证成功前不要覆盖验证器中的现有条目。",
   "qr": "2FA 验证器二维码",
   "secret": "2FA 密钥",
@@ -71,6 +153,13 @@ export default {
     running: '已就绪，正在处理重登队列',
     unavailable: '暂时不可用，程序会自动重试',
     stopped: '服务正在停止'
+  },
+  reauthErrors: {
+    proxy_unavailable: '账号代理不可用，请启动代理或更新账号代理配置。',
+    password_rejected: '密码被 ChatGPT 拒绝，请重新保存正确的网页登录密码。',
+    totp_rejected: 'TOTP 验证失败，请检查凭证运营中的 2FA 密钥。',
+    upstream_rejected: 'OpenAI 登录请求被上游拒绝，请检查代理和账号状态。',
+    worker_timeout: 'Worker 执行超时，请检查 Worker 运行状态。'
   },
 
   encryption: {
@@ -148,7 +237,7 @@ export default {
   ruleHealthyTitle: '正常判定',
   ruleHealthyHint: '使用账号现有代理请求 OpenAI 模型列表，凭证被接受即清零连续失败次数。',
   ruleAuthTitle: '鉴权失败判定',
-  ruleAuthHint: '缺少访问令牌、上游返回 401/403，或出现 invalid token、token expired、invalid_grant、requires re-login 时记为鉴权失败。',
+  ruleAuthHint: '缺少访问令牌、上游返回 401 或明确凭据失效码时记为鉴权失败；单个 403 不触发自动重登，手机号、安全验证和账号退役需人工处理。',
   ruleTransientTitle: '临时异常判定',
   ruleTransientHint: '超时、代理故障、429 和其他上游异常记为临时异常，不累计鉴权失败，也不会触发自动重登。',
   ruleReloginTitle: '自动重登',
