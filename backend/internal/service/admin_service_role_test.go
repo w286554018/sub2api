@@ -4,8 +4,10 @@ package service
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -166,6 +168,8 @@ func TestAdminService_UpdateUser_DemoteLastSuperAdminRejected(t *testing.T) {
 	_, err := svc.UpdateUser(context.Background(), 1, &UpdateUserInput{Role: RoleAdmin, ActorAdminID: 1})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "last super admin")
+	require.Equal(t, http.StatusBadRequest, infraerrors.Code(err))
+	require.Equal(t, "LAST_SUPER_ADMIN_DEMOTE_FORBIDDEN", infraerrors.Reason(err))
 	require.Nil(t, repo.lastUpdated)
 	require.Equal(t, []string{StatusActive}, repo.statusFilters)
 }
@@ -260,4 +264,21 @@ func TestAdminService_AuthorizeUserMutation_DisabledSuperAdminActorRejected(t *t
 	err := svc.AuthorizeUserMutation(context.Background(), actor.ID, target.ID)
 
 	require.ErrorIs(t, err, ErrInsufficientPerms)
+}
+
+func TestAdminService_UpdateUser_AdminGuardsAreClientErrors(t *testing.T) {
+	target := &User{ID: 42, Email: "a@example.com", Role: RoleAdmin}
+	actor := &User{ID: 1, Role: RoleSuperAdmin, Status: StatusActive}
+	base := &userRepoStub{user: target, usersByID: map[int64]*User{42: target, 1: actor}}
+	repo := &roleGuardUserRepoStub{rpmUserRepoStub: &rpmUserRepoStub{userRepoStub: base}, adminTotal: 1}
+	svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: &redeemRepoStub{}}
+
+	_, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Status: StatusDisabled})
+	require.Equal(t, http.StatusBadRequest, infraerrors.Code(err))
+	require.Equal(t, "ADMIN_DISABLE_FORBIDDEN", infraerrors.Reason(err))
+
+	_, err = svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Role: RoleUser, ActorAdminID: 1})
+	require.Equal(t, http.StatusBadRequest, infraerrors.Code(err))
+	require.Equal(t, "LAST_ADMIN_DEMOTE_FORBIDDEN", infraerrors.Reason(err))
+	require.Nil(t, repo.lastUpdated)
 }

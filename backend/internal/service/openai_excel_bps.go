@@ -217,7 +217,7 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 	if lineageSessionHash != "" {
 		lineageSessionHash = excelBPSLineageSessionPrefix + lineageSessionHash
 		if invalidDigests := s.sessionInvalidEncryptedContentDigests(lineageGroupID, lineageSessionHash); len(invalidDigests) > 0 {
-			body, _ = s.stripSessionInvalidEncryptedContentLogged(body, invalidDigests, "bps_invalid_encrypted_content_input", account.ID, 0)
+			body, _ = stripExcelBPSInvalidEncryptedContent(body, invalidDigests)
 		}
 	}
 	originalImagePolicyModel := gjson.GetBytes(body, "model").String()
@@ -605,10 +605,11 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(raw))
 		if !isControlledExperiment(ctx) && lineageSessionHash != "" && isExcelBPSInvalidEncryptedContent(raw) {
+			_, invalidDigests := stripExcelBPSInvalidEncryptedContent(upstreamBody, nil)
 			s.markOpenAIWSInvalidEncryptedContentLineage(
 				lineageGroupID,
 				lineageSessionHash,
-				collectOpenAIEncryptedContentDigestsRaw(upstreamBody),
+				invalidDigests,
 			)
 		}
 		if retryBody, retry := prepareExcelBPSInvalidEncryptedRetry(upstreamBody, raw); !isControlledExperiment(ctx) && retry && readErr == nil && len(raw) <= maxRejectionBytes && ctx.Err() == nil {

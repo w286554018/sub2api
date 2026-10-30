@@ -238,7 +238,7 @@ func (s *adminServiceImpl) ensureNotLastAdmin(ctx context.Context) error {
 		adminTotal += superResult.Total
 	}
 	if adminTotal <= 1 {
-		return errors.New("cannot demote the last admin user")
+		return infraerrors.BadRequest("LAST_ADMIN_DEMOTE_FORBIDDEN", "cannot demote the last admin user")
 	}
 	return nil
 }
@@ -253,7 +253,7 @@ func (s *adminServiceImpl) ensureNotLastSuperAdmin(ctx context.Context) error {
 		return fmt.Errorf("count super admin users: %w", err)
 	}
 	if result == nil || result.Total <= 1 {
-		return errors.New("cannot demote the last super admin user")
+		return infraerrors.BadRequest("LAST_SUPER_ADMIN_DEMOTE_FORBIDDEN", "cannot demote the last super admin user")
 	}
 	return nil
 }
@@ -303,7 +303,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 
 	// Protect admin users: cannot disable admin accounts
 	if IsAdminRole(user.Role) && input.Status == "disabled" {
-		return nil, errors.New("cannot disable admin user")
+		return nil, infraerrors.BadRequest("ADMIN_DISABLE_FORBIDDEN", "cannot disable admin user; change the role to user first")
 	}
 	if err := s.requireSuperAdminActorForAdminRole(ctx, input.ActorAdminID, user.Role, input.Role); err != nil {
 		return nil, err
@@ -512,7 +512,7 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 		return err
 	}
 	if IsAdminRole(user.Role) {
-		return errors.New("cannot delete admin user")
+		return infraerrors.BadRequest("ADMIN_DELETE_FORBIDDEN", "cannot delete admin user; change the role to user first")
 	}
 
 	apiKeys, err := s.listUserAPIKeysForDeletion(ctx, id)

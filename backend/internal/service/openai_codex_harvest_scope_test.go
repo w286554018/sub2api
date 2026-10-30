@@ -41,7 +41,7 @@ func harvestScopeService(t *testing.T, raw string, accounts []Account, budget in
 	}
 	u := &harvestScopeUpstream{}
 	s := ticketTestService(t, config.OpenAICodexTicketConfig{
-		Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: "http://example.org:1234", MaxProbesPerRound: budget,
+		Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: "http://example.org:1234", MaxProbesPerRound: budget,
 	}, u)
 	s.settingService = NewSettingService(repo, &config.Config{})
 	s.accountRepo = &codexTicketRefreshRepo{accounts: accounts}

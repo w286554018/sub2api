@@ -210,6 +210,7 @@ var DefaultKiroModelMapping = map[string]string{
 	"gpt-5.6-terra":                       "gpt-5.6-terra",
 	"gpt-5.6-luna":                        "gpt-5.6-luna",
 	"codex-auto-review":                   "gpt-5.6-luna",
+	"kimi-k3":                             "kimi-k3",
 	"claude-opus-4-8":                     "claude-opus-4.8",
 	"claude-opus-4-8-thinking":            "claude-opus-4.8",
 	"claude-opus-4-7":                     "claude-opus-4.7",
@@ -232,6 +233,8 @@ var DefaultKiroModelMapping = map[string]string{
 	"claude-sonnet-4-5-20250929-thinking": "claude-sonnet-4.5",
 	"claude-haiku-4-5-20251001":           "claude-haiku-4.5",
 	"claude-haiku-4-5-20251001-thinking":  "claude-haiku-4.5",
+	"claude-haiku-5-5":                    "claude-haiku-5.5",
+	"claude-haiku-5-5-thinking":           "claude-haiku-5.5",
 }
 
 // DefaultAdobeModelMapping is Adobe's public image-model mapping.

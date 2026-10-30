@@ -75,7 +75,7 @@ func TestSettingsCodexTicketTargetLengthWriteReadAndHotReload(t *testing.T) {
 
 	for _, body := range []map[string]any{
 		{defaultKey: 99},
-		{defaultKey: 513},
+		{defaultKey: service.OpenAICodexTicketMaxTargetLength + 1},
 		{rulesKey: []map[string]any{{"plan": "team", "length": 99}}},
 		{rulesKey: []map[string]any{{"plan": "team", "length": 332}, {"plan": "TEAM", "length": 316}}},
 		{rulesKey: []map[string]any{{"plan": "  ", "length": 332}}},

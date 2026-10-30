@@ -342,6 +342,28 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestProxyHandlerObserverGetAllReturnsSafeProjection(t *testing.T) {
+	router, adminSvc := setupAdminRouter()
+	adminSvc.proxies = []service.Proxy{{
+		ID: 42, Name: "observer-visible", Protocol: "socks5", Host: "proxy.internal", Port: 1080,
+		Username: "secret-user", Password: "secret-password", Status: service.StatusActive,
+	}}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/all?with_count=true", nil)
+	req = req.WithContext(service.WithObserverScope(req.Context(), []int64{7}))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), `"id":42`)
+	require.Contains(t, rec.Body.String(), `"name":"observer-visible"`)
+	require.Contains(t, rec.Body.String(), `"protocol":"socks5"`)
+	require.Contains(t, rec.Body.String(), `"status":"active"`)
+	require.NotContains(t, rec.Body.String(), "proxy.internal")
+	require.NotContains(t, rec.Body.String(), "secret-")
+	require.NotContains(t, rec.Body.String(), "account_count")
+}
+
 func TestRedeemHandlerEndpoints(t *testing.T) {
 	router, _ := setupAdminRouter()
 

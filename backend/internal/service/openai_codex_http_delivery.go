@@ -89,9 +89,14 @@ func (w *openAICodexHTTPDeliveryWriter) WriteHeaderNow() {
 }
 
 func (w *openAICodexHTTPDeliveryWriter) Flush() {
+	_ = w.FlushError()
+}
+
+func (w *openAICodexHTTPDeliveryWriter) FlushError() error {
 	pendingHeaders := w.snapshotHeaders()
-	w.ResponseWriter.Flush()
-	if pendingHeaders && w.ResponseWriter.Written() {
+	err := FlushGatewayResponse(w.ResponseWriter)
+	if err == nil && pendingHeaders && w.Written() {
 		w.noteDelivery()
 	}
+	return err
 }

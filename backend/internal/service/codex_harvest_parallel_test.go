@@ -80,7 +80,7 @@ func TestParallelHarvestBudgetAndFailedPersistence(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			account := ticketTestAccount(41)
 			var requests atomic.Int64
-			svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TTLSeconds: 3600, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
+			svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, TTLSeconds: 3600, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
 				requests.Add(1)
 				resp := codexTicketResponse()
 				if kind == "miss" {
@@ -129,7 +129,7 @@ func TestParallelHarvestCancelsOtherProbesAfterPersistedWinner(t *testing.T) {
 	var started atomic.Int64
 	var cancelled atomic.Int64
 	ready := make(chan struct{})
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TTLSeconds: 3600, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, TTLSeconds: 3600, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
 		n := started.Add(1)
 		if n == 3 {
 			close(ready)

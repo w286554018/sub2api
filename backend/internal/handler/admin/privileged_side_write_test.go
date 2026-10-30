@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -33,6 +34,7 @@ func TestContentModerationUnban_BlocksPrivilegedTarget(t *testing.T) {
 	adminService.authorizeUserMutationErr = service.ErrInsufficientPerms
 	h := &ContentModerationHandler{adminService: adminService}
 	c, recorder := privilegedMutationRequest(t, http.MethodPost, "")
+	c.Set(string(middleware.ContextKeyUserRole), service.RoleAdmin)
 	c.Params = []gin.Param{{Key: "user_id", Value: "42"}}
 
 	h.UnbanUser(c)
@@ -45,6 +47,7 @@ func TestContentModerationActions_BlockPrivilegedTarget(t *testing.T) {
 	adminService.authorizeUserMutationErr = service.ErrInsufficientPerms
 	h := &ContentModerationHandler{adminService: adminService}
 	c, recorder := privilegedMutationRequest(t, http.MethodPost, `{"action":"reset","version":0,"confirm":true,"reason":"review"}`)
+	c.Set(string(middleware.ContextKeyUserRole), service.RoleAdmin)
 	c.Params = []gin.Param{{Key: "user_id", Value: "42"}}
 
 	h.ManageUser(c)

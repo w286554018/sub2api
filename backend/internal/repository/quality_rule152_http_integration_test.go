@@ -30,7 +30,7 @@ func TestQuality152HTTPUpdatePreservesServerIsolation(t *testing.T) {
 			}
 			svc, repo, account := repository.Quality152AdminFixture(t, current)
 			// No test/probe service or real credentials: Update cannot launch a probe.
-			handler := admin.NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			handler := admin.NewAccountHandler(svc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 			gin.SetMode(gin.TestMode)
 			router := gin.New()
 			router.PUT("/accounts/:id", handler.Update)

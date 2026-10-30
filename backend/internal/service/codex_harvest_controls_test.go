@@ -141,7 +141,7 @@ func TestHarvestProbeClassification(t *testing.T) {
 				h.Set("Retry-After", "300")
 				return &http.Response{StatusCode: tc.status, Header: h, Body: io.NopCloser(strings.NewReader(tc.body))}, nil
 			}}
-			cfg := config.OpenAICodexTicketConfig{Enabled: true}
+			cfg := config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292}
 			if tc.length == 332 {
 				cfg.TargetLength = 332
 			}

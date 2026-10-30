@@ -70,7 +70,10 @@ func TestFishGenerateCallHappyPath(t *testing.T) {
 		t.Fatalf("GroupID = %q", result.GroupID)
 	}
 	// 请求体：像素尺寸 + quality + 计价回显
-	params := generateBody["params"].(map[string]any)
+	params, ok := generateBody["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("params = %T, want map[string]any", generateBody["params"])
+	}
 	if params["image_size"] != "1024x1024" || params["quality"] != "medium" {
 		t.Fatalf("params = %v", params)
 	}
@@ -82,11 +85,21 @@ func TestFishGenerateCallHappyPath(t *testing.T) {
 	if err := json.Unmarshal(result.Body, &bodyMap); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	data := bodyMap["data"].([]any)
+	data, ok := bodyMap["data"].([]any)
+	if !ok {
+		t.Fatalf("data = %T, want []any", bodyMap["data"])
+	}
 	if len(data) != 1 {
 		t.Fatalf("data len = %d", len(data))
 	}
-	b64 := data[0].(map[string]any)["b64_json"].(string)
+	item, ok := data[0].(map[string]any)
+	if !ok {
+		t.Fatalf("data[0] = %T, want map[string]any", data[0])
+	}
+	b64, ok := item["b64_json"].(string)
+	if !ok {
+		t.Fatalf("b64_json = %T, want string", item["b64_json"])
+	}
 	if decoded, _ := base64.StdEncoding.DecodeString(b64); string(decoded) != string(pngBytes) {
 		t.Fatalf("b64 mismatch")
 	}
@@ -117,7 +130,13 @@ func TestFishGenerateCallEditsFlow(t *testing.T) {
 			_, _ = w.Write([]byte(`{"credits":1820,"pricingVersion":"pv"}`))
 		case "/tools/image-video/generate":
 			body := decodeFishBody(t, r)
-			variant = body["variantKey"].(string)
+			var ok bool
+			variant, ok = body["variantKey"].(string)
+			if !ok {
+				t.Errorf("variantKey = %T, want string", body["variantKey"])
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			_, _ = w.Write([]byte(`{"id":"g","status":"generating","results":[]}`))
 		case "/task/group/g":
 			_, _ = w.Write([]byte(`{"id":"g","status":"done","results":[{"id":"m","status":"done","mediaItem":{"id":"m","url":"http://` + r.Host + `/o.png"}}]}`))
@@ -265,7 +284,10 @@ func TestFishGenerateCallDynamicFitSize(t *testing.T) {
 		t.Fatalf("GenerateCall: %v", err)
 	}
 	// 上游收到就近原生档
-	params := generateBody["params"].(map[string]any)
+	params, ok := generateBody["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("params = %T, want map[string]any", generateBody["params"])
+	}
 	if params["image_size"] != "1536x2048" {
 		t.Fatalf("image_size = %v, want 1536x2048", params["image_size"])
 	}
@@ -280,7 +302,21 @@ func TestFishGenerateCallDynamicFitSize(t *testing.T) {
 	if result.Size != "880x1168" {
 		t.Fatalf("result.Size = %q, want 880x1168", result.Size)
 	}
-	b64 := bodyMap["data"].([]any)[0].(map[string]any)["b64_json"].(string)
+	data, ok := bodyMap["data"].([]any)
+	if !ok {
+		t.Fatalf("data = %T, want []any", bodyMap["data"])
+	}
+	if len(data) == 0 {
+		t.Fatal("data must contain an image")
+	}
+	item, ok := data[0].(map[string]any)
+	if !ok {
+		t.Fatalf("data[0] = %T, want map[string]any", data[0])
+	}
+	b64, ok := item["b64_json"].(string)
+	if !ok {
+		t.Fatalf("b64_json = %T, want string", item["b64_json"])
+	}
 	decoded, _ := base64.StdEncoding.DecodeString(b64)
 	img, _, err := image.Decode(bytes.NewReader(decoded))
 	if err != nil {
@@ -421,8 +457,21 @@ func fishResponseImage(t *testing.T, body []byte) []byte {
 	if err := json.Unmarshal(body, &bodyMap); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	data := bodyMap["data"].([]any)
-	b64 := data[0].(map[string]any)["b64_json"].(string)
+	data, ok := bodyMap["data"].([]any)
+	if !ok {
+		t.Fatalf("data = %T, want []any", bodyMap["data"])
+	}
+	if len(data) == 0 {
+		t.Fatal("data must contain an image")
+	}
+	item, ok := data[0].(map[string]any)
+	if !ok {
+		t.Fatalf("data[0] = %T, want map[string]any", data[0])
+	}
+	b64, ok := item["b64_json"].(string)
+	if !ok {
+		t.Fatalf("b64_json = %T, want string", item["b64_json"])
+	}
 	decoded, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		t.Fatalf("decode b64: %v", err)
@@ -666,7 +715,11 @@ func TestFishGenerateCallBillsDeliveredSizeOnUpscale(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateCall: %v", err)
 	}
-	if params := generateBody["params"].(map[string]any); params["image_size"] != "1344x576" {
+	params, ok := generateBody["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("params = %T, want map[string]any", generateBody["params"])
+	}
+	if params["image_size"] != "1344x576" {
 		t.Fatalf("image_size = %v, want 1344x576", params["image_size"])
 	}
 	if result.Size != "1568x672" {
@@ -705,10 +758,17 @@ func TestFishGenerateCallImage2OmitsFrontendQuality(t *testing.T) {
 	if _, err := service.Generate(context.Background(), account, "tok", fishImageRequest("gpt-image-2", "1024x1024", "high", 1)); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if params := generateBody["params"].(map[string]any); params["quality"] != "high" {
+	params, ok := generateBody["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("params = %T, want map[string]any", generateBody["params"])
+	}
+	if params["quality"] != "high" {
 		t.Fatalf("params.quality = %v, want high", params["quality"])
 	}
-	frontend := generateBody["frontendParams"].(map[string]any)
+	frontend, ok := generateBody["frontendParams"].(map[string]any)
+	if !ok {
+		t.Fatalf("frontendParams = %T, want map[string]any", generateBody["frontendParams"])
+	}
 	if _, ok := frontend["quality"]; ok {
 		t.Fatalf("frontendParams.quality must be absent for gpt-image-2, got %v", frontend["quality"])
 	}
@@ -758,7 +818,6 @@ func TestFishGenerateCallEstimatesUsage(t *testing.T) {
 		t.Fatal("result.Usage must carry the estimate for the stream path")
 	}
 }
-
 func TestFishBuildPartialResultUsageCountsDeliveredImages(t *testing.T) {
 	// n=4 只交付了 3 张：usage 按已交付张数估算。
 	service := NewFishImageService(nil)

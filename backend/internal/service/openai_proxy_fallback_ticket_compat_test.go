@@ -46,7 +46,7 @@ func TestRuntimeProxyFallbackPreservesTicketResponsePolicy(t *testing.T) {
 					return &http.Response{StatusCode: http.StatusOK, Body: body,
 						Header: http.Header{http.CanonicalHeaderKey(openAICodexTurnStateHeader): []string{"malformed"}}}, nil
 				}}
-				svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, upstream)
+				svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, upstream)
 				svc.proxyRepo = &fakeProxyLookup{byID: map[int64]*Proxy{backup.ID: backup}}
 				values := map[string]string{SettingKeyOpenAICodexTicketStrict: "false"}
 				if strict {
@@ -132,7 +132,7 @@ func TestBoundTicketPinsHarvestEgressAndSkipsFallback(t *testing.T) {
 		}
 		return nil, syscall.ECONNREFUSED
 	}}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, upstream)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, upstream)
 	svc.proxyRepo = &fakeProxyLookup{byID: map[int64]*Proxy{backup.ID: backup}}
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 		Model: "gpt-6-astra", State: state, Length: 292, HarvestProxyURL: primary.URL(),

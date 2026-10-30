@@ -2,8 +2,8 @@ package fish
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +18,24 @@ func newTestClient(t *testing.T, handler http.Handler) (*Client, *httptest.Serve
 	t.Cleanup(server.Close)
 	client := NewClient(Options{APIBase: server.URL})
 	return client, server
+}
+
+type customDefaultTransport struct{ http.RoundTripper }
+
+func TestNewClientProxyWithCustomDefaultTransport(t *testing.T) {
+	original := http.DefaultTransport
+	http.DefaultTransport = customDefaultTransport{original}
+	t.Cleanup(func() { http.DefaultTransport = original })
+
+	client := NewClient(Options{ProxyURL: "http://127.0.0.1:18080"})
+	transport, ok := client.httpClient.Transport.(*http.Transport)
+	if !ok || transport.Proxy == nil {
+		t.Fatal("configured proxy requires a proxy-aware transport")
+	}
+	proxyURL, err := transport.Proxy(&http.Request{})
+	if err != nil || proxyURL == nil || proxyURL.String() != "http://127.0.0.1:18080" {
+		t.Fatalf("proxy = %v, error = %v", proxyURL, err)
+	}
 }
 
 func decodeJSONBody(t *testing.T, r *http.Request) map[string]any {
@@ -47,19 +65,19 @@ func TestBrowserHeaderSet(t *testing.T) {
 		t.Fatalf("Price: %v", err)
 	}
 	checks := map[string]string{
-		"Authorization":       "Bearer tok",
-		"Accept":              "application/json",
-		"Origin":              WebOrigin,
-		"User-Agent":          chromeUserAgent,
-		"Sec-Ch-Ua":           chromeSecCHUA,
-		"Sec-Ch-Ua-Mobile":    "?0",
-		"Sec-Ch-Ua-Platform":  chromeSecCHUAPlat,
-		"Sec-Fetch-Dest":      "empty",
-		"Sec-Fetch-Mode":      "cors",
-		"Sec-Fetch-Site":      "same-site",
+		"Authorization":        "Bearer tok",
+		"Accept":               "application/json",
+		"Origin":               WebOrigin,
+		"User-Agent":           chromeUserAgent,
+		"Sec-Ch-Ua":            chromeSecCHUA,
+		"Sec-Ch-Ua-Mobile":     "?0",
+		"Sec-Ch-Ua-Platform":   chromeSecCHUAPlat,
+		"Sec-Fetch-Dest":       "empty",
+		"Sec-Fetch-Mode":       "cors",
+		"Sec-Fetch-Site":       "same-site",
 		"X-Fish-Amp-Device-Id": "dev-1",
-		"X-Team-Id":           "team-1",
-		"X-Workspace-Id":      "team-1",
+		"X-Team-Id":            "team-1",
+		"X-Workspace-Id":       "team-1",
 	}
 	for header, want := range checks {
 		if got := got.Get(header); got != want {

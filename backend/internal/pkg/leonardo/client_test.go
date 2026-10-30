@@ -10,6 +10,24 @@ import (
 	"testing"
 )
 
+type customDefaultTransport struct{ http.RoundTripper }
+
+func TestNewClientProxyWithCustomDefaultTransport(t *testing.T) {
+	original := http.DefaultTransport
+	http.DefaultTransport = customDefaultTransport{original}
+	t.Cleanup(func() { http.DefaultTransport = original })
+
+	client := NewClient(Options{ProxyURL: "http://127.0.0.1:18080"})
+	transport, ok := client.httpClient.Transport.(*http.Transport)
+	if !ok || transport.Proxy == nil {
+		t.Fatal("configured proxy requires a proxy-aware transport")
+	}
+	proxyURL, err := transport.Proxy(&http.Request{})
+	if err != nil || proxyURL == nil || proxyURL.String() != "http://127.0.0.1:18080" {
+		t.Fatalf("proxy = %v, error = %v", proxyURL, err)
+	}
+}
+
 // newTestClient 返回端点指向 test server 的 Client。
 func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Server) {
 	t.Helper()

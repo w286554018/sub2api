@@ -44,7 +44,7 @@ func TestCodex780ProbeUsesCanonicalClientIdentity(t *testing.T) {
 		{
 			name: "Astra minimum client version", model: "gpt-6-astra",
 			canonical: "codex-tui/0.145.0" + codexCLIUserAgentSuffix,
-			wantUA:    "codex_cli_rs/" + openAICodexAstraMinVersion + codexCLIUserAgentSuffix, wantOriginator: "codex_cli_rs", wantVersion: openAICodexAstraMinVersion,
+			wantUA:    buildCodexCLIUserAgent(openAICodexAstraMinVersion), wantOriginator: "codex_cli_rs", wantVersion: openAICodexAstraMinVersion,
 		},
 		{
 			name: "non Astra keeps configured version", model: "gpt-5.6-sol",

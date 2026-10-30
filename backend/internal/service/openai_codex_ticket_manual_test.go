@@ -24,7 +24,7 @@ type manualHarvestAccountRepo struct {
 func TestManualHarvestBudgetIsSharedAcrossModels(t *testing.T) {
 	account := ticketTestAccount(41)
 	calls := 0
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) {
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{TargetLength: 292, TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) {
 		calls++
 		resp := codexTicketResponse()
 		resp.Header.Set(openAICodexTurnStateHeader, fakeCodexTicketState(312))
@@ -58,7 +58,7 @@ func TestManualHarvestPersistenceOutcome(t *testing.T) {
 			defer cancel()
 			account := ticketTestAccount(41)
 			calls := 0
-			svc := ticketTestService(t, config.OpenAICodexTicketConfig{TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) {
+			svc := ticketTestService(t, config.OpenAICodexTicketConfig{TargetLength: 292, TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) {
 				calls++
 				return codexTicketResponse(), nil
 			}})
@@ -114,7 +114,7 @@ func TestManualHarvestPersistenceRetryDoesNotStopOnCapture(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	account := ticketTestAccount(41)
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) { return codexTicketResponse(), nil }})
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{TargetLength: 292, TTLSeconds: 3600}, &codexTicketFuncUpstream{do: func(*http.Request) (*http.Response, error) { return codexTicketResponse(), nil }})
 	writes := 0
 	svc.accountRepo = &manualHarvestAccountRepo{account: account, persist: func(context.Context) error {
 		writes++

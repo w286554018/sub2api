@@ -565,7 +565,7 @@ func TestRefreshOpenAICodexTickets_ConcurrentModelsPreserveAccountSnapshot(t *te
 	account.Extra = map[string]any{"existing": true}
 	repo := &codexTicketRefreshRepo{accounts: []Account{*account}}
 	upstream := &codexTicketConcurrentUpstream{ready: make(chan struct{})}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, HarvestProxyURL: "socks5h://proxy.example.com:1080"}, upstream)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, HarvestProxyURL: "socks5h://proxy.example.com:1080"}, upstream)
 	svc.accountRepo = repo
 	svc.refreshOpenAICodexTickets(context.Background())
 	require.Equal(t, int64(2), upstream.started.Load())
@@ -894,7 +894,7 @@ func TestDoOpenAIUpstream_BoundTicketUsesHarvestProxy(t *testing.T) {
 	account := ticketTestAccount(41)
 	account.Proxy = &Proxy{ID: 9, Protocol: "http", Host: "account.example", Port: 8080, Status: StatusActive}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("{}"))}}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, upstream)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, upstream)
 	state := fakeCodexTicketState(292)
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 		Model: "gpt-6-astra", State: state, Length: 292, HarvestProxyURL: harvest,
@@ -932,7 +932,7 @@ func TestDoOpenAIUpstream_BoundTicketUsesConfiguredHarvestProxy(t *testing.T) {
 	account := ticketTestAccount(41)
 	account.Proxy = &Proxy{ID: 9, Protocol: "http", Host: "account.example", Port: 8080, Status: StatusActive}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("{}"))}}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, upstream)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, upstream)
 	state := fakeCodexTicketState(292)
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 		Model: "gpt-6-astra", State: state, Length: 292,
@@ -971,7 +971,7 @@ func TestDoOpenAIProxyAttempt_BoundTicketSkipsPlugin(t *testing.T) {
 	account := ticketTestAccount(41)
 	state := fakeCodexTicketState(292)
 	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("{}"))}}
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, upstream)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, upstream)
 	mgr := &PluginManager{}
 	mgr.route.Store(&pluginRoute{rolloutPercent: 100})
 	svc.pluginManager = mgr
@@ -995,7 +995,7 @@ func TestPinCodexTicketWSAcquireUsesHarvestProxy(t *testing.T) {
 	account := ticketTestAccount(41)
 	account.Proxy = &Proxy{ID: 9, Protocol: "http", Host: "account.example", Port: 8080, Status: StatusActive}
 	account.ProxyID = &account.Proxy.ID
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, nil)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, nil)
 	state := fakeCodexTicketState(292)
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 		Model: "gpt-6-astra", State: state, Length: 292, HarvestProxyURL: harvest,
@@ -1030,7 +1030,7 @@ func TestPinCodexTicketWSAcquireConfiguredHarvestWhenTicketHasNoProxy(t *testing
 	account := ticketTestAccount(41)
 	account.Proxy = &Proxy{ID: 9, Protocol: "http", Host: "account.example", Port: 8080, Status: StatusActive}
 	account.ProxyID = &account.Proxy.ID
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, nil)
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: harvest}, nil)
 	state := fakeCodexTicketState(292)
 	require.NoError(t, svc.storeOpenAICodexTicket(context.Background(), account, &openAICodexTicket{
 		Model: "gpt-6-astra", State: state, Length: 292,

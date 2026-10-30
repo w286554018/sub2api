@@ -41,7 +41,7 @@ func TestOpenAITurnAdmissionDrainsCurrentRejectsNext(t *testing.T) {
 				cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 1
 				cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 1
 				cfg.Gateway.OpenAICodexTicket = config.OpenAICodexTicketConfig{
-					Enabled: true, FailClosed: true, Models: []string{"gpt-5.6-sol", "gpt-6-astra"},
+					Enabled: true, FailClosed: true, TargetLength: 292, Models: []string{"gpt-5.6-sol", "gpt-6-astra"},
 				}
 				a := ticketTestAccount(731)
 				a.Concurrency = 1

@@ -75,6 +75,63 @@ func TestExcelBPSInvalidEncryptedRetryPreservesHistory(t *testing.T) {
 	require.Equal(t, before, after, "model and request identity must not change")
 }
 
+func TestExcelBPSRememberedEncryptedContentPreservesUnknownItems(t *testing.T) {
+	body := []byte(`{"metadata":{"sequence":9007199254740993},"input":[{"role":"user","content":"original task"},{"type":"compaction","encrypted_content":"known-compact"},{"type":"compaction_summary","encrypted_content":"known-summary"},{"type":"reasoning","encrypted_content":"known-reasoning"},{"type":"compaction","encrypted_content":"new-compact"},{"type":"reasoning","encrypted_content":"new-reasoning"},{"type":"function_call","call_id":"c","name":"inspect","arguments":"{\"sequence\":9007199254740993}"},{"type":"function_call_output","call_id":"c","output":"original result"}]}`)
+	original := bytes.Clone(body)
+	known := []string{"known-compact", "known-summary", "known-reasoning"}
+	invalid := make(map[string]struct{}, len(known))
+	for _, ciphertext := range known {
+		invalid[openAIEncryptedContentDigest(ciphertext)] = struct{}{}
+	}
+	filtered, removed := stripExcelBPSInvalidEncryptedContent(body, invalid)
+	require.Equal(t, original, body)
+	require.Len(t, removed, len(known))
+	for _, ciphertext := range known {
+		require.Contains(t, removed, openAIEncryptedContentDigest(ciphertext))
+		require.NotContains(t, string(filtered), ciphertext)
+	}
+	for _, preserved := range []string{"original task", "new-compact", "new-reasoning", "original result", "9007199254740993"} {
+		require.Contains(t, string(filtered), preserved)
+	}
+	var before, after map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(body, &before))
+	require.NoError(t, json.Unmarshal(filtered, &after))
+	var input []json.RawMessage
+	require.NoError(t, json.Unmarshal(before["input"], &input))
+	expected := append(input[:1:1], input[4:]...)
+	expectedJSON, err := json.Marshal(expected)
+	require.NoError(t, err)
+	require.JSONEq(t, string(expectedJSON), string(after["input"]))
+	delete(before, "input")
+	delete(after, "input")
+	require.Equal(t, before, after)
+
+	unchanged, removed := stripExcelBPSInvalidEncryptedContent(body, map[string]struct{}{})
+	require.Equal(t, body, unchanged)
+	require.Empty(t, removed, "an empty memory must not permit the initial-rejection policy")
+}
+
+func TestExcelBPSRememberedEncryptedContentProtectsRequiredHistory(t *testing.T) {
+	invalid := map[string]struct{}{openAIEncryptedContentDigest("known-compact"): {}}
+	for name, input := range map[string]string{
+		"encrypted message":   `{"role":"user","encrypted_content":"private-message"}`,
+		"encrypted arguments": `{"type":"function_call","encrypted_function_args":["private-arguments"]}`,
+		"encrypted content":   `{"role":"user","content":[{"type":"encrypted_content","encrypted_content":"private-content"}]}`,
+		"encrypted output":    `{"type":"function_call_output","output":[{"type":"encrypted_content","encrypted_content":"private-output"}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := []byte(`{"input":[{"role":"user","content":"continue"},{"type":"compaction","encrypted_content":"known-compact"},` + input + `]}`)
+			filtered, removed := stripExcelBPSInvalidEncryptedContent(body, invalid)
+			require.Equal(t, body, filtered)
+			require.Empty(t, removed)
+		})
+	}
+	body := []byte(`{"input":[{"type":"compaction","encrypted_content":"known-compact"},{"type":"reasoning","encrypted_content":"new-reasoning"}]}`)
+	filtered, removed := stripExcelBPSInvalidEncryptedContent(body, invalid)
+	require.Equal(t, body, filtered)
+	require.Empty(t, removed, "remembered ciphertext still requires surviving plaintext history")
+}
+
 func TestExcelBPSInvalidEncryptedRetryNeverDropsRequiredContext(t *testing.T) {
 	for _, item := range []string{
 		`{"type":"compaction","encrypted_content":"only-copy-of-context"}`,
@@ -280,8 +337,8 @@ func TestExcelBPSInvalidEncryptedContentStopsOnDisconnect(t *testing.T) {
 	}
 }
 
-// Unreadable compaction is degraded like on the native path: the whole item
-// goes with the opaque reasoning, and other ciphertext still blocks the retry.
+// BPS drops unreadable compaction with the opaque reasoning after an explicit
+// rejection, while other encrypted history still blocks the retry.
 func TestPrepareExcelBPSInvalidEncryptedRetryDropsCompaction(t *testing.T) {
 	retry, ok := prepareExcelBPSInvalidEncryptedRetry([]byte(`{"model":"gpt-5.6-sol","input":[{"role":"user","content":"continue"},{"type":"compaction","encrypted_content":"native-compact","summary":[]},{"type":"compaction_summary","encrypted_content":"native-summary"},{"type":"reasoning","encrypted_content":"native-reasoning"},{"role":"user","content":"next"}]}`), []byte(excelBPSInvalidCiphertext))
 	require.True(t, ok)

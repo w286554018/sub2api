@@ -20,9 +20,9 @@ const (
 // RequestError 是 fish 上游调用的基础错误。fish API 的错误信封统一为
 // {"status":N,"message":"..."}（2026-10 抓包确认）。
 type RequestError struct {
-	Message    string
-	StatusCode int
-	ErrorType  string
+	Message     string
+	StatusCode  int
+	ErrorType   string
 	UserMessage string
 }
 

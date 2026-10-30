@@ -81,7 +81,7 @@ func TestChatBridgeHandlerRecoveryAndOpsOutcome(t *testing.T) {
 			t.Cleanup(gateway.StopOpenAICodexTicketHarvester)
 			t.Cleanup(gateway.CloseOpenAIWSPool)
 			h := NewOpenAIGatewayHandler(gateway, service.NewConcurrencyService(nil), billing,
-				service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
+				service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, nil, cfg)
 			h.maxAccountSwitches = 1
 			opsRepo := &ingressRejectOpsRepo{}
 			ops := service.NewOpsService(opsRepo, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)

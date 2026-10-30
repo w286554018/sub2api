@@ -164,7 +164,11 @@ func TestFishBuildPartialResult(t *testing.T) {
 	if err := json.Unmarshal(result.Body, &body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(body["data"].([]any)) != 2 {
+	data, ok := body["data"].([]any)
+	if !ok {
+		t.Fatalf("data = %T, want []any", body["data"])
+	}
+	if len(data) != 2 {
 		t.Fatalf("data len mismatch")
 	}
 	// 空进度 → nil

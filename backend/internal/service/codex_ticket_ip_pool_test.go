@@ -113,6 +113,7 @@ func TestCodexTicketStaticHarvestProxyIsNotAffectedByPool(t *testing.T) {
 func TestCodexTicketIPPoolRefreshPrefersTicketExit(t *testing.T) {
 	repo := &ipPoolProxyRepoStub{proxies: ipPoolTestProxies()}
 	svc := ipPoolTestService(t, OpenAICodexTicketHarvestIPPoolURL, repo)
+	svc.cfg.Gateway.OpenAICodexTicket.TargetLength = 292
 	ctx := context.Background()
 	account := ticketTestAccount(61)
 	pinned := "socks5h://b.example.com:1080"

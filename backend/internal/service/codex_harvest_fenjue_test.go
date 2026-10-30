@@ -14,7 +14,7 @@ import (
 
 func TestFreshHarvestDoesNotReuseOldCookies(t *testing.T) {
 	account := ticketTestAccount(41)
-	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
+	svc := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}}, &codexTicketFuncUpstream{do: func(req *http.Request) (*http.Response, error) {
 		require.Empty(t, req.Header.Get("Cookie"))
 		require.Empty(t, req.Header.Get(openAICodexTurnStateHeader))
 		require.Equal(t, "true", req.Header.Get(responsesLiteHeaderKey))

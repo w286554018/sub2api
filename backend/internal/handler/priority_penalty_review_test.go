@@ -66,7 +66,7 @@ func TestPriorityPenaltyReviewHandlerFailover(t *testing.T) {
 			t.Cleanup(func() { _ = gateway.CloseExcelBPSImages() })
 			billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 			t.Cleanup(billing.Stop)
-			h := NewOpenAIGatewayHandler(gateway, concurrency, billing, service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
+			h := NewOpenAIGatewayHandler(gateway, concurrency, billing, service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, nil, cfg)
 			h.maxAccountSwitches = 2
 			group := int64(3131)
 			ctx := service.WithPrioritySchedulingObservation(context.Background(), &group, "gpt-6-astra", "/v1/responses")

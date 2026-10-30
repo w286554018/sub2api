@@ -202,14 +202,22 @@ func TestPanelRateLimiterHeavyUsesHeavyRPM(t *testing.T) {
 
 func TestPanelRateLimiterAdminExemption(t *testing.T) {
 	// 豁免开启：管理员不计数
+	allower := &fakePanelAllower{}
 	p := &PanelRateLimiter{
-		limiter:        &fakePanelAllower{},
+		limiter:        allower,
 		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":1,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":0}`),
 	}
 	admin := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 9, role: service.RoleAdmin})
 	for i := 0; i < 5; i++ {
 		require.Equal(t, http.StatusOK, performPanelRequest(admin, "127.0.0.1:1000").Code)
 	}
+	superAdmin := newPanelTestRouter(p.Global(), &panelTestIdentity{userID: 10, role: service.RoleSuperAdmin})
+	for i := 0; i < 5; i++ {
+		require.Equal(t, http.StatusOK, performPanelRequest(superAdmin, "127.0.0.1:1000").Code)
+	}
+	allower.mu.Lock()
+	require.Empty(t, allower.counts)
+	allower.mu.Unlock()
 
 	// 豁免关闭：管理员一样受限
 	p2 := &PanelRateLimiter{

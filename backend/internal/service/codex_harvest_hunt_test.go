@@ -106,7 +106,7 @@ func learningHarvestFixture(t *testing.T, budget int) (*OpenAIGatewayService, *h
 	require.NoError(t, os.Mkdir(root, 0700))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "provider.yaml"), []byte("proxies:\n - {name: US, type: ss, server: us.example.com, port: 443}\n - {name: JP, type: ss, server: jp.example.com, port: 443}\n - {name: SG, type: ss, server: sg.example.com, port: 443}\n"), 0600))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "config.yaml"), []byte("mixed-port: 3101\nexternal-controller: "+ctrl.URL+"\nsecret: fixture\nlisteners:\n - {name: codex-harvest-directed, type: mixed, listen: 127.0.0.1, port: 3102, proxy: CODEX-HARVEST-SELECT}\nproxy-providers:\n airport:\n  path: ./provider.yaml\n  override: {additional-prefix: p-}\n"), 0600))
-	cfg := config.OpenAICodexTicketConfig{Enabled: true, Models: []string{"gpt-6-astra"}, HarvestProxyURL: "http://127.0.0.1:3101", MaxProbesPerRound: budget}
+	cfg := config.OpenAICodexTicketConfig{Enabled: true, TargetLength: 292, Models: []string{"gpt-6-astra"}, HarvestProxyURL: "http://127.0.0.1:3101", MaxProbesPerRound: budget}
 	s := ticketTestService(t, cfg, nil)
 	settings := &harvestControlSettingsRepo{}
 	memory := &harvestLearningMemory{generation: 1}

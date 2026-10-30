@@ -37,10 +37,11 @@ func TestOpenAIGPT61SolLongContextExempt(t *testing.T) {
 		{name: "订阅缓存越过 500k", account: oauth, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, tokens: UsageTokens{InputTokens: 400_000, CacheReadTokens: 100_000, CacheCreationTokens: 1}},
 		{name: "订阅访问令牌刚好 500k", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeSetupToken}, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, tokens: UsageTokens{InputTokens: 500_000}, want: true},
 		{name: "订阅访问令牌超过 500k", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeSetupToken}, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, tokens: UsageTokens{InputTokens: 500_001}},
-		{name: "API Key", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}},
-		{name: "API Key 别名", account: apiKey, result: &OpenAIForwardResult{Model: "openai/GPT_6.1_SOL-max"}},
-		{name: "API Key 压缩", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol-openai-compact"}},
-		{name: "API Key 映射到目标", account: apiKey, result: &OpenAIForwardResult{Model: "custom", UpstreamModel: "gpt-6.1-sol"}},
+		{name: "API Key", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, want: true},
+		{name: "API Key 别名", account: apiKey, result: &OpenAIForwardResult{Model: "openai/GPT_6.1_SOL-max"}, want: true},
+		{name: "API Key 压缩", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol-openai-compact"}, want: true},
+		{name: "API Key 映射到目标", account: apiKey, result: &OpenAIForwardResult{Model: "custom", UpstreamModel: "gpt-6.1-sol"}, want: true},
+		{name: "API Key 刚好 500k", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, tokens: UsageTokens{InputTokens: 500_000}, want: true},
 		{name: "API Key 超过 500k 仍不豁免", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, tokens: UsageTokens{InputTokens: 500_001}},
 		{name: "API Key 映射离开目标", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6.1-sol", UpstreamModel: "gpt-6-sol"}},
 		{name: "API Key 仅计费标签", account: apiKey, result: &OpenAIForwardResult{Model: "gpt-6-sol", BillingModel: "gpt-6.1-sol"}},
@@ -99,8 +100,8 @@ func TestOpenAIGatewayServiceRecordUsage_GPT61SolSubscriptionLongContext(t *test
 								APIKey: apiKey, User: &User{ID: 2}, Account: account,
 							})
 							require.NoError(t, err)
-							// 总上下文 300k：订阅仍短上下文；API Key 在账号或分组开启长上下文时加官方附加费。
-							wantLong := accountType == AccountTypeAPIKey && (accountEnabled || groupMode == "分组开启")
+							// 总上下文 300k：OAuth、Setup Token 和 API Key 均免官方长上下文附加费。
+							wantLong := false
 							inputFactor, outputFactor, tierFactor := 1.0, 1.0, 1.0
 							if wantLong {
 								inputFactor, outputFactor = 2, 1.5
@@ -122,9 +123,6 @@ func TestOpenAIGatewayServiceRecordUsage_GPT61SolSubscriptionLongContext(t *test
 							require.InDelta(t, wantTotal*1.1, userRepo.lastAmount, 1e-12)
 							if groupMode != "无分组" {
 								wantStats := 0.478 * tierFactor
-								if accountType == AccountTypeAPIKey && accountEnabled {
-									wantStats = (0.458*2 + 0.02*1.5) * tierFactor
-								}
 								require.NotNil(t, log.AccountStatsCost)
 								require.InDelta(t, wantStats, *log.AccountStatsCost, 1e-12)
 							}
@@ -209,8 +207,8 @@ func TestOpenAIGatewayServiceRecordUsage_GPT61SolLongContextBoundary(t *testing.
 	}{
 		{AccountTypeAPIKey, 271999, false},
 		{AccountTypeAPIKey, 272000, false},
-		{AccountTypeAPIKey, 272001, true},
-		{AccountTypeAPIKey, 500000, true},
+		{AccountTypeAPIKey, 272001, false},
+		{AccountTypeAPIKey, 500000, false},
 		{AccountTypeAPIKey, 500001, true},
 		{AccountTypeOAuth, 272001, false},
 		{AccountTypeOAuth, 500000, false},
@@ -290,7 +288,7 @@ func TestOpenAIGatewayServiceRecordUsage_GPT61SolSubscriptionAbove500kMatchesAcc
 	require.InDelta(t, base, *usageRepo.lastLog.AccountStatsCost, 1e-9)
 }
 
-func TestOpenAIGatewayServiceRecordUsage_APIKeyGPT61SolUsesOfficialLongContext(t *testing.T) {
+func TestOpenAIGatewayServiceRecordUsage_APIKeyGPT61SolExemptionPreservesOtherModelSurcharges(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		model     string
@@ -298,8 +296,8 @@ func TestOpenAIGatewayServiceRecordUsage_APIKeyGPT61SolUsesOfficialLongContext(t
 		wantLong  bool
 		wantTotal float64
 	}{
-		{name: "API Key Sol", model: "gpt-6.1-sol", wantLong: true, wantTotal: 1.23},
-		{name: "API Key 别名映射到 Sol", model: "custom", upstream: "gpt-6.1-sol", wantLong: true, wantTotal: 1.23},
+		{name: "API Key Sol", model: "gpt-6.1-sol", wantTotal: 0.62},
+		{name: "API Key 别名映射到 Sol", model: "custom", upstream: "gpt-6.1-sol", wantTotal: 0.62},
 		{name: "API Key Sol 映射到旧模型仍计附加费", model: "gpt-6.1-sol", upstream: "gpt-6-sol", wantLong: true, wantTotal: 1.23},
 		{name: "API Key 非 Sol", model: "gpt-6-sol", wantLong: true, wantTotal: 1.23},
 		{name: "API Key Astra", model: "gpt-6-astra", wantLong: true, wantTotal: 6.15},

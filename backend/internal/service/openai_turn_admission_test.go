@@ -385,7 +385,7 @@ func TestOpenAITurnAdmissionShadowParent(t *testing.T) {
 func TestOpenAITurnAdmissionModelAndHandshakeBinding(t *testing.T) {
 	a := ticketTestAccount(1)
 	attachReadyCodexTicket(a, "gpt-5.6-sol")
-	s := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, FailClosed: true}, nil)
+	s := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, FailClosed: true, TargetLength: 292}, nil)
 	h := http.Header{}
 	require.NoError(t, s.applyOpenAICodexTicket(context.Background(), a, "gpt-5.6-sol", h))
 	b := s.bindOpenAIWSHandshake(a, "gpt-5.6-sol", h)
@@ -432,7 +432,7 @@ func TestOpenAITurnAdmissionBindingUsesFinalHeaders(t *testing.T) {
 	attachReadyCodexTicket(a, "gpt-6-astra")
 	a.Extra[codexFingerprintSeedExtraKey] = testCodexFingerprintSeed
 	a.Extra[codexFingerprintModeExtraKey] = string(codexFingerprintFull)
-	s := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, FailClosed: true}, nil)
+	s := ticketTestService(t, config.OpenAICodexTicketConfig{Enabled: true, FailClosed: true, TargetLength: 292}, nil)
 	pool := newOpenAIWSConnPool(&config.Config{})
 	defer pool.Close()
 	upstream := newStagedPassthroughConn()

@@ -40,35 +40,45 @@ func prepareExcelBPSInvalidEncryptedRetry(body, rejection []byte) ([]byte, bool)
 	if !isExcelBPSInvalidEncryptedContent(rejection) {
 		return body, false
 	}
+	retry, removed := stripExcelBPSInvalidEncryptedContent(body, nil)
+	return retry, len(removed) > 0
+}
+
+// A nil invalid set permits the initial, explicitly rejected BPS retry. Later
+// turns remove only remembered ciphertexts under the same safe-item policy.
+func stripExcelBPSInvalidEncryptedContent(body []byte, invalid map[string]struct{}) ([]byte, []string) {
 	var request map[string]json.RawMessage
 	if json.Unmarshal(body, &request) != nil {
-		return body, false
+		return body, nil
 	}
 	var input []json.RawMessage
 	if json.Unmarshal(request["input"], &input) != nil {
-		return body, false
+		return body, nil
 	}
 	kept := make([]json.RawMessage, 0, len(input))
-	removed := false
+	var removed []string
 	hasHistory := false
 	for _, item := range input {
 		typeName := gjson.GetBytes(item, "type").String()
 		encrypted := gjson.GetBytes(item, "encrypted_content")
-		if typeName == "reasoning" && encrypted.Type == gjson.String && encrypted.String() != "" {
-			removed = true
-			continue
-		}
-		if (typeName == "compaction" || typeName == "compaction_summary") && encrypted.Exists() {
-			removed = true
+		if (typeName == "reasoning" && encrypted.Type == gjson.String && encrypted.String() != "") ||
+			((typeName == "compaction" || typeName == "compaction_summary") && encrypted.Exists()) {
+			digest := openAIEncryptedContentDigest(encrypted.String())
+			_, remembered := invalid[digest]
+			if invalid == nil || remembered {
+				removed = append(removed, digest)
+			} else {
+				kept = append(kept, item)
+			}
 			continue
 		}
 		if encrypted.Exists() || len(gjson.GetBytes(item, "encrypted_function_args").Array()) > 0 {
-			return body, false
+			return body, nil
 		}
 		for _, field := range []string{"content", "output"} {
 			for _, part := range gjson.GetBytes(item, field).Array() {
 				if part.Get("type").String() == "encrypted_content" || part.Get("encrypted_content").Exists() {
-					return body, false
+					return body, nil
 				}
 			}
 		}
@@ -81,17 +91,17 @@ func prepareExcelBPSInvalidEncryptedRetry(body, rejection []byte) ([]byte, bool)
 		}
 		kept = append(kept, item)
 	}
-	if !removed || !hasHistory {
-		return body, false
+	if len(removed) == 0 || !hasHistory {
+		return body, nil
 	}
 	var err error
 	request["input"], err = json.Marshal(kept)
 	if err != nil {
-		return body, false
+		return body, nil
 	}
 	retry, err := json.Marshal(request)
 	if err != nil {
-		return body, false
+		return body, nil
 	}
-	return retry, true
+	return retry, removed
 }

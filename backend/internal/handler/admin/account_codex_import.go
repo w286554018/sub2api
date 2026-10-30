@@ -684,7 +684,7 @@ func normalizeCodexImportEntry(entry codexImportEntry) (*codexImportAccount, err
 	// Imported as Codex OAuth it would send an Excel token to native Codex and
 	// could overwrite the same user's Codex account during merge.
 	if strings.TrimSpace(item.ClientID) == openai.ExcelClientID || item.TokenClientID == openai.ExcelClientID {
-		return nil, errors.New("Excel 客户端（BPS）会话不能作为 Codex 账号导入，请通过 BPS OAuth 授权或粘贴 Refresh Token 添加")
+		return nil, errors.New("不能将 Excel 客户端（BPS）会话作为 Codex 账号导入，请通过 BPS OAuth 授权或粘贴 Refresh Token 添加")
 	}
 	if item.RefreshToken != "" {
 		item.Credentials["refresh_token"] = item.RefreshToken
