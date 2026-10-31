@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,27 +101,40 @@ func TestImpersonateTransportRejectsUnknownProfile(t *testing.T) {
 	require.False(t, IsRotatable(err), "配置错误换号也无用")
 }
 
-// allowLoopbackDownloads 让直连下载在本测试内可以连 httptest 的回环地址。
-func allowLoopbackDownloads(t *testing.T) {
+// newLoopbackDownloadTransport tests the download flow without weakening its
+// destination checks: the URL uses an allowed fixture hostname while the test
+// client's dialer connects only to the local HTTPS server.
+func newLoopbackDownloadTransport(t *testing.T, handler http.Handler) (*plainTransport, string) {
 	t.Helper()
-	previous := plainTransportDialControl
-	plainTransportDialControl = nil
-	t.Cleanup(func() { plainTransportDialControl = previous })
+	server := httptest.NewTLSServer(handler)
+	t.Cleanup(server.Close)
+	url := strings.Replace(server.URL, "127.0.0.1", "media.example.com", 1)
+
+	transport := &plainTransport{}
+	httpTransport := server.Client().Transport.(*http.Transport).Clone()
+	httpTransport.TLSClientConfig = httpTransport.TLSClientConfig.Clone()
+	httpTransport.TLSClientConfig.ServerName = "127.0.0.1"
+	httpTransport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+	}
+	transport.once.Do(func() {
+		transport.client = &http.Client{Transport: httpTransport, CheckRedirect: transport.checkRedirect}
+	})
+	t.Cleanup(httpTransport.CloseIdleConnections)
+	return transport, url
 }
 
 func TestPlainTransportRoundTrip(t *testing.T) {
-	allowLoopbackDownloads(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	transport, url := newLoopbackDownloadTransport(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "*/*", r.Header.Get("accept"))
 		w.Header().Set("X-Task-Status", "COMPLETED")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("BODY"))
 	}))
-	defer server.Close()
 
-	resp, err := NewPlainTransport("").Do(context.Background(), &Request{
+	resp, err := transport.Do(context.Background(), &Request{
 		Method:  http.MethodGet,
-		URL:     server.URL,
+		URL:     url,
 		Headers: map[string]string{"accept": "*/*"},
 	})
 	require.NoError(t, err)
@@ -134,19 +148,17 @@ func TestPlainTransportRoundTrip(t *testing.T) {
 
 // 产物直链可以 302 到内网主机名：每一跳都要重新校验，而不只是首个 URL。
 func TestPlainTransportRejectsUnsafeRedirects(t *testing.T) {
-	allowLoopbackDownloads(t)
 	for name, location := range map[string]string{
 		"localhost": "https://localhost/secret",
 		"ip 字面量":    "https://10.0.0.1/secret",
 		"降级到 http":  "http://media.example.com/secret",
 	} {
 		t.Run(name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			transport, url := newLoopbackDownloadTransport(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, location, http.StatusFound)
 			}))
-			defer server.Close()
 
-			_, err := NewPlainTransport("").Do(context.Background(), &Request{Method: http.MethodGet, URL: server.URL})
+			_, err := transport.Do(context.Background(), &Request{Method: http.MethodGet, URL: url})
 			require.ErrorContains(t, err, "destination is not allowed")
 			require.False(t, IsRotatable(err), "目标被策略拒绝，换号也无用")
 		})
@@ -154,6 +166,12 @@ func TestPlainTransportRejectsUnsafeRedirects(t *testing.T) {
 }
 
 func TestPlainTransportRedirectLimit(t *testing.T) {
+	previous := downloadResolver
+	downloadResolver = func(context.Context, string) ([]net.IPAddr, error) {
+		return []net.IPAddr{{IP: net.ParseIP("93.184.216.34")}}, nil
+	}
+	t.Cleanup(func() { downloadResolver = previous })
+
 	transport := NewPlainTransport("").(*plainTransport)
 	_, err := transport.ensureClient()
 	require.NoError(t, err)
@@ -203,16 +221,14 @@ func TestPlainTransportInvalidProxy(t *testing.T) {
 }
 
 func TestPlainTransportTimeout(t *testing.T) {
-	allowLoopbackDownloads(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	transport, url := newLoopbackDownloadTransport(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
 
-	_, err := NewPlainTransport("").Do(context.Background(), &Request{
+	_, err := transport.Do(context.Background(), &Request{
 		Method:  http.MethodGet,
-		URL:     server.URL,
+		URL:     url,
 		Timeout: 10 * time.Millisecond,
 	})
 	var temporary *UpstreamTemporaryError
@@ -297,20 +313,18 @@ func TestPlainTransportBlocksPrivateDestination(t *testing.T) {
 }
 
 func TestPlainTransportRejectsOversizedBody(t *testing.T) {
-	allowLoopbackDownloads(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	transport, url := newLoopbackDownloadTransport(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(make([]byte, 64))
 	}))
-	defer server.Close()
 
-	_, err := NewPlainTransport("").Do(context.Background(), &Request{
-		Method: http.MethodGet, URL: server.URL, MaxBodyBytes: 16,
+	_, err := transport.Do(context.Background(), &Request{
+		Method: http.MethodGet, URL: url, MaxBodyBytes: 16,
 	})
 	require.ErrorContains(t, err, "exceeds 16 bytes")
 	require.False(t, IsRotatable(err))
 
-	resp, err := NewPlainTransport("").Do(context.Background(), &Request{
-		Method: http.MethodGet, URL: server.URL, MaxBodyBytes: 64,
+	resp, err := transport.Do(context.Background(), &Request{
+		Method: http.MethodGet, URL: url, MaxBodyBytes: 64,
 	})
 	require.NoError(t, err)
 	require.Len(t, resp.Body, 64)

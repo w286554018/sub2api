@@ -85,7 +85,7 @@ func TestScopedAdminAccountListPostgresRulesAndPagination(t *testing.T) {
 	schema := fmt.Sprintf("scoped_list_test_%d", time.Now().UnixNano())
 	_, err = base.Exec(`CREATE SCHEMA ` + schema)
 	require.NoError(t, err)
-	db, err := sql.Open("postgres", dsn+" search_path="+schema)
+	db, err := sql.Open("postgres", scopedAdminPostgresTestDSN(t, dsn, schema))
 	require.NoError(t, err)
 	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	t.Cleanup(func() {
@@ -99,7 +99,7 @@ func TestScopedAdminAccountListPostgresRulesAndPagination(t *testing.T) {
 		type TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', schedulable BOOLEAN NOT NULL DEFAULT true,
 		concurrency INT NOT NULL DEFAULT 1, priority INT NOT NULL DEFAULT 1, credentials JSONB DEFAULT '{}', deleted_at TIMESTAMPTZ
 	);
-	CREATE TABLE account_groups(account_id BIGINT, group_id BIGINT, priority INT DEFAULT 50, created_at TIMESTAMPTZ DEFAULT NOW());
+	CREATE TABLE account_groups(account_id BIGINT, group_id BIGINT, priority INT DEFAULT 50, allowed_models JSONB, created_at TIMESTAMPTZ DEFAULT NOW());
 	INSERT INTO accounts(id,platform,type) VALUES
 	(1,'openai','oauth'), (2,'openai','apikey'), (3,'openai','oauth'),
 	(4,'openai','apikey'), (5,'anthropic','oauth'), (6,'openai','oauth');

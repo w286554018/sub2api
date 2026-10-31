@@ -6,8 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,20 @@ import (
 )
 
 // 只使用显式指定的隔离测试数据库，每次创建并清理独立 schema。
+func scopedAdminPostgresTestDSN(t *testing.T, dsn, schema string) string {
+	t.Helper()
+	trimmed := strings.TrimSpace(dsn)
+	if strings.HasPrefix(strings.ToLower(trimmed), "postgres://") || strings.HasPrefix(strings.ToLower(trimmed), "postgresql://") {
+		parsed, err := url.Parse(trimmed)
+		require.NoError(t, err, "parse isolated PostgreSQL URL")
+		query := parsed.Query()
+		query.Set("search_path", schema)
+		parsed.RawQuery = query.Encode()
+		return parsed.String()
+	}
+	return dsn + " search_path=" + schema
+}
+
 func scopedAdminKeyTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("SCOPED_ADMIN_TEST_DSN")
@@ -28,7 +44,7 @@ func scopedAdminKeyTestDB(t *testing.T) *sql.DB {
 	schema := fmt.Sprintf("scoped_admin_test_%d", time.Now().UnixNano())
 	_, err = base.Exec(`CREATE SCHEMA ` + schema)
 	require.NoError(t, err)
-	db, err := sql.Open("postgres", dsn+" search_path="+schema)
+	db, err := sql.Open("postgres", scopedAdminPostgresTestDSN(t, dsn, schema))
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = db.Close()
@@ -37,7 +53,7 @@ func scopedAdminKeyTestDB(t *testing.T) *sql.DB {
 	})
 	_, err = db.Exec(`CREATE TABLE users(id BIGINT PRIMARY KEY); INSERT INTO users(id) VALUES(9)`)
 	require.NoError(t, err)
-	migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", "247_scoped_admin_api_keys.sql"))
+	migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", "310_scoped_admin_api_keys.sql"))
 	require.NoError(t, err)
 	_, err = db.Exec(string(migration))
 	require.NoError(t, err)

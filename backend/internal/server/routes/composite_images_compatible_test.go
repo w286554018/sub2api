@@ -89,7 +89,7 @@ func TestCompositeCompatibleImagesEndToEnd(t *testing.T) {
 			const model = "gemini-3.1-flash-image"
 			groupID := int64(101)
 			price := 0.17
-			group := &service.Group{ID: groupID, Platform: service.PlatformComposite, AllowImageGeneration: scenario != "disabled", RateMultiplier: 1, ImagePrice1K: &price, ImagePrice2K: &price, ImagePrice4K: &price}
+			group := &service.Group{ID: groupID, Platform: service.PlatformComposite, AllowImageGeneration: scenario != "disabled", ImageCountBilling: true, RateMultiplier: 1, ImagePrice1K: &price, ImagePrice2K: &price, ImagePrice4K: &price}
 			accounts := []service.Account{}
 			// Native accounts deliberately advertise the same model and have higher
 			// priority, proving the image capability fence controls selection.

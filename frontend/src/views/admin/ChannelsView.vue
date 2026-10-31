@@ -670,11 +670,9 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 // Web Search global enabled state (loaded once on mount)
-// Platforms that support the account-level Web Search emulation toggle
-// (must stay in sync with the backend account-level whitelist in
-// backend/internal/service/account.go webSearchEmulationPlatformEnabled).
-// Both the rendering and the submit path use this set, so a platform added to
-// the backend whitelist automatically becomes configurable here.
+// Channel dimensions supported by the Anthropic-compatible gateway paths.
+// Keep render/submit in sync; backend merge preserves dimensions unknown to this
+// editor. Account-level overrides retain their separate platform/type guards.
 const WEB_SEARCH_EMULATION_PLATFORMS: ReadonlySet<string> = new Set([
   'anthropic',
   'openai',

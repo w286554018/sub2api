@@ -2145,13 +2145,14 @@ func TestOpenAIGatewayServiceRecordUsage_ImageOnlyUsageStillPersists(t *testing.
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:  "resp_image_only_usage",
-			Model:      "gpt-image-2",
-			ImageCount: 2,
-			ImageSize:  "1K",
-			Duration:   time.Second,
+			RequestID:     "resp_image_only_usage",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
+			ImageCount:    2,
+			ImageSize:     "1K",
+			Duration:      time.Second,
 		},
-		APIKey:  &APIKey{ID: 1007},
+		APIKey:  &APIKey{ID: 1007, Group: &Group{ImageCountBilling: true}},
 		User:    &User{ID: 2007},
 		Account: &Account{ID: 3007},
 	})
@@ -2173,19 +2174,21 @@ func TestOpenAIGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndP
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:  "resp_image_default_size",
-			Model:      "gpt-image-2",
-			ImageCount: 2,
-			ImageSize:  "",
-			Duration:   time.Second,
+			RequestID:     "resp_image_default_size",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
+			ImageCount:    2,
+			ImageSize:     "",
+			Duration:      time.Second,
 		},
 		APIKey: &APIKey{
 			ID:      11201,
 			GroupID: i64p(groupID),
 			Group: &Group{
-				ID:             groupID,
-				RateMultiplier: 1.0,
-				ImagePrice2K:   &imagePrice2K,
+				ID:                groupID,
+				RateMultiplier:    1.0,
+				ImageCountBilling: true,
+				ImagePrice2K:      &imagePrice2K,
 			},
 		},
 		User:    &User{ID: 21201},
@@ -2216,8 +2219,9 @@ func TestOpenAIGatewayServiceRecordUsage_OutputImageSizeWinsBeforeBillingAndPers
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID: "resp_image_output_size",
-			Model:     "gpt-image-2",
+			RequestID:     "resp_image_output_size",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
 			Usage: OpenAIUsage{
 				ImageCacheReadTokens: 40,
 			},
@@ -2230,10 +2234,11 @@ func TestOpenAIGatewayServiceRecordUsage_OutputImageSizeWinsBeforeBillingAndPers
 			ID:      11202,
 			GroupID: i64p(groupID),
 			Group: &Group{
-				ID:             groupID,
-				RateMultiplier: 1.0,
-				ImagePrice1K:   &imagePrice1K,
-				ImagePrice4K:   &imagePrice4K,
+				ID:                groupID,
+				RateMultiplier:    1.0,
+				ImageCountBilling: true,
+				ImagePrice1K:      &imagePrice1K,
+				ImagePrice4K:      &imagePrice4K,
 			},
 		},
 		User:    &User{ID: 21202},
@@ -2266,8 +2271,9 @@ func TestOpenAIGatewayServiceRecordUsage_ImageUsesPerImageBillingEvenWithUsageTo
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID: "resp_image_per_request",
-			Model:     "gpt-image-2",
+			RequestID:     "resp_image_per_request",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
 			Usage: OpenAIUsage{
 				InputTokens:       1110,
 				OutputTokens:      1756,
@@ -2281,9 +2287,10 @@ func TestOpenAIGatewayServiceRecordUsage_ImageUsesPerImageBillingEvenWithUsageTo
 			ID:      1008,
 			GroupID: i64p(groupID),
 			Group: &Group{
-				ID:             groupID,
-				RateMultiplier: 1.0,
-				ImagePrice1K:   &imagePrice,
+				ID:                groupID,
+				RateMultiplier:    1.0,
+				ImageCountBilling: true,
+				ImagePrice1K:      &imagePrice,
 			},
 		},
 		User:    &User{ID: 2008},
@@ -2311,11 +2318,12 @@ func TestOpenAIGatewayServiceRecordUsage_ImageSharedMultiplierPreservesExistingB
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:  "resp_image_shared_multiplier",
-			Model:      "gpt-image-2",
-			ImageCount: 1,
-			ImageSize:  "1K",
-			Duration:   time.Second,
+			RequestID:     "resp_image_shared_multiplier",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
+			ImageCount:    1,
+			ImageSize:     "1K",
+			Duration:      time.Second,
 		},
 		APIKey: &APIKey{
 			ID:      10121,
@@ -2323,6 +2331,7 @@ func TestOpenAIGatewayServiceRecordUsage_ImageSharedMultiplierPreservesExistingB
 			Group: &Group{
 				ID:                   groupID,
 				RateMultiplier:       0.15,
+				ImageCountBilling:    true,
 				ImageRateIndependent: false,
 				ImageRateMultiplier:  1,
 				ImagePrice1K:         &imagePrice,
@@ -2356,11 +2365,12 @@ func TestOpenAIGatewayServiceRecordUsage_ImageSharedMultiplierUsesUserGroupOverr
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:  "resp_image_user_group_override",
-			Model:      "gpt-image-2",
-			ImageCount: 1,
-			ImageSize:  "1K",
-			Duration:   time.Second,
+			RequestID:     "resp_image_user_group_override",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
+			ImageCount:    1,
+			ImageSize:     "1K",
+			Duration:      time.Second,
 		},
 		APIKey: &APIKey{
 			ID:      10125,
@@ -2368,6 +2378,7 @@ func TestOpenAIGatewayServiceRecordUsage_ImageSharedMultiplierUsesUserGroupOverr
 			Group: &Group{
 				ID:                   groupID,
 				RateMultiplier:       0.15,
+				ImageCountBilling:    true,
 				ImageRateIndependent: false,
 				ImageRateMultiplier:  1,
 				ImagePrice1K:         &imagePrice,
@@ -2393,11 +2404,12 @@ func TestOpenAIGatewayServiceRecordUsage_ImageIndependentMultiplierUsesImageRate
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:  "resp_image_independent_multiplier",
-			Model:      "gpt-image-2",
-			ImageCount: 1,
-			ImageSize:  "1K",
-			Duration:   time.Second,
+			RequestID:     "resp_image_independent_multiplier",
+			Model:         "gpt-image-2",
+			ImageEndpoint: true,
+			ImageCount:    1,
+			ImageSize:     "1K",
+			Duration:      time.Second,
 		},
 		APIKey: &APIKey{
 			ID:      10122,
@@ -2405,6 +2417,7 @@ func TestOpenAIGatewayServiceRecordUsage_ImageIndependentMultiplierUsesImageRate
 			Group: &Group{
 				ID:                   groupID,
 				RateMultiplier:       0.15,
+				ImageCountBilling:    true,
 				ImageRateIndependent: true,
 				ImageRateMultiplier:  1,
 				ImagePrice1K:         &imagePrice,
@@ -2678,20 +2691,22 @@ func TestOpenAIGatewayServiceRecordUsage_HydratesGroupImagePriceWhenAuthSnapshot
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
-			RequestID:    "resp_grok_image_hydrated_price",
-			Model:        "grok-imagine-image-quality",
-			BillingModel: "grok-imagine-image-quality",
-			ImageCount:   1,
-			ImageSize:    ImageBillingSize2K,
-			Duration:     time.Second,
+			RequestID:     "resp_grok_image_hydrated_price",
+			Model:         "grok-imagine-image-quality",
+			BillingModel:  "grok-imagine-image-quality",
+			ImageEndpoint: true,
+			ImageCount:    1,
+			ImageSize:     ImageBillingSize2K,
+			Duration:      time.Second,
 		},
 		APIKey: &APIKey{
 			ID:      10130,
 			GroupID: i64p(groupID),
 			Group: &Group{
-				ID:             groupID,
-				Platform:       PlatformGrok,
-				RateMultiplier: 1,
+				ID:                groupID,
+				Platform:          PlatformGrok,
+				RateMultiplier:    1,
+				ImageCountBilling: true,
 			},
 		},
 		User:    &User{ID: 20130},

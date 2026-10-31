@@ -888,16 +888,14 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	applyExtraToUsage(usage, account.Extra, now)
 
 	if (force || shouldRefreshOpenAICodexSnapshot(account, usage, now)) && s.shouldProbeOpenAICodexSnapshot(account.ID, now, force) {
-		if account.IsShadow() {
-			// Spark shadow accounts fetch usage from /wham/usage (bengalfox channel)
-			// via the shared OpenAIQuotaService, which resolves credentials from the
-			// parent account.  The result is written to the shadow row's own codex_*
-			// Extra keys and immediately reflected in the returned UsageInfo.
+		if account.IsShadow() || account.IsExcelBPSEnabled() {
+			// BPS queries reuse quota OAuth authentication, never a model probe
+			// or the independent BPS grant. Spark resolves parent credentials
+			// but persists only its own bengalfox windows on the shadow row.
 			if s.openAIQuotaService != nil {
 				if quotaUsage, err := s.openAIQuotaService.QueryUsage(ctx, account.ID); err == nil {
-					if updates := buildCodexSparkWindowExtraUpdates(quotaUsage, now); len(updates) > 0 {
+					if updates := quotaUsage.schedulingUpdates; len(updates) > 0 {
 						mergeAccountExtra(account, updates)
-						s.persistOpenAICodexProbeSnapshot(account.ID, updates, nil)
 						if account.ParentAccountID != nil {
 							notifyOpenAIAutoReset(*account.ParentAccountID)
 						}
@@ -986,15 +984,19 @@ func (s *AccountUsageService) shouldProbeOpenAICodexSnapshot(accountID int64, no
 		return true
 	}
 	forceProbe := len(force) > 0 && force[0]
-	if !forceProbe {
-		if cached, ok := s.cache.openAIProbeCache.Load(accountID); ok {
-			if next, ok := cached.(time.Time); ok && now.Before(next) {
-				return false
-			}
+	for {
+		cached, loaded := s.cache.openAIProbeCache.LoadOrStore(accountID, nextOpenAIProbeAllowedAt(now))
+		if !loaded {
+			return true
+		}
+		next, valid := cached.(time.Time)
+		if !forceProbe && valid && now.Before(next) {
+			return false
+		}
+		if s.cache.openAIProbeCache.CompareAndSwap(accountID, cached, nextOpenAIProbeAllowedAt(now)) {
+			return true
 		}
 	}
-	s.cache.openAIProbeCache.Store(accountID, nextOpenAIProbeAllowedAt(now))
-	return true
 }
 
 func nextOpenAIProbeAllowedAt(now time.Time) time.Time {
@@ -1104,7 +1106,7 @@ func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, u
 	go func() {
 		updateCtx, updateCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer updateCancel()
-		if err := s.accountRepo.UpdateExtra(updateCtx, accountID, updates); err == nil {
+		if written, err := persistCodexUsageUpdates(updateCtx, s.accountRepo, accountID, updates); err == nil && written {
 			recoverOpenAIQuotaRateLimit(updateCtx, s.accountRepo, observed, updates)
 			notifyOpenAIAutoReset(accountID)
 		}

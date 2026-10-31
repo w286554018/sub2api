@@ -479,6 +479,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		if err == nil {
 			err = s.checkOpenAIWSBinding(latest, mappedModel, lease.conn.turnBinding)
 		}
+		if err == nil {
+			_, err = s.beginPriorityLatencyTurn(ctx, c, account, originalModel)
+		}
 		if err != nil {
 			s.invalidateOpenAIWSTurnStateAfterAdmissionFailure(
 				ctx,
@@ -552,6 +555,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 		raw = s.guardOpenAICodexWSFrameTurnState(c, account, raw)
 		raw = applyCodexWSFrameWireProfile(c, account, raw, clientTurnState)
+		if err := s.priorityLatencyBeforeSend(ctx, account); err != nil {
+			return err
+		}
 		if err := writeCodexWSFrame(ctx, c, account, lease, raw, s.openAIWSWriteTimeout()); err != nil {
 			lease.MarkBroken()
 			logOpenAIWSModeInfo(

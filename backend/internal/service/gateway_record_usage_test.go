@@ -301,6 +301,7 @@ func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersist
 		Result: &ForwardResult{
 			RequestID:      "gateway_image_default_size",
 			Model:          "gemini-image",
+			ImageEndpoint:  true,
 			ImageCount:     1,
 			ImageInputSize: "auto",
 			Duration:       time.Second,
@@ -309,9 +310,10 @@ func TestGatewayServiceRecordUsage_EmptyImageSizeDefaultsBeforeBillingAndPersist
 			ID:      801,
 			GroupID: i64p(groupID),
 			Group: &Group{
-				ID:             groupID,
-				RateMultiplier: 1.0,
-				ImagePrice2K:   &imagePrice2K,
+				ID:                groupID,
+				RateMultiplier:    1.0,
+				ImageCountBilling: true,
+				ImagePrice2K:      &imagePrice2K,
 			},
 		},
 		User:    &User{ID: 601},

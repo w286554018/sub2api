@@ -120,17 +120,19 @@ func TestGetOpenAIUsage_OrdinaryOAuthUsesQuotaEndpoint(t *testing.T) {
 	}
 	waitForPersistence := func() {
 		t.Helper()
-		select {
-		case update := <-repo.updates:
-			require.Equal(t, account.ID, update.accountID)
-			require.Equal(t, 42.0, update.extra["codex_5h_used_percent"])
-			require.Equal(t, 10.0, update.extra["codex_7d_used_percent"])
-			require.NotEmpty(t, update.extra["codex_usage_updated_at"])
-			require.Equal(t, 300, update.extra["codex_5h_window_minutes"])
-			require.Equal(t, 10080, update.extra["codex_7d_window_minutes"])
-			require.WithinDuration(t, time.Now().Add(time.Hour), mustParseQuotaTime(t, update.extra["codex_5h_reset_at"]), 5*time.Second)
-		case <-time.After(2 * time.Second):
-			t.Fatal("ordinary quota windows were not persisted")
+		for range 2 {
+			select {
+			case update := <-repo.updates:
+				require.Equal(t, account.ID, update.accountID)
+				require.Equal(t, 42.0, update.extra["codex_5h_used_percent"])
+				require.Equal(t, 10.0, update.extra["codex_7d_used_percent"])
+				require.NotEmpty(t, update.extra["codex_usage_updated_at"])
+				require.Equal(t, 300, update.extra["codex_5h_window_minutes"])
+				require.Equal(t, 10080, update.extra["codex_7d_window_minutes"])
+				require.WithinDuration(t, time.Now().Add(time.Hour), mustParseQuotaTime(t, update.extra["codex_5h_reset_at"]), 5*time.Second)
+			case <-time.After(2 * time.Second):
+				t.Fatal("ordinary quota windows were not persisted")
+			}
 		}
 	}
 	usage, err := svc.GetUsage(context.Background(), account.ID)
@@ -159,7 +161,7 @@ func TestGetOpenAIUsage_OrdinaryOAuthUsesQuotaEndpoint(t *testing.T) {
 	require.Equal(t, before, account.Extra, "quota errors must retain the snapshot")
 	require.Equal(t, 42.0, usage.FiveHour.Utilization)
 	require.Equal(t, int32(0), inferenceCalls.Load(), "quota errors must not fall back to inference")
-	require.Empty(t, repo.updates)
+	require.Len(t, repo.updates, 0)
 }
 
 func mustParseQuotaTime(t *testing.T, value any) time.Time {
@@ -214,7 +216,7 @@ func TestGetOpenAIUsage_QuotaFailuresKeepSnapshotAndLocalStats(t *testing.T) {
 			require.Equal(t, 50.0, usage.SevenDay.Utilization)
 			require.Equal(t, int64(3), usage.FiveHour.WindowStats.Requests)
 			require.Equal(t, int64(123), usage.SevenDay.WindowStats.Tokens)
-			require.Empty(t, repo.updates)
+			require.Len(t, repo.updates, 0)
 			_, err = svc.GetUsage(context.Background(), account.ID)
 			require.NoError(t, err)
 			require.Equal(t, int32(1), calls.Load(), "failed refreshes also obey the deadline")
@@ -329,7 +331,7 @@ func TestGetOpenAIUsage_MissingQuotaDataNeverInfers(t *testing.T) {
 			require.Equal(t, before, account.Extra)
 			require.Equal(t, 12.0, usage.FiveHour.Utilization)
 			require.Equal(t, 34.0, usage.SevenDay.Utilization)
-			require.Empty(t, repo.updates)
+			require.Len(t, repo.updates, 0)
 		})
 	}
 }

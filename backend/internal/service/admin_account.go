@@ -1615,7 +1615,7 @@ func (s *adminServiceImpl) ClearAccountError(ctx context.Context, id int64) (*Ac
 		if s.runtimeBlocker != nil {
 			s.runtimeBlocker.ClearAccountSchedulingBlock(id)
 		}
-		if account != nil && account.Platform == PlatformOpenAI {
+		if account != nil && account.Platform == PlatformOpenAI && s.settingService != nil {
 			s.settingService.NotifyCodexHarvest()
 		}
 	})
@@ -1634,9 +1634,11 @@ func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, 
 	if err != nil {
 		return nil, err
 	}
-	if schedulable && updated != nil && updated.Platform == PlatformOpenAI {
-		s.settingService.NotifyCodexHarvest()
-	}
+	AfterAccountCommit(ctx, func(context.Context) {
+		if schedulable && updated != nil && updated.Platform == PlatformOpenAI && s.settingService != nil {
+			s.settingService.NotifyCodexHarvest()
+		}
+	})
 	return updated, nil
 }
 

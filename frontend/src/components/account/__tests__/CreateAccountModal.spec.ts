@@ -1,3 +1,6 @@
+vi.mock('@/api/admin/upstreamChannels', () => ({ listUpstreamChannels: vi.fn(), readChannelBindings: vi.fn(), bindChannelAccounts: vi.fn() }))
+import { readChannelBindings, listUpstreamChannels } from '@/api/admin/upstreamChannels'
+import UpstreamChannelSelector from '../UpstreamChannelSelector.vue'
 
 vi.mock('@/api/admin/credentialEncryption', () => ({
   getCredentialEncryption: vi.fn().mockResolvedValue({ configured: true, source: 'server_config' }),
@@ -152,7 +155,7 @@ const SelectStub = defineComponent({
       default: () => []
     }
   },
-  emits: ['update:modelValue', 'change'],
+  emits: ['open', 'update:modelValue', 'change'],
   template: `
     <select
       v-bind="$attrs"
@@ -2088,5 +2091,38 @@ describe('CreateAccountModal Fish accounts', () => {
     // 原生号 token 落在 api_key：调度快照只保留 api_key（见 044adb592）。
     expect(payload?.credentials).toEqual({ api_key: '46471c2b-7cdc-4671-acc4-c0b2fd111817' })
     expect(wrapper.find('[data-testid="fish-token-input"]').exists()).toBe(true)
+  })
+})
+
+describe('explicit upstream channel on account creation', () => {
+ beforeEach(() => {
+  createAccountMock.mockReset().mockResolvedValue({ id: 42, platform: 'anthropic', type: 'apikey' })
+  vi.mocked(readChannelBindings).mockReset().mockResolvedValue([])
+  vi.mocked(listUpstreamChannels).mockReset().mockResolvedValue({ items: [], total: 0 })
+ })
+
+ it('confirms selected ownership, sends immutable entity ID and verifies binding without duplicating after a failed readback', async () => {
+  const w = mountModal(); await selectButtonByText(w, 'admin.accounts.claudeConsole')
+  await w.get('form#create-account-form input[type="text"]').setValue('owned account')
+  await w.get('form#create-account-form input[type="password"]').setValue('fixture-only-key')
+  createAccountMock.mockResolvedValue({ id: 700, name: 'owned account', platform: 'anthropic', type: 'apikey' })
+  w.getComponent(UpstreamChannelSelector).vm.$emit('update:modelValue', 7); await flushPromises()
+  await w.get('form#create-account-form').trigger('submit.prevent'); await flushPromises(); expect(createAccountMock).not.toHaveBeenCalled()
+  await w.get('[data-testid="confirm-create-channel"]').setValue(true)
+  vi.mocked(readChannelBindings).mockRejectedValueOnce(new Error('offline'))
+  await w.get('form#create-account-form').trigger('submit.prevent'); await flushPromises()
+  expect(createAccountMock).toHaveBeenCalledWith(expect.objectContaining({ upstream_channel_id: 7, confirm_upstream_channel_binding: true }))
+  expect(w.emitted('created')).toBeUndefined()
+  vi.mocked(readChannelBindings).mockResolvedValue([{ account_id: 700, account_name: 'owned account', channel_id: 7, revision: 1, deleted: false }])
+  await w.get('form#create-account-form').trigger('submit.prevent'); await flushPromises()
+  expect(createAccountMock).toHaveBeenCalledTimes(1); expect(w.emitted('created')).toHaveLength(1)
+ })
+ it('supports paging a channel catalog and selecting an entity regardless of account URL', async () => {
+  vi.mocked(listUpstreamChannels).mockResolvedValue({ items: [{ id: 7, code: 'supplier', name: '渠道', remark: '', revision: 1, members: 0 }], total: 21 })
+  const w = mountModal(); const selector = w.getComponent(UpstreamChannelSelector)
+  const channelSelect = selector.getComponent(SelectStub)
+  channelSelect.vm.$emit('open'); await flushPromises()
+  channelSelect.vm.$emit('update:modelValue', 7); await flushPromises()
+  expect(w.find('[data-testid="confirm-create-channel"]').exists()).toBe(true)
   })
 })

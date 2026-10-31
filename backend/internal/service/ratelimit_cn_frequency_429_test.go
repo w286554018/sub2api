@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -19,8 +20,9 @@ const zhipuFrequencyLimitedBody = `{"error":{"code":"1302","message":"您的账�
 // 用量与重置快照（与 CNProviderQuotaService 写入的键一致）。
 func newZhipuCodingPlanAccount(h5Used, weeklyUsed float64, resetIn time.Duration) *Account {
 	extra := map[string]any{
-		cnExtraKey(PlatformZhipu, cnExtraSuffix5hUsed):     h5Used,
-		cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyUsed): weeklyUsed,
+		cnExtraKey(PlatformZhipu, cnExtraSuffix5hUsed):       h5Used,
+		cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyUsed):   weeklyUsed,
+		cnExtraKey(PlatformZhipu, cnExtraSuffixUsageUpdated): time.Now().UTC().Format(time.RFC3339),
 	}
 	if resetIn > 0 {
 		extra[cnExtraKey(PlatformZhipu, cnExtraSuffix5hReset)] = time.Now().Add(resetIn).UTC().Format(time.RFC3339)
@@ -136,4 +138,65 @@ func TestCNProviderQuotaSnapshotNearExhausted(t *testing.T) {
 	require.True(t, cnProviderQuotaSnapshotNearExhausted(
 		&Account{ID: 702, Platform: PlatformZhipu}, cnFrequencyLimitQuotaGuardPercent))
 	require.True(t, cnProviderQuotaSnapshotNearExhausted(nil, cnFrequencyLimitQuotaGuardPercent))
+
+	missingReset := newZhipuCodingPlanAccount(12, 4, time.Hour)
+	delete(missingReset.Extra, cnExtraKey(PlatformZhipu, cnExtraSuffix5hReset))
+	require.True(t, cnProviderQuotaSnapshotNearExhausted(missingReset, cnFrequencyLimitQuotaGuardPercent))
+
+	invalidReset := newZhipuCodingPlanAccount(12, 4, time.Hour)
+	invalidReset.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyReset)] = "unknown"
+	require.True(t, cnProviderQuotaSnapshotNearExhausted(invalidReset, cnFrequencyLimitQuotaGuardPercent))
+
+	missingTimestamp := newZhipuCodingPlanAccount(12, 4, time.Hour)
+	delete(missingTimestamp.Extra, cnExtraKey(PlatformZhipu, cnExtraSuffixUsageUpdated))
+	require.True(t, cnProviderQuotaSnapshotNearExhausted(missingTimestamp, cnFrequencyLimitQuotaGuardPercent))
+
+	invalidTimestamp := newZhipuCodingPlanAccount(12, 4, time.Hour)
+	invalidTimestamp.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffixUsageUpdated)] = "unknown"
+	require.True(t, cnProviderQuotaSnapshotNearExhausted(invalidTimestamp, cnFrequencyLimitQuotaGuardPercent))
+
+	futureTimestamp := newZhipuCodingPlanAccount(12, 4, time.Hour)
+	futureTimestamp.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffixUsageUpdated)] = time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+	require.True(t, cnProviderQuotaSnapshotNearExhausted(futureTimestamp, cnFrequencyLimitQuotaGuardPercent))
+}
+
+func TestHandleUpstreamError_ZhipuFrequency429InvalidSnapshotKeepsWindowCooldown(t *testing.T) {
+	for _, value := range []any{nil, "unknown", "NaN", "Inf", -1, true} {
+		t.Run(fmt.Sprint(value), func(t *testing.T) {
+			repo := &rateLimitAccountRepoStub{}
+			svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+			account := newZhipuCodingPlanAccount(12, 4, 2*time.Hour)
+			account.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyUsed)] = value
+			runZhipu429(svc, account, zhipuFrequencyLimitedBody)
+			require.Equal(t, 1, repo.rateLimitedCalls)
+			require.True(t, repo.lastRateLimitedAt.After(time.Now().Add(time.Hour)))
+		})
+	}
+	t.Run("partial snapshot", func(t *testing.T) {
+		repo := &rateLimitAccountRepoStub{}
+		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		account := newZhipuCodingPlanAccount(12, 4, 2*time.Hour)
+		delete(account.Extra, cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyUsed))
+		runZhipu429(svc, account, zhipuFrequencyLimitedBody)
+		require.Equal(t, 1, repo.rateLimitedCalls)
+		require.True(t, repo.lastRateLimitedAt.After(time.Now().Add(time.Hour)))
+	})
+	t.Run("missing reset", func(t *testing.T) {
+		repo := &rateLimitAccountRepoStub{}
+		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		account := newZhipuCodingPlanAccount(12, 4, 2*time.Hour)
+		delete(account.Extra, cnExtraKey(PlatformZhipu, cnExtraSuffix5hReset))
+		runZhipu429(svc, account, zhipuFrequencyLimitedBody)
+		require.Equal(t, 1, repo.rateLimitedCalls)
+		require.True(t, repo.lastRateLimitedAt.After(time.Now().Add(time.Hour)))
+	})
+	t.Run("missing snapshot timestamp", func(t *testing.T) {
+		repo := &rateLimitAccountRepoStub{}
+		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+		account := newZhipuCodingPlanAccount(12, 4, 2*time.Hour)
+		delete(account.Extra, cnExtraKey(PlatformZhipu, cnExtraSuffixUsageUpdated))
+		runZhipu429(svc, account, zhipuFrequencyLimitedBody)
+		require.Equal(t, 1, repo.rateLimitedCalls)
+		require.True(t, repo.lastRateLimitedAt.After(time.Now().Add(time.Hour)))
+	})
 }

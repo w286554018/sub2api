@@ -74,6 +74,26 @@ func TestAllTimerAPIsRejectNonAdminBeforeAccess(t *testing.T) {
 		}
 	}
 }
+
+func TestAllTimerAPIsAllowSuperAdmin(t *testing.T) {
+	endpoints := []struct{ method, path, body string }{
+		{"GET", "/accounts/7/timers", ""},
+		{"POST", "/accounts/7/timers/preview", `{"mode":"relative","hours":1,"timezone":"UTC"}`},
+		{"POST", "/accounts/7/timers", `{"mode":"relative","hours":1,"timezone":"UTC","action":"open","expected_version":0}`},
+		{"DELETE", "/accounts/7/timers/open?version=1", ""},
+	}
+	for _, ep := range endpoints {
+		t.Run(ep.method+ep.path, func(t *testing.T) {
+			repo := &fakeRepo{}
+			w := httptest.NewRecorder()
+			router(repo, "super_admin", 9).ServeHTTP(w, httptest.NewRequest(ep.method, ep.path, strings.NewReader(ep.body)))
+			if w.Code != http.StatusOK || repo.calls != 1 {
+				t.Fatalf("status %d calls %d body %s", w.Code, repo.calls, w.Body.String())
+			}
+		})
+	}
+}
+
 func TestTimerAPIPropagatesActorAndVersion(t *testing.T) {
 	repo := &fakeRepo{}
 	r := router(repo, "admin", 19)

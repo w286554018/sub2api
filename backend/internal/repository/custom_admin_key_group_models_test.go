@@ -30,7 +30,7 @@ func TestScopedAdminGroupModelsPostgresScopeAndAtomicWrite(t *testing.T) {
 	schema := fmt.Sprintf("scoped_models_test_%d", time.Now().UnixNano())
 	_, err = base.Exec(`CREATE SCHEMA ` + schema)
 	require.NoError(t, err)
-	db, err := sql.Open("postgres", dsn+" search_path="+schema)
+	db, err := sql.Open("postgres", scopedAdminPostgresTestDSN(t, dsn, schema))
 	require.NoError(t, err)
 	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	t.Cleanup(func() {

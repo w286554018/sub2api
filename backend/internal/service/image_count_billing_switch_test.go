@@ -23,7 +23,7 @@ func TestImageCountBillingApplies(t *testing.T) {
 	require.False(t, imageCountBillingApplies(nil, true))
 }
 
-// F1：composite 分组配置了 token 定价又开启按张计费时，图片不能按 $0 结算。
+// Explicit operator token pricing remains authoritative when image-count billing is enabled.
 func TestCalculateRecordUsageCost_ImageCountBillingGroupTokenPricing(t *testing.T) {
 	groupID := int64(901)
 	model := "gpt-image-2"
@@ -52,11 +52,11 @@ func TestCalculateRecordUsageCost_ImageCountBillingGroupTokenPricing(t *testing.
 	}, apiKey, model, 1, 1, time.Time{})
 
 	require.NotNil(t, cost)
-	require.InDelta(t, 1.0, cost.TotalCost, 1e-12, "应回落分组图片价，而不是 token 定价的 $0")
-	require.Equal(t, string(BillingModeImage), cost.BillingMode)
+	require.InDelta(t, 0.018, cost.TotalCost, 1e-12, "显式分组 token 价不得被按张开关覆盖")
+	require.Equal(t, string(BillingModeToken), cost.BillingMode)
 }
 
-// F3：渠道 token 定价 + 开关开启时必须强制按张计费，与 OpenAI 流水线一致。
+// Explicit channel token pricing remains authoritative with the switch enabled.
 func TestCalculateRecordUsageCost_ImageCountBillingChannelTokenPricing(t *testing.T) {
 	groupID := int64(902)
 	model := "gpt-image-2"
@@ -79,8 +79,14 @@ func TestCalculateRecordUsageCost_ImageCountBillingChannelTokenPricing(t *testin
 	}, apiKey, model, 1, 1, time.Time{})
 
 	require.NotNil(t, cost)
-	require.InDelta(t, 0.8, cost.TotalCost, 1e-12)
-	require.Equal(t, string(BillingModeImage), cost.BillingMode)
+	expected, err := resolver.billingService.CalculateCostUnified(CostInput{
+		Ctx: context.Background(), Model: model, GroupID: &groupID, Group: group,
+		Tokens:       UsageTokens{InputTokens: 1_000_000, OutputTokens: 10_000},
+		RequestCount: 1, RateMultiplier: 1, Resolver: resolver,
+	})
+	require.NoError(t, err)
+	require.InDelta(t, expected.TotalCost, cost.TotalCost, 1e-12)
+	require.Equal(t, string(BillingModeToken), cost.BillingMode)
 }
 
 // F4：开关只作用于图片端点，混合请求仍按 token 计费。
@@ -136,6 +142,46 @@ func TestCalculateOpenAIRecordUsageCost_ImageCountBillingIgnoresMixedRequests(t 
 	require.NotNil(t, cost)
 	require.Equal(t, string(BillingModeToken), cost.BillingMode)
 	require.Greater(t, cost.TotalCost, 0.0)
+}
+
+func TestImageCountBillingFallbackRequiresEnabledImageEndpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		imageEndpoint bool
+		switchOn      bool
+	}{
+		{name: "disabled dedicated endpoint", imageEndpoint: true, switchOn: false},
+		{name: "enabled switch on mixed request", imageEndpoint: false, switchOn: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			groupID := int64(908)
+			model := "gpt-5.4"
+			resolver := newOpenAITokenImageChannelPricingResolverForTest(t, groupID, model)
+			cache := resolver.channelService.cache.Load().(*channelCache)
+			delete(cache.pricingByGroupModel, channelModelKey{groupID: groupID, model: model})
+			group := &Group{ID: groupID, Platform: PlatformOpenAI, Hydrated: true, Status: StatusActive,
+				AllowImageGeneration: true, ImageCountBilling: tc.switchOn, ImagePrice1K: f64p(0.4)}
+			key := &APIKey{GroupID: &groupID, Group: group}
+			result := &ForwardResult{Model: model, ImageCount: 2, ImageSize: "1K", ImageEndpoint: tc.imageEndpoint,
+				Usage: ClaudeUsage{InputTokens: 1_000_000, OutputTokens: 10_000}}
+
+			claude := &GatewayService{billingService: resolver.billingService, resolver: resolver}
+			cost := claude.calculateRecordUsageCost(context.Background(), result, key, model, 1, 1, time.Time{})
+			require.NotNil(t, cost)
+			require.Equal(t, string(BillingModeToken), cost.BillingMode)
+			require.Greater(t, cost.TotalCost, 0.0)
+
+			openai := &OpenAIGatewayService{billingService: resolver.billingService, resolver: resolver}
+			openAICost, err := openai.calculateOpenAIRecordUsageCost(context.Background(), &OpenAIForwardResult{
+				Model: model, ImageCount: result.ImageCount, ImageSize: result.ImageSize, ImageEndpoint: result.ImageEndpoint,
+			}, key, []string{model}, 1, 1, 1, 1,
+				UsageTokens{InputTokens: 1_000_000, OutputTokens: 10_000}, "", nil, false, time.Time{}, "")
+			require.NoError(t, err)
+			require.NotNil(t, openAICost)
+			require.Equal(t, string(BillingModeToken), openAICost.BillingMode)
+			require.Greater(t, openAICost.TotalCost, 0.0)
+		})
+	}
 }
 
 func TestGroupService_ImageCountBillingValidation(t *testing.T) {
@@ -253,6 +299,52 @@ func TestCalculateRecordUsageCost_GroupImagePricePrecedesChannelPricing(t *testi
 				require.NotNil(t, cost)
 				require.InDelta(t, wantCost, cost.TotalCost, 1e-12)
 			})
+		}
+	}
+}
+
+func TestImageCountBillingUsesFallbackWithoutOperatorTokenCard(t *testing.T) {
+	groupID := int64(906)
+	group := &Group{ID: groupID, Platform: PlatformOpenAI, AllowImageGeneration: true, ImageCountBilling: true, ImagePrice1K: f64p(0.4)}
+	key := &APIKey{GroupID: &groupID, Group: group}
+	svc := &GatewayService{billingService: NewBillingService(nil, nil)}
+	cost := svc.calculateRecordUsageCost(context.Background(), &ForwardResult{Model: "gpt-image-2", ImageCount: 3, ImageSize: "1K", ImageEndpoint: true}, key, "gpt-image-2", 1, 1, time.Time{})
+	require.InDelta(t, 1.2, cost.TotalCost, 1e-12)
+	require.Equal(t, string(BillingModeImage), cost.BillingMode)
+}
+
+// Both APIs must retain operator token-card priority for dedicated and mixed
+// requests. Fixed expected costs make changing only the routing branch observable.
+func TestImageCountBillingPreservesExplicitTokenCardsAcrossGateways(t *testing.T) {
+	for _, source := range []string{PricingSourceGroup, PricingSourceChannel} {
+		for _, imageEndpoint := range []bool{false, true} {
+			groupID := int64(907)
+			model := "gpt-image-2"
+			resolver := newOpenAITokenImageChannelPricingResolverForTest(t, groupID, model)
+			group := &Group{ID: groupID, Platform: PlatformOpenAI, Hydrated: true, Status: StatusActive,
+				AllowImageGeneration: true, ImageCountBilling: true, ImagePrice1K: f64p(0.4)}
+			want := 0.00045 // 100 * $3/MTok + 10 * $15/MTok
+			if source == PricingSourceGroup {
+				group.ModelPricing = []ChannelModelPricing{{Models: []string{model}, BillingMode: BillingModeToken,
+					InputPrice: f64p(7e-6), OutputPrice: f64p(11e-6)}}
+				want = 0.00081 // group card beats both channel card and count fallback
+			}
+			key := &APIKey{GroupID: &groupID, Group: group}
+			claude := &GatewayService{billingService: resolver.billingService, resolver: resolver}
+			cost := claude.calculateRecordUsageCost(context.Background(), &ForwardResult{
+				Model: model, ImageCount: 3, ImageSize: "1K", ImageEndpoint: imageEndpoint,
+				Usage: ClaudeUsage{InputTokens: 100, OutputTokens: 10},
+			}, key, model, 1, 1, time.Time{})
+			require.Equal(t, string(BillingModeToken), cost.BillingMode)
+			require.InDelta(t, want, cost.TotalCost, 1e-12)
+			openai := &OpenAIGatewayService{billingService: resolver.billingService, resolver: resolver}
+			cost, err := openai.calculateOpenAIRecordUsageCost(context.Background(), &OpenAIForwardResult{
+				Model: model, ImageCount: 3, ImageSize: "1K", ImageEndpoint: imageEndpoint,
+			}, key, []string{model}, 1, 1, 1, 1,
+				UsageTokens{InputTokens: 100, OutputTokens: 10}, "", nil, false, time.Time{}, "")
+			require.NoError(t, err)
+			require.Equal(t, string(BillingModeToken), cost.BillingMode)
+			require.InDelta(t, want, cost.TotalCost, 1e-12)
 		}
 	}
 }

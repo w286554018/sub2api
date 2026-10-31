@@ -78,10 +78,11 @@ func TestMain(m *testing.M) {
 	}
 	defer func() { _ = pgContainer.Terminate(ctx) }()
 
-	redisContainer, err := tcredis.Run(
-		ctx,
-		redisImageTag,
-	)
+	redisImage := os.Getenv("SUB2API_TEST_REDIS_IMAGE")
+	if redisImage == "" {
+		redisImage = redisImageTag
+	}
+	redisContainer, err := tcredis.Run(ctx, redisImage)
 	if err != nil {
 		log.Printf("failed to start redis container: %v", err)
 		os.Exit(1)
@@ -131,7 +132,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Opt-in persistence tests use this disposable server, never an application DB.
-	for _, name := range []string{"SUB2API_UPGRADE_TEST_POSTGRES_URL", "HARVEST_TEST_POSTGRES_DSN", "SUB2API_EXPERIMENT_TEST_DSN"} {
+	for _, name := range []string{"SUB2API_UPGRADE_TEST_POSTGRES_URL", "HARVEST_TEST_POSTGRES_DSN", "SUB2API_EXPERIMENT_TEST_DSN", "SCOPED_ADMIN_TEST_DSN"} {
 		if os.Getenv(name) == "" {
 			if err := os.Setenv(name, dsn); err != nil {
 				log.Printf("failed to configure disposable test connection: %v", err)
@@ -356,7 +357,7 @@ func (h prefixHook) prefixCmd(cmd redisclient.Cmder) {
 	}
 
 	switch strings.ToLower(cmd.Name()) {
-	case "get", "set", "setnx", "setex", "psetex", "incr", "decr", "incrby", "expire", "pexpire", "ttl", "pttl",
+	case "get", "getset", "set", "setnx", "setex", "psetex", "incr", "decr", "incrby", "expire", "pexpire", "ttl", "pttl",
 		"hgetall", "hget", "hset", "hdel", "hincrbyfloat", "exists",
 		"zadd", "zcard", "zrange", "zrangebyscore", "zrem", "zremrangebyscore", "zrevrange", "zrevrangebyscore", "zscore":
 		prefixOne(1)

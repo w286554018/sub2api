@@ -258,8 +258,6 @@ func (s *OpenAIGatewayService) forwardGrokResponses(
 		Usage:                         *usage,
 		Model:                         originalModel,
 		UpstreamModel:                 upstreamModel,
-		UpstreamResponseModel:         observedUpstreamResponseModel(c),
-		UpstreamResponseModelConflict: observedUpstreamResponseModelConflict(c),
 		ReasoningEffort:               reasoningEffort,
 		Stream:                        reqStream,
 		OpenAIWSMode:                  false,
@@ -267,6 +265,8 @@ func (s *OpenAIGatewayService) forwardGrokResponses(
 		Duration:                      time.Since(startTime),
 		ClientDisconnect:              clientDisconnected,
 		FirstTokenMs:                  firstTokenMs,
+		UpstreamResponseModel:         observedUpstreamResponseModel(c),
+		UpstreamResponseModelConflict: observedUpstreamResponseModelConflict(c),
 	}
 	// Propagate search/image counters from the shared Responses handler — without
 	// this, stream/JSON counting runs but search_price_per_1k / image bills never apply.

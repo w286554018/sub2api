@@ -209,7 +209,6 @@ onUnmounted(() => {
   upstreamSyncVersion += 1
 })
 
-
 const normalizedPlatforms = computed(() => {
   const rawPlatforms =
     props.platforms && props.platforms.length > 0

@@ -18,13 +18,18 @@ func newAliyunCaptchaTestTarget(t *testing.T, handler http.HandlerFunc) (*aliyun
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
+	endpoint := strings.TrimPrefix(server.URL, "http://")
+	// The SDK compares NO_PROXY with the complete host:port, unlike net/http.
+	// Keep local fixtures independent of proxy settings inherited from the host.
+	t.Setenv("NO_PROXY", endpoint)
+	t.Setenv("no_proxy", endpoint)
 
 	verifier := &aliyunCaptchaVerifier{protocol: "HTTP", timeoutMillis: 2_000}
 	cred := service.AliyunCaptchaCredentials{
 		AccessKeyID:     "test-ak-id",
 		AccessKeySecret: "test-ak-secret",
 		SceneID:         "scene-1",
-		Endpoint:        strings.TrimPrefix(server.URL, "http://"),
+		Endpoint:        endpoint,
 	}
 	return verifier, cred
 }
@@ -77,6 +82,8 @@ func TestAliyunCaptchaVerifier_TransportError(t *testing.T) {
 	server := httptest.NewServer(http.NotFoundHandler())
 	endpoint := strings.TrimPrefix(server.URL, "http://")
 	server.Close() // 立即关闭，制造连接失败
+	t.Setenv("NO_PROXY", endpoint)
+	t.Setenv("no_proxy", endpoint)
 
 	verifier := &aliyunCaptchaVerifier{protocol: "HTTP", timeoutMillis: 2_000}
 	cred := service.AliyunCaptchaCredentials{

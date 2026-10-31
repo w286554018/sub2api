@@ -147,6 +147,9 @@ func (s *OpenAIGatewayService) fetchExcelBPSModelsList(ctx context.Context, acco
 			defer lease.Release()
 		}
 		req := request.Clone(WithHTTPUpstreamRedirectsDisabled(WithHTTPUpstreamProfile(fetchCtx, HTTPUpstreamProfileExcelBPS)))
+		if err = s.fenceAuthConnectionEgress(fetchCtx, req, account); err != nil {
+			return nil, err
+		}
 		response, err := s.httpUpstream.Do(req, proxy, account.ID, account.Concurrency)
 		if err != nil {
 			if response != nil && response.Body != nil {
