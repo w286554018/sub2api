@@ -1220,8 +1220,7 @@ type GatewayConfig struct {
 	// 注意：这不影响流式数据传输，只控制等待响应头的时间
 	ResponseHeaderTimeout int `mapstructure:"response_header_timeout"`
 	// OpenAIResponseHeaderTimeout: OpenAI/Codex 上游等待响应头的超时时间（秒）。
-	// 默认 20 秒：上游长时间不返回响应头时尽快 failover，避免一直等到上游
-	// 返回 429/超时；显式设为 0 表示禁用该超时。
+	// 默认 20 秒；显式配置 0 可关闭静态超时。
 	OpenAIResponseHeaderTimeout int `mapstructure:"openai_response_header_timeout"`
 	// GrokResponseHeaderTimeout bounds the pre-first-byte wait for xAI/Grok.
 	// A zero value uses the provider-safe default instead of the generic gateway timeout.
