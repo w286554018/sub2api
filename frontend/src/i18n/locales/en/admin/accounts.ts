@@ -2301,11 +2301,11 @@ export default {
         kiroBonus: 'Bonus',
         kiroCredits: 'Credits',
         fishCredits: 'Credits',
-        fishDaily: 'Daily images',
         fishReset: 'Reset',
         kiroDaysLeft: '{days}d left',
         kiroExpires: 'Expires',
         kiroReset: 'Reset',
+        kiroBonusGift: 'Bonus credits',
         estimatedTotalCost: 'Est. total ${cost}',
         estimatedTotalCostTooltip: 'Estimated total cost at 100% utilization, based on current window cost and utilization'
       },

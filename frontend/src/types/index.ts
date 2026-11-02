@@ -306,6 +306,8 @@ export interface PublicSettings {
   usage_show_cache_rate_to_users?: boolean
   /** 是否向终端用户展示上游响应里声明的实际模型。缺失时按关闭处理。 */
   usage_show_upstream_response_model_to_users?: boolean
+  /** True when the deployment configures MCP_PUBLIC_URL; MCP is disabled otherwise. */
+  mcp_enabled?: boolean
 }
 
 export interface AuthResponse {
@@ -1724,6 +1726,20 @@ export interface KiroCreditProgress {
   expiry_date?: string | null
 }
 
+// Kiro bonuses[] 中的一条赠送额度（兑换码/活动）
+export interface KiroBonusProgress {
+  name?: string
+  status?: string // ACTIVE | EXHAUSTED
+  bonus_code?: string
+  description?: string
+  current_usage: number
+  usage_limit: number
+  percentage_used: number
+  days_remaining?: number
+  expiry_date?: string | null
+  redeemed_at?: string | null
+}
+
 // Leonardo 积分余额快照：上游只给各池剩余量，上限来自套餐常量表（未知套餐时为 0）
 export interface LeonardoCreditsSnapshot {
   total: number
@@ -1820,6 +1836,7 @@ export interface AccountUsageInfo {
   kiro_reset_at?: string | null
   kiro_credit?: KiroCreditProgress | null
   kiro_bonus?: KiroCreditProgress | null
+  kiro_bonuses?: KiroBonusProgress[] | null
   kiro_quota_state?: string | null
   kiro_quota_reason?: string | null
   kiro_quota_reset_at?: string | null

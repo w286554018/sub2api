@@ -82,6 +82,7 @@ var ProviderSet = wire.NewSet(
 	NewRegionalSchedulerAuthority,
 	NewRegionalAuthAuthority,
 	NewUserRepository,
+	NewMCPOAuthRepository,
 	NewAPIKeyRepository,
 	NewGroupRepository,
 	NewAdminGroupRepository,
