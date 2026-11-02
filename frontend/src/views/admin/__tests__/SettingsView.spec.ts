@@ -27,6 +27,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
   getOpenAIResponseHeaderTimeoutSettings.mockReset().mockResolvedValue({ enabled: false, seconds: 20 });
   updateOpenAIResponseHeaderTimeoutSettings.mockReset().mockImplementation(async (payload) => payload);
+  getAccountPerformanceSettings.mockReset().mockResolvedValue({ window_minutes: 60 });
 });
 
 const {
@@ -43,6 +44,8 @@ const {
   getStreamTimeoutSettings,
   getOpenAIResponseHeaderTimeoutSettings,
   updateOpenAIResponseHeaderTimeoutSettings,
+  getAccountPerformanceSettings,
+  updateAccountPerformanceSettings,
   getRectifierSettings,
   getBetaPolicySettings,
   getUpstreamBillingProbeSettings,
@@ -79,6 +82,8 @@ const {
   getStreamTimeoutSettings: vi.fn(),
   getOpenAIResponseHeaderTimeoutSettings: vi.fn(),
   updateOpenAIResponseHeaderTimeoutSettings: vi.fn(),
+  getAccountPerformanceSettings: vi.fn(),
+  updateAccountPerformanceSettings: vi.fn().mockImplementation(async (payload) => payload),
   getRectifierSettings: vi.fn(),
   getBetaPolicySettings: vi.fn(),
   getUpstreamBillingProbeSettings: vi.fn().mockResolvedValue({
@@ -122,6 +127,8 @@ vi.mock("@/api", () => ({
       getStreamTimeoutSettings,
       getOpenAIResponseHeaderTimeoutSettings,
       updateOpenAIResponseHeaderTimeoutSettings,
+      getAccountPerformanceSettings,
+      updateAccountPerformanceSettings,
       getRectifierSettings,
       getBetaPolicySettings,
     },
