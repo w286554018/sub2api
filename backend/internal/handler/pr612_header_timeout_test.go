@@ -52,7 +52,7 @@ func pr612HTTPHandler(t *testing.T, cfg *config.Config, baseURL, mode string) *O
 	billing := service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, cfg, nil)
 	t.Cleanup(billing.Stop)
 	return NewOpenAIGatewayHandler(gateway, service.NewConcurrencyService(nil), billing,
-		service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, cfg)
+		service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg), nil, nil, nil, nil, nil, cfg)
 }
 
 func TestPR612DelayedHeadersFailoverToNextAccount(t *testing.T) {

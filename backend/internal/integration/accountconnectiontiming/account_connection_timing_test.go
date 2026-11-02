@@ -82,8 +82,8 @@ func timingRouter(account *service.Account, target *url.URL, written ...chan str
 	if len(written) != 0 {
 		upstream.written = written[0]
 	}
-	svc := service.NewAccountTestService(timingAccounts{account: account}, nil, nil, nil, nil, upstream, cfg, nil)
-	h := admin.NewAccountHandler(nil, nil, nil, nil, nil, nil, nil, nil, svc, nil, nil, nil, nil, nil)
+	svc := service.NewAccountTestService(timingAccounts{account: account}, nil, nil, nil, nil, nil, upstream, cfg, nil)
+	h := admin.NewAccountHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, svc, nil, nil, nil, nil, nil)
 	router := gin.New()
 	router.POST("/api/v1/admin/accounts/:id/test", h.Test)
 	return router

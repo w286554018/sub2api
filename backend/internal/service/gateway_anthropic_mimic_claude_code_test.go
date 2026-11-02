@@ -535,7 +535,7 @@ func TestAccountTestService_AnthropicMimicClaudeCode(t *testing.T) {
 	account := newMimicClaudeCodeAccountForTest(5001, nil)
 	repo := &stripIdentityTestAccountRepo{account: account}
 	upstream := &stripIdentityCaptureUpstream{}
-	svc := NewAccountTestService(repo, nil, nil, nil, nil, upstream, &config.Config{}, nil)
+	svc := NewAccountTestService(repo, nil, nil, nil, nil, nil, upstream, &config.Config{}, nil)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/5001/test", nil)
