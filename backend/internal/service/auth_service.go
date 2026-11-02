@@ -73,6 +73,7 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
+	lottery               *LotteryService
 	entClient             *dbent.Client
 	userRepo              UserRepository
 	redeemRepo            RedeemCodeRepository
@@ -1041,6 +1042,11 @@ func (s *AuthService) postAuthUserBootstrap(ctx context.Context, user *User, sig
 
 	if touchLogin {
 		s.touchUserLogin(ctx, user.ID)
+	}
+	if s.lottery != nil {
+		if err := s.lottery.RegisterInvitedUser(ctx, user.ID); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Lottery invitation binding pending: user_id=%d err=%v", user.ID, err)
+		}
 	}
 }
 

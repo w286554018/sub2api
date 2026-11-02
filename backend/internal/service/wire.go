@@ -77,6 +77,7 @@ func ProvideAuthService(
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	mcpOAuthService *MCPOAuthService,
+	lottery *LotteryService,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -98,6 +99,7 @@ func ProvideAuthService(
 	if mcpOAuthService != nil {
 		svc.SetMCPGrantRevoker(mcpOAuthService)
 	}
+	svc.lottery = lottery
 	return svc
 }
 

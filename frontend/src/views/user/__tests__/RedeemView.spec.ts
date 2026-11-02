@@ -3,7 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import RedeemView from '../RedeemView.vue'
 import Select from '@/components/common/Select.vue'
 const { refreshLottery } = vi.hoisted(() => ({ refreshLottery: vi.fn() }))
-vi.mock('@/stores/lottery', () => ({ useLotteryStore: () => ({ enabled: true, refresh: refreshLottery }) }))
+vi.mock('@/stores/lottery', () => ({ useLotteryStore: () => ({ enabled: true, pools: [], refresh: refreshLottery }) }))
 
 const { redeem, getHistory, refreshUser, fetchActiveSubscriptions, showError, showWarning, showSuccess } = vi.hoisted(() => ({
   redeem: vi.fn(),
@@ -92,7 +92,8 @@ describe('RedeemView refresh after redemption', () => {
       } else {
         expect(fetchActiveSubscriptions).not.toHaveBeenCalled()
       }
-      expect(refreshLottery).toHaveBeenCalledTimes(type === 'balance' ? 1 : 0)
+      expect(refreshLottery).toHaveBeenCalledTimes(type === 'balance' ? 2 : 1)
+      if (type === 'balance') expect(refreshLottery).toHaveBeenLastCalledWith(true)
       wrapper.unmount()
     }
   )
