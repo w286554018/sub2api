@@ -356,6 +356,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			cost.ActualCost = standardCost.ActualCost
 		}
 	}
+	// A submitted attempt that timed out before headers may still be billed
+	// upstream, so each such retry adds one unit of the successful attempt's cost.
+	if cost != nil && result.HeaderTimeoutRetries > 0 {
+		surcharge := 1 + float64(result.HeaderTimeoutRetries)
+		cost.TotalCost *= surcharge
+		cost.ActualCost *= surcharge
+	}
 
 	// Determine billing type
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -364,7 +371,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		billingType = BillingTypeSubscription
 	}
 
-	// Create usage log
+	// Preserve protocol-specific legacy timers and the TPS denominator.
+	// QueueTiming supplies separately sampled server/forward observations.
+	queueWaitMs := 0
+	if result.QueueWait > 0 {
+		queueWaitMs = int(min(result.QueueWait, maxOpenAIQueueWait).Milliseconds())
+	}
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
@@ -488,6 +500,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	usageLog.OpenAIWSMode = result.OpenAIWSMode
 	usageLog.DurationMs = &durationMs
 	usageLog.FirstTokenMs = result.FirstTokenMs
+	usageLog.QueueTiming = result.QueueTiming
+	if result.QueueWaitMeasured {
+		usageLog.QueueWaitMs = &queueWaitMs
+	}
 	usageLog.CreatedAt = time.Now()
 	// 设置渠道信息
 	usageLog.ChannelID = optionalInt64Ptr(input.ChannelID)

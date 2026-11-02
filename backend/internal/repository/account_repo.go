@@ -2786,7 +2786,6 @@ func (r *accountRepository) ListSchedulableAccountLoads(ctx context.Context) ([]
 		Select(
 			dbaccount.FieldID,
 			dbaccount.FieldConcurrency,
-			dbaccount.FieldLoadFactor,
 		).
 		All(ctx)
 	if err != nil {
@@ -2795,14 +2794,9 @@ func (r *accountRepository) ListSchedulableAccountLoads(ctx context.Context) ([]
 
 	loads := make([]service.AccountWithConcurrency, 0, len(accounts))
 	for _, account := range accounts {
-		projection := service.Account{
-			ID:          account.ID,
-			Concurrency: account.Concurrency,
-			LoadFactor:  account.LoadFactor,
-		}
 		loads = append(loads, service.AccountWithConcurrency{
 			ID:             account.ID,
-			MaxConcurrency: projection.EffectiveLoadFactor(),
+			MaxConcurrency: account.Concurrency,
 		})
 	}
 	return loads, nil

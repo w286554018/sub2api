@@ -1,3 +1,5 @@
+import lottery from './lottery'
+import accountTestTiming from './accountTestTiming'
 import openaiAuth from './openaiAuth'
 import upstreamEntities from './upstreamEntities'
 import profitOps from './profitOps'
@@ -29,10 +31,13 @@ import admin from './admin'
 import misc from './misc'
 
 import requestTiming from './requestTiming'
+import latencyObservability from './latencyObservability'
 
 import autoConfig from './autoConfig'
 
 export default {
+	lottery,
+  accountTestTiming,
   openaiAuth,
   upstreamEntities,
   traffic,
@@ -53,6 +58,7 @@ export default {
   modelTrace,
   tokenGuardV2,
   requestTiming,
+  latencyObservability,
   adminAccessKeys,
   mcp,
   ...landing,

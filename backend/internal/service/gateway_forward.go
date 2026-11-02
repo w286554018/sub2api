@@ -116,6 +116,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if tier := anthropicSpeedServiceTier(account, parsed.Speed, anthropicSpeedModel(parsed, result)); tier != nil {
 				result.ServiceTier = tier
 			}
+			attachClaudeCodeMimicInjection(c, account, result)
 		}
 	}()
 	beginUpstreamResponseModelObservation(c)

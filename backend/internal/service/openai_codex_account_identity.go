@@ -203,7 +203,22 @@ func scopeCodexAccountTurnMetadata(raw string, account *Account, apiKeyID int64)
 	}))
 }
 
+// Apply both accepted Responses metadata locations from their original values.
+// Do not flatten the response envelope or replace unrelated nested fields.
 func applyCodexAccountIdentityClientMetadataMap(requestBody map[string]any, account *Account, apiKeyID int64) bool {
+	if requestBody == nil || codexAccountIdentityNamespace(account) == "" {
+		return false
+	}
+	changed := applyCodexAccountIdentitySectionMap(requestBody, account, apiKeyID)
+	if response, ok := requestBody["response"].(map[string]any); ok {
+		if applyCodexAccountIdentitySectionMap(response, account, apiKeyID) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+func applyCodexAccountIdentitySectionMap(requestBody map[string]any, account *Account, apiKeyID int64) bool {
 	if requestBody == nil || codexAccountIdentityNamespace(account) == "" {
 		return false
 	}
@@ -235,7 +250,7 @@ func applyCodexAccountIdentityClientMetadataMap(requestBody map[string]any, acco
 
 // applyCodexAccountIdentityClientMetadataRaw scopes only the small identity
 // subobjects member-by-member. The passthrough hot path never unmarshals the
-// potentially multi-megabyte request body.
+// large request body.
 func applyCodexAccountIdentityClientMetadataRaw(body []byte, account *Account, apiKeyID int64) ([]byte, bool, error) {
 	if len(body) == 0 || codexAccountIdentityNamespace(account) == "" {
 		return body, false, nil
@@ -245,38 +260,53 @@ func applyCodexAccountIdentityClientMetadataRaw(body []byte, account *Account, a
 		return body, false, nil
 	}
 
-	originalBodySessionID := gjson.GetBytes(body, "client_metadata.session_id").String()
-	raw := string(body)
-	next := rewriteCodexJSONMembers(raw, func(name string, value gjson.Result) (string, bool) {
-		if name == "client_metadata" && value.IsObject() {
-			scoped := scopeCodexAccountTurnMetadata(value.Raw, account, apiKeyID)
-			scoped = rewriteCodexJSONMembers(scoped, func(key string, member gjson.Result) (string, bool) {
-				if key != openAIWSTurnMetadataHeader || member.Type != gjson.String {
-					return "", false
-				}
-				metadata := scopeCodexAccountTurnMetadata(member.Str, account, apiKeyID)
-				if metadata == member.Str {
-					return "", false
-				}
-				encoded, err := marshalOpenAIUpstreamJSON(metadata)
-				return string(encoded), err == nil
-			})
-			return scoped, scoped != value.Raw
+	var rewriteSection func(string) string
+	rewriteSection = func(raw string) string {
+		if !gjson.Valid(raw) || !gjson.Parse(raw).IsObject() {
+			return raw
 		}
-		if name != "prompt_cache_key" || value.Type != gjson.String || strings.TrimSpace(value.Str) == "" {
-			return "", false
-		}
-		kind := "prompt-cache"
-		if strings.TrimSpace(originalBodySessionID) != "" && value.Str == originalBodySessionID {
-			kind = "session"
-		}
+		originalSessionID := gjson.Get(raw, "client_metadata.session_id").String()
+		return rewriteCodexJSONMembers(raw, func(name string, value gjson.Result) (string, bool) {
+			if name == "response" && value.IsObject() {
+				rewritten := rewriteSection(value.Raw)
+				return rewritten, rewritten != value.Raw
+			}
+			if name == "client_metadata" && value.IsObject() {
+				rewritten := rewriteCodexJSONMembers(value.Raw, func(key string, member gjson.Result) (string, bool) {
+					if key == openAIWSTurnMetadataHeader && member.Type == gjson.String {
+						metadata := scopeCodexAccountTurnMetadata(member.Str, account, apiKeyID)
+						encoded, err := marshalCodexTurnMetadataValue(metadata)
+						return encoded, err == nil && metadata != member.Str
+					}
+					if member.Type != gjson.String {
+						return "", false
+					}
+					field := map[string]any{key: member.Str}
+					if !applyCodexAccountIdentityFields(field, account, apiKeyID) {
+						return "", false
+					}
+					encoded, err := marshalCodexTurnMetadataValue(field[key])
+					return encoded, err == nil
+				})
+				return rewritten, rewritten != value.Raw
+			}
+			if name != "prompt_cache_key" || value.Type != gjson.String || strings.TrimSpace(value.Str) == "" {
+				return "", false
+			}
+			kind := "prompt-cache"
+			if strings.TrimSpace(originalSessionID) != "" && value.Str == originalSessionID {
+				kind = "session"
+			}
 		scoped := scopeCodexAccountIdentityValue(account, apiKeyID, kind, value.Str)
-		if scoped == value.Str {
-			return "", false
-		}
-		encoded, err := marshalCodexTurnMetadataValue(scoped)
-		return encoded, err == nil
-	})
+			if scoped == value.Str {
+				return "", false
+			}
+			encoded, err := marshalCodexTurnMetadataValue(scoped)
+			return encoded, err == nil
+		})
+	}
+	raw := string(body)
+	next := rewriteSection(raw)
 	return []byte(next), next != raw, nil
 }
 

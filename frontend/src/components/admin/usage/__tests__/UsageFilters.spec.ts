@@ -93,10 +93,17 @@ const defaultFilters = () => ({
   end_date: '',
 })
 
-function mountFilters(filters = defaultFilters(), props: Record<string, any> = {}) {
+function mountFilters(
+  filters = defaultFilters(),
+  modeOrProps: 'usage' | 'errors' | 'ranking' | 'connections' | 'latency' | Record<string, any> = 'usage',
+  extraProps: Record<string, any> = {},
+) {
+  const mode = typeof modeOrProps === 'string' ? modeOrProps : modeOrProps.mode ?? 'usage'
+  const props = typeof modeOrProps === 'string' ? extraProps : modeOrProps
   return mount(UsageFilters, {
     props: {
       modelValue: filters,
+      mode,
       exporting: false,
       startDate: '2026-05-01',
       endDate: '2026-05-28',
@@ -112,6 +119,25 @@ function mountFilters(filters = defaultFilters(), props: Record<string, any> = {
     },
   })
 }
+
+describe('UsageFilters latency mode', () => {
+  it('shows only filters supported by the latency report', async () => {
+    const wrapper = mountFilters(defaultFilters(), 'latency')
+    await flushPromises()
+
+    const labels = wrapper.findAll('label').map(label => label.text())
+    expect(labels).toContain('User')
+    expect(labels).toContain('API Key')
+    expect(labels).toContain('Model')
+    expect(labels).toContain('Account')
+    expect(labels).toContain('Group')
+    expect(labels).not.toContain('Type')
+    expect(labels).not.toContain('Request Kind')
+    expect(labels).not.toContain('Billing Type')
+    expect(labels).not.toContain('Billing Mode')
+    wrapper.unmount()
+  })
+})
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
