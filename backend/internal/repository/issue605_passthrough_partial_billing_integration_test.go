@@ -156,7 +156,7 @@ func runPassthroughPartialBilling(t *testing.T, failure string, prior bool) {
 	defer gateway.StopOpenAICodexTicketHarvester()
 	defer gateway.CloseOpenAIWSPool()
 	keyService := service.NewAPIKeyService(keys, users, groups, nil, nil, nil, cfg)
-	h := handler.NewOpenAIGatewayHandler(gateway, concurrency, billing, keyService, nil, nil, nil, nil, cfg)
+	h := handler.NewOpenAIGatewayHandler(gateway, concurrency, billing, keyService, nil, nil, nil, nil, nil, cfg)
 	handlerDone := make(chan struct{})
 	router := gin.New()
 	router.Use(gin.HandlerFunc(middleware.NewAPIKeyAuthMiddleware(keyService, nil, cfg)))

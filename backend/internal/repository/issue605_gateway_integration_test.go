@@ -116,7 +116,7 @@ func TestSmartProtocolGatewayBillingAndQuotaIntegration(t *testing.T) {
 	defer gateway.StopOpenAICodexTicketHarvester()
 	defer gateway.CloseOpenAIWSPool()
 	keyService := service.NewAPIKeyService(keys, users, groups, nil, nil, nil, cfg)
-	h := handler.NewOpenAIGatewayHandler(gateway, concurrency, billing, keyService, nil, nil, nil, nil, cfg)
+	h := handler.NewOpenAIGatewayHandler(gateway, concurrency, billing, keyService, nil, nil, nil, nil, nil, cfg)
 	router := gin.New()
 	router.Use(gin.HandlerFunc(middleware.NewAPIKeyAuthMiddleware(keyService, nil, cfg)))
 	router.GET("/v1/responses", h.ResponsesWebSocket)
