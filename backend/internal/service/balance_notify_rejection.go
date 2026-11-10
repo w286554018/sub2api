@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"log/slog"
 	"time"
 )
 
@@ -36,7 +35,22 @@ func (s *BalanceNotifyService) sendResolvedBalanceEmail(ctx context.Context, use
 	if len(recipients) == 0 {
 		return
 	}
-	s.sendBalanceLowEmails(recipients, user.ID, user.Username, user.Email, balance, threshold, s.getSiteName(ctx), rechargeURL)
+	s.sendBalanceLowEmails(ctx, recipients, user.ID, user.Username, user.Email, balance, threshold, s.getSiteName(ctx), rechargeURL)
+}
+
+// runBalanceEmail shares admission and retry cooldown across rejection and
+// post-deduction alerts. Rejection attempts include settings reads in the gate.
+func (s *BalanceNotifyService) runBalanceEmail(ctx context.Context, user *User, send func(context.Context, *User)) {
+	if ctx.Err() != nil || !s.beginBalanceEmail(user.ID, time.Now()) {
+		return
+	}
+	defer func() {
+		s.balanceMu.Lock()
+		s.balanceAttempts[user.ID] = balanceNotifyAttempt{next: time.Now().Add(balanceNotifyRetryCooldown)}
+		s.balanceActive--
+		s.balanceMu.Unlock()
+	}()
+	send(ctx, user)
 }
 
 func (s *BalanceNotifyService) beginBalanceEmail(userID int64, now time.Time) bool {
@@ -65,7 +79,7 @@ func (s *BalanceNotifyService) beginBalanceEmail(userID int64, now time.Time) bo
 }
 
 func (s *BalanceNotifyService) scheduleBalanceEmail(user *User, send func(context.Context, *User)) {
-	if !s.beginBalanceEmail(user.ID, time.Now()) {
+	if s == nil || user == nil || send == nil || s.usageNotifications == nil {
 		return
 	}
 	snapshot := *user
@@ -74,18 +88,9 @@ func (s *BalanceNotifyService) scheduleBalanceEmail(user *User, send func(contex
 		threshold := *user.BalanceNotifyThreshold
 		snapshot.BalanceNotifyThreshold = &threshold
 	}
-	go func() {
-		defer func() {
-			s.balanceMu.Lock()
-			s.balanceAttempts[snapshot.ID] = balanceNotifyAttempt{next: time.Now().Add(balanceNotifyRetryCooldown)}
-			s.balanceActive--
-			s.balanceMu.Unlock()
-			if recover() != nil {
-				slog.Error("panic in balance notification", "user_id", snapshot.ID)
-			}
-		}()
-		ctx, cancel := context.WithTimeout(context.Background(), emailSendTimeout)
-		defer cancel()
-		send(ctx, &snapshot)
-	}()
+	// Admission happens when the task runs. A task discarded during shutdown must
+	// not leave an active balance reservation behind.
+	s.usageNotifications.submit(func(ctx context.Context) {
+		s.runBalanceEmail(ctx, &snapshot, send)
+	})
 }

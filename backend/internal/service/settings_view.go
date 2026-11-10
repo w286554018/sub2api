@@ -282,6 +282,7 @@ type SystemSettings struct {
 	OpenAICodexTicketStaticProxyURL        string
 	OpenAICodexTicketModels                []string                          // Codex 打票模型列表；缺失时回退 yaml/env
 	GatewayKiroTokenizer                   string                            // Kiro 计量算法（official/charclass/weighted，默认 official）
+	GatewayKiroCacheScopeClient            bool                              // Kiro 缓存模拟按 API key + 会话分桶（默认 false）
 	OpenAICodexTicketDefaultLength         int                               // 门票默认目标长度；后台未配置时回退 yaml target_length
 	OpenAICodexTicketPlanLengthRules       []OpenAICodexTicketPlanLengthRule // 订阅档位长度规则（plan_type 子串匹配，先命中先生效）
 	MinCodexVersion                        string                            // codex_cli_only 最低 Codex 引擎版本；空=不检查

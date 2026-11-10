@@ -16,9 +16,18 @@ import (
 // CyberSessionBlockStore 是 cyber 会话屏蔽表的存取接口。
 // repository 层 gatewayCache 附带实现（类型断言探测接入，不改 GatewayCache
 // 共享接口）；测试 stub 不实现时屏蔽能力自动降级关闭。
+// CyberSessionBlock is the storage request format. Runtime admission writes
+// only exact API-key-scoped identities or the no-identity content fingerprint;
+// source scope and transcript prefixes never define a conversation.
+type CyberSessionBlock struct {
+	APIKeyID          int64
+	ScopeKey          string
+	Keys              []string
+	TranscriptLengths []int
+}
+
 type CyberSessionBlockStore interface {
-	SetCyberSessionBlocked(ctx context.Context, scopeKey string, keys []string, ttl time.Duration) error
-	IsCyberSessionScopeActive(ctx context.Context, scopeKey string) (bool, error)
+	SetCyberSessionBlocked(ctx context.Context, block CyberSessionBlock, ttl time.Duration) error
 	FindCyberSessionBlocked(ctx context.Context, keys []string) (string, error)
 }
 
@@ -176,7 +185,7 @@ func (s *OpenAIGatewayService) MarkCyberSessionBlocked(ctx context.Context, scop
 	if store == nil {
 		return
 	}
-	if err := store.SetCyberSessionBlocked(ctx, scopeKey, keys, ttl); err != nil {
+	if err := store.SetCyberSessionBlocked(ctx, CyberSessionBlock{Keys: keys}, ttl); err != nil {
 		logger.LegacyPrintf("service.openai_gateway", "cyber session block write failed: err=%v", err)
 	}
 }

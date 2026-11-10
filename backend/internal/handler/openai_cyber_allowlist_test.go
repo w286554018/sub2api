@@ -53,7 +53,7 @@ func TestCyberAllowlistedUserBypassesExistingBlocksAndContinuesWebSocket(t *test
 	require.NotEmpty(t, explicitKey)
 	store, ok := harness.gatewayCache.(service.CyberSessionBlockStore)
 	require.True(t, ok)
-	require.NoError(t, store.SetCyberSessionBlocked(context.Background(), "", []string{explicitKey}, time.Minute))
+	require.NoError(t, store.SetCyberSessionBlocked(context.Background(), service.CyberSessionBlock{APIKeyID: harness.apiKey.ID, Keys: []string{explicitKey}}, time.Minute))
 	writeRecorder, ok := harness.gatewayCache.(*cyberBlockRecordingCache)
 	require.True(t, ok)
 	writesBefore := writeRecorder.writes.Load()

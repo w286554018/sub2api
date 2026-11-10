@@ -614,11 +614,14 @@ type OpenAIGatewayService struct {
 	codexSnapshotMu                     sync.Mutex
 	codexSnapshotClosed                 bool
 	openAIModelsCache                   openAIModelsCache
+	excelBPSModelCooldowns              excelBPSModelCooldowns
+	excelBPSCooldownUntil               sync.Map // key: int64(accountID), value: time.Time
+	excelBPSAttachments                 basispoints.AttachmentCache
 	excelBPSModelsCache                 openAIModelsCache
-	openaiCompatSessionResponses        sync.Map
+	openaiCompatSessionResponses        sessionMemoryCache
 	openaiCompatBridgeSessions          sync.Map
 	openaiCompatBridgeSessionWrites     atomic.Uint64
-	openaiCompatAnthropicDigestSessions sync.Map
+	openaiCompatAnthropicDigestSessions sessionMemoryCache
 	// openaiCodexTurnStateOrigins: 下游会话 seed → openAICodexTurnStateOrigin，
 	// 记录最近一次向该会话下发 x-codex-turn-state 的铸造账号，供出站守卫
 	// 剥离跨账号回带（openai_codex_turn_state.go）。
@@ -872,9 +875,14 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 	}
 }
 
-// CloseOpenAIWSPool 关闭 OpenAI WebSocket 连接池的后台 worker 和空闲连接。
+// CloseOpenAIWSPool 关闭 OpenAI WebSocket 连接池、后台 worker 和会话缓存清理 timer。
 // 应在应用优雅关闭时调用。
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
+	if s == nil {
+		return
+	}
+	s.openaiCompatSessionResponses.Close()
+	s.openaiCompatAnthropicDigestSessions.Close()
 	if s != nil {
 		s.codexSnapshotMu.Lock()
 		s.codexSnapshotClosed = true

@@ -629,10 +629,9 @@ const openAIGPT61SolSubscriptionLongContextThreshold = 500_000
 // openAIGPT61SolLongContextExempt 按实际上游凭据、最终发送模型和输入 token
 // 判断是否豁免官方模型价卡的长上下文附加费。
 //
-// 只豁免 OpenAI 订阅凭据（OAuth、Setup Token）上的 GPT-6.1 Sol，且计入长上下文
-// 判断的输入 token 不超过 500,000。超过 500,000 时不再豁免，沿用价卡倍率
-// （输入 ×2、输出 ×1.5，缓存侧与价卡一致）。API Key 不豁免，仍按价卡的
-// 272,000 阶梯。其它模型、其它平台和 upstream 透传不因这次规则被豁免。
+// 豁免 OpenAI 的 OAuth、Setup Token、API Key 及 BPS OAuth 凭据上的 GPT-6.1 Sol，
+// 且计入长上下文判断的输入 token 不超过 500,000。超过该边界时仍按价卡执行。
+// 其它模型、其它平台和 upstream 透传不因这次规则被豁免。
 //
 // 该标志只关闭官方模型长上下文阶梯（DisableModelLongContextPricing），
 // 分组自定义区间价格不受影响。token 口径与 shouldApplySessionLongContextPricing
@@ -655,7 +654,7 @@ func openAIGPT61SolLongContextExempt(account *Account, result *OpenAIForwardResu
 }
 
 // openAIAccountSkipsGPT61SolLongContext 限定豁免凭据：OpenAI 的 OAuth、
-// Setup Token，以及 API Key。其它平台和其它账号类型（例如 upstream 透传）不豁免。
+// Setup Token、API Key 及 BPS OAuth。其它平台和其它账号类型（例如 upstream 透传）不豁免。
 func openAIAccountSkipsGPT61SolLongContext(account *Account) bool {
 	if account == nil || !account.IsOpenAI() {
 		return false

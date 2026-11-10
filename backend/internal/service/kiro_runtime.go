@@ -109,6 +109,25 @@ func writeKiroMessagesRequestError(c *gin.Context) {
 	})
 }
 
+// kiroFailoverFromOpenErr 识别打开 Kiro 上游时返回的可换号错误（本地冷却闸门、402 额度耗尽），
+// 记一条 failover 事件后原样返回，交给 handler 换号；其它错误返回 nil，由调用方按请求失败处理。
+// Messages / Responses / Chat Completions 三个入口必须共用它，否则冷却中的号会直接回 502 而不换号。
+func kiroFailoverFromOpenErr(c *gin.Context, account *Account, err error) *UpstreamFailoverError {
+	var failoverErr *UpstreamFailoverError
+	if !errors.As(err, &failoverErr) {
+		return nil
+	}
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		Platform:           account.Platform,
+		AccountID:          account.ID,
+		AccountName:        account.Name,
+		UpstreamStatusCode: failoverErr.StatusCode,
+		Kind:               "failover",
+		Message:            sanitizeUpstreamErrorMessage(err.Error()),
+	})
+	return failoverErr
+}
+
 func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context, account *Account, parsed *ParsedRequest, startTime time.Time) (*ForwardResult, error) {
 	if account == nil || parsed == nil {
 		return nil, fmt.Errorf("kiro forward: missing account or request")
@@ -143,16 +162,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 	if parsed.Stream {
 		resp, _, err := s.openKiroAnthropicStreamResponse(ctx, account, parsed, body, mappedModel, originalModel, c.Request.Header, parsed.Group, nil)
 		if err != nil {
-			var failoverErr *UpstreamFailoverError
-			if errors.As(err, &failoverErr) {
-				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-					Platform:           account.Platform,
-					AccountID:          account.ID,
-					AccountName:        account.Name,
-					UpstreamStatusCode: failoverErr.StatusCode,
-					Kind:               "failover",
-					Message:            sanitizeUpstreamErrorMessage(err.Error()),
-				})
+			if failoverErr := kiroFailoverFromOpenErr(c, account, err); failoverErr != nil {
 				return nil, failoverErr
 			}
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
@@ -224,16 +234,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 			if errors.As(webSearchErr, &httpErr) && httpErr.Response != nil {
 				return nil, s.handleKiroHTTPError(ctx, httpErr.Response, c, account, mappedModel, body)
 			}
-			var failoverErr *UpstreamFailoverError
-			if errors.As(webSearchErr, &failoverErr) {
-				appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-					Platform:           account.Platform,
-					AccountID:          account.ID,
-					AccountName:        account.Name,
-					UpstreamStatusCode: failoverErr.StatusCode,
-					Kind:               "failover",
-					Message:            sanitizeUpstreamErrorMessage(webSearchErr.Error()),
-				})
+			if failoverErr := kiroFailoverFromOpenErr(c, account, webSearchErr); failoverErr != nil {
 				return nil, failoverErr
 			}
 			safeErr := sanitizeUpstreamErrorMessage(webSearchErr.Error())
@@ -245,16 +246,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 	inputTokens := estimateKiroInputTokens(ctx, s.kiroMeteringAlgorithm(ctx), body)
 	resp, requestCtx, err := s.executeKiroUpstreamWithParsed(ctx, account, parsed, body, mappedModel, originalModel, token, c.Request.Header)
 	if err != nil {
-		var failoverErr *UpstreamFailoverError
-		if errors.As(err, &failoverErr) {
-			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-				Platform:           account.Platform,
-				AccountID:          account.ID,
-				AccountName:        account.Name,
-				UpstreamStatusCode: failoverErr.StatusCode,
-				Kind:               "failover",
-				Message:            sanitizeUpstreamErrorMessage(err.Error()),
-			})
+		if failoverErr := kiroFailoverFromOpenErr(c, account, err); failoverErr != nil {
 			return nil, failoverErr
 		}
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
@@ -270,6 +262,7 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 	requestCtx.CacheEmulationUsage = cacheUsage.toKiroUsage()
 	requestCtx.EstimatedInputTokens = inputTokens
 	requestCtx.TokenizerAlgorithm = s.kiroMeteringAlgorithm(ctx)
+	s.resolveKiroPromptCache(ctx, account, &requestCtx)
 	parseResult, err := kiropkg.ParseNonStreamingEventStreamWithContext(resp.Body, originalModel, requestCtx)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{
@@ -281,6 +274,8 @@ func (s *GatewayService) forwardKiroMessages(ctx context.Context, c *gin.Context
 		})
 		return nil, err
 	}
+	s.recordKiroPromptCache(account, requestCtx, parseResult.OutputEstimate)
+	logKiroOutputEstimate(ctx, account, mappedModel, requestCtx, parseResult.OutputEstimate)
 
 	c.Header("Content-Type", "application/json")
 	requestID := buildKiroRequestID(resp)
@@ -403,6 +398,7 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 	plan.commit()
 	requestCtx.CacheEmulationUsage = plan.result().toKiroUsage()
 	requestCtx.TokenizerAlgorithm = s.kiroMeteringAlgorithm(ctx)
+	s.resolveKiroPromptCache(ctx, account, &requestCtx)
 
 	pr, pw := io.Pipe()
 	wrappedHeaders := resp.Header.Clone()
@@ -413,25 +409,23 @@ func (s *GatewayService) openKiroAnthropicStreamResponse(ctx context.Context, ac
 
 	go func() {
 		defer func() { _ = resp.Body.Close() }()
-		// If orchestrated search was executed, wrap the stream to inject search blocks
+		var streamResult *kiropkg.StreamResult
+		var streamErr error
 		if len(preSearchRounds) > 0 {
-			streamErr := s.streamKiroWithSearchInjection(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx, preSearchRounds)
-			if streamErr != nil {
-				RecordStreamInjection(false)
-				logKiroStreamInterrupted(upstreamCtx, account, mappedModel, requestModel, streamErr)
-				_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
-				_ = pw.CloseWithError(streamErr)
-				return
-			}
-			RecordStreamInjection(true)
+			streamResult, streamErr = s.streamKiroEventStreamWithSearchInjection(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx, preSearchRounds)
+			RecordStreamInjection(streamErr == nil)
 		} else {
-			_, streamErr := kiropkg.StreamEventStreamAsAnthropicWithContext(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx)
-			if streamErr != nil {
-				logKiroStreamInterrupted(upstreamCtx, account, mappedModel, requestModel, streamErr)
-				_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
-				_ = pw.CloseWithError(streamErr)
-				return
-			}
+			streamResult, streamErr = kiropkg.StreamEventStreamAsAnthropicWithContext(upstreamCtx, resp.Body, pw, requestModel, inputTokens, requestCtx)
+		}
+		if streamErr != nil {
+			logKiroStreamInterrupted(upstreamCtx, account, mappedModel, requestModel, streamErr)
+			_, _ = io.WriteString(pw, "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"stream interrupted\"}}\n\n")
+			_ = pw.CloseWithError(streamErr)
+			return
+		}
+		if streamResult != nil {
+			s.recordKiroPromptCache(account, requestCtx, streamResult.OutputEstimate)
+			logKiroOutputEstimate(upstreamCtx, account, mappedModel, requestCtx, streamResult.OutputEstimate)
 		}
 		_ = pw.Close()
 	}()
@@ -489,6 +483,8 @@ func (s *GatewayService) executeKiroUpstreamWithParsed(ctx context.Context, acco
 				return nil, requestCtx, err
 			}
 
+			// Kiro 提示词缓存 5 分钟有效期从实际发出时算，重试/换端点后以最后一次为准。
+			requestCtx.UpstreamSentAt = time.Now()
 			resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 			if err != nil {
 				if attempt < maxRetries {
@@ -897,7 +893,9 @@ func estimateKiroInputTokens(ctx context.Context, alg anthropictokenizer.Algorit
 
 func kiroUsageToClaude(usage kiropkg.Usage, fallbackInput int) ClaudeUsage {
 	inputTokens := usage.InputTokens
-	if inputTokens == 0 {
+	// 只有完全没有输入侧数据时才用本地估算兜底。缓存模拟把整段上下文划进
+	// cache_read/cache_creation 时 input 为 0 是正常的，再补估算会重复计数。
+	if inputTokens == 0 && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens == 0 {
 		inputTokens = fallbackInput
 	}
 	return ClaudeUsage{
@@ -1165,6 +1163,57 @@ func (s *GatewayService) executeKiroMCPWebSearch(ctx context.Context, account *A
 	}
 
 	return round, nextToken, nil
+}
+
+// streamKiroEventStreamWithSearchInjection converts AWS eventstream before
+// relaying SSE, preserving the converter's authoritative usage and estimates.
+func (s *GatewayService) streamKiroEventStreamWithSearchInjection(
+	ctx context.Context,
+	upstreamBody io.ReadCloser,
+	downstream io.Writer,
+	model string,
+	inputTokens int,
+	requestCtx kiropkg.KiroRequestContext,
+	searchRounds []kiropkg.SearchRound,
+) (*kiropkg.StreamResult, error) {
+	converterCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	pr, pw := io.Pipe()
+	defer func() { _ = pr.Close() }()
+
+	type conversionResult struct {
+		result *kiropkg.StreamResult
+		err    error
+	}
+	done := make(chan conversionResult, 1)
+	go func() {
+		result, err := kiropkg.StreamEventStreamAsAnthropicWithContext(
+			converterCtx, upstreamBody, pw, model, inputTokens, requestCtx,
+		)
+		done <- conversionResult{result: result, err: err}
+		_ = pw.CloseWithError(err)
+	}()
+
+	// Cancellation must unblock both an upstream read and a pipe write.
+	stopCancellation := context.AfterFunc(ctx, func() {
+		_ = pr.CloseWithError(ctx.Err())
+		_ = upstreamBody.Close()
+	})
+	defer stopCancellation()
+
+	relayErr := s.streamKiroWithSearchInjection(
+		ctx, pr, downstream, model, inputTokens, requestCtx, searchRounds,
+	)
+	if relayErr != nil {
+		cancel()
+		_ = pr.CloseWithError(relayErr)
+		_ = upstreamBody.Close()
+	}
+	converted := <-done
+	if relayErr != nil {
+		return converted.result, relayErr
+	}
+	return converted.result, converted.err
 }
 
 // streamKiroWithSearchInjection wraps a Kiro stream and injects search blocks at the beginning.

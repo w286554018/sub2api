@@ -35,12 +35,23 @@ func balanceRejectionFixture(t *testing.T) (*BalanceNotifyService, *notification
 	mail := &balanceMailStub{}
 	svc := NewBalanceNotifyService(nil, repo, nil)
 	svc.emailService = mail
+	t.Cleanup(svc.Stop)
 	user := &User{ID: 71, BalanceNotifyEnabled: true, BalanceNotifyExtraEmails: []NotifyEmailEntry{{Email: "synthetic@example.invalid", Verified: true}}}
 	return svc, repo, mail, user
 }
 func waitBalanceIdle(t *testing.T, s *BalanceNotifyService) {
 	t.Helper()
-	require.Eventually(t, func() bool { s.balanceMu.Lock(); defer s.balanceMu.Unlock(); return s.balanceActive == 0 }, time.Second, time.Millisecond)
+	require.Eventually(t, func() bool {
+		if s.usageNotifications != nil {
+			pool := s.usageNotifications.pool
+			if pool.SubmittedTasks() != pool.CompletedTasks() {
+				return false
+			}
+		}
+		s.balanceMu.Lock()
+		defer s.balanceMu.Unlock()
+		return s.balanceActive == 0
+	}, time.Second, time.Millisecond)
 }
 func expireBalanceCooldown(s *BalanceNotifyService, id int64) {
 	s.balanceMu.Lock()

@@ -441,6 +441,9 @@ type ResponsesOutput struct {
 // arguments 是 JSON 对象而非 function_call 语义下的字符串。reasoning 项始终提供
 // summary 数组（关闭摘要时为空），其余类型走默认结构体序列化。
 func (o ResponsesOutput) MarshalJSON() ([]byte, error) {
+	if o.Type == "message" || o.Type == "tool_search_call" {
+		return json.Marshal(responsesItemWire(&o))
+	}
 	type responsesOutputAlias ResponsesOutput
 	if o.Type == "reasoning" {
 		summary := o.Summary

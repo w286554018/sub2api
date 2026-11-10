@@ -85,20 +85,20 @@ func accountTestProbeKind(c *gin.Context) string {
 
 // TestEvent represents a SSE event for account testing
 type TestEvent struct {
-	Timing               *requesttiming.AccountTestTiming `json:"timing,omitempty"`
-	UpstreamStatus       int                              `json:"upstream_status,omitempty"`
-	UpstreamModel        string                           `json:"upstream_model,omitempty"`
-	RequestID            string                           `json:"request_id,omitempty"`
-	UpstreamErrorCode    string                           `json:"upstream_error_code,omitempty"`
+	Timing            *requesttiming.AccountTestTiming `json:"timing,omitempty"`
+	UpstreamStatus    int                              `json:"upstream_status,omitempty"`
+	UpstreamModel     string                           `json:"upstream_model,omitempty"`
+	RequestID         string                           `json:"request_id,omitempty"`
+	UpstreamErrorCode string                           `json:"upstream_error_code,omitempty"`
 	// UpstreamErrorMessage is BPS's own rejection message, redacted of the
 	// request token and account secrets.
 	UpstreamErrorMessage string `json:"upstream_error_message,omitempty"`
-	Type                 string                           `json:"type"`
-	Text                 string                           `json:"text,omitempty"`
-	Model                string                           `json:"model,omitempty"`
-	Status               string                           `json:"status,omitempty"`
-	Code                 string                           `json:"code,omitempty"`
-	ImageURL             string                           `json:"image_url,omitempty"`
+	Type                 string `json:"type"`
+	Text                 string `json:"text,omitempty"`
+	Model                string `json:"model,omitempty"`
+	Status               string `json:"status,omitempty"`
+	Code                 string `json:"code,omitempty"`
+	ImageURL             string `json:"image_url,omitempty"`
 	// AudioURL / VideoURL are data: or https URLs for in-browser media players.
 	AudioURL string `json:"audio_url,omitempty"`
 	VideoURL string `json:"video_url,omitempty"`
@@ -732,7 +732,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		if err != nil {
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
 		}
-		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
+		apiURL = buildAnthropicMessagesURL(normalizedBaseURL)
 	} else {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -3800,11 +3800,14 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: modelID})
 
+	// GPT Image models return base64 images by default and reject response_format.
 	payload := map[string]any{
-		"model":           modelID,
-		"prompt":          prompt,
-		"n":               1,
-		"response_format": "b64_json",
+		"model":  modelID,
+		"prompt": prompt,
+		"n":      1,
+	}
+	if size := account.OpenAIImageTestSize(); size != "" {
+		payload["size"] = size
 	}
 	payloadBytes, _ := json.Marshal(payload)
 
@@ -3903,7 +3906,9 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		Endpoint: openAIImagesGenerationsEndpoint,
 		Model:    strings.TrimSpace(modelID),
 		Prompt:   prompt,
+		Size:     account.OpenAIImageTestSize(),
 	}
+	parsed.ExplicitSize = parsed.Size != ""
 	applyOpenAIImagesDefaults(parsed)
 
 	upstreamModel := account.GetMappedModel(parsed.Model)

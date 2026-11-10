@@ -50,6 +50,9 @@ func TestScopedAdminUserResponsePreservesFullAdminResponses(t *testing.T) {
 	svc := &scopedUserResponseService{}
 	h := NewUserHandler(svc, nil, nil, nil, nil, nil, nil)
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Request = c.Request.WithContext(adminaccess.WithPrincipal(c.Request.Context(), &adminaccess.Principal{KeyID: "full", Policy: adminaccess.Policy{FullAccess: true}}))
+	})
 	r.GET("/users", h.List)
 	r.GET("/users/:id", h.GetByID)
 	for _, path := range []string{"/users", "/users?include_subscriptions=true", "/users/7"} {
@@ -70,7 +73,7 @@ func TestScopedAdminUserResponsePreservesFullAdminResponses(t *testing.T) {
 	require.Empty(t, svc.mutationAuthorizations)
 }
 
-func TestScopedAdminUserBalanceResponseRedactsCachedFullAdminResult(t *testing.T) {
+func TestScopedAdminUserBalanceReplayRejectsDifferentCredential(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	previous := service.DefaultIdempotencyCoordinator()
 	t.Cleanup(func() { service.SetDefaultIdempotencyCoordinator(previous) })
@@ -99,6 +102,12 @@ func TestScopedAdminUserBalanceResponseRedactsCachedFullAdminResult(t *testing.T
 				}
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, req)
+				if scoped != scopedFirst {
+					require.Equal(t, 409, w.Code, w.Body.String())
+					require.NotContains(t, w.Body.String(), "内部备注")
+					require.NotContains(t, w.Body.String(), "内部密钥")
+					continue
+				}
 				require.Equal(t, 200, w.Code, w.Body.String())
 				if i > 0 {
 					require.Equal(t, "true", w.Header().Get("X-Idempotency-Replayed"))

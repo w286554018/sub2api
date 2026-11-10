@@ -1464,6 +1464,8 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		service.ExcelBPS403TargetGroupIDKey,
 		"openai_excel_bps_mihomo",
 		"openai_excel_bps_models",
+		// 生图尺寸档位在候选过滤阶段按本投影判定，裁掉后受限账号会接到不允许的档位。
+		service.AccountExtraOpenAIImageSizeTiers,
 		"codex_fingerprint_mode",
 		"codex_fingerprint_seed",
 		"codex_telemetry_enabled",
@@ -1491,6 +1493,13 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		service.UpstreamBillingProbeExtraKey,
 		service.GrokMediaEligibleExtraKey,
 		"grok_billing_snapshot",
+		// fish 按余额选号：过滤与零头优先排序都跑在本投影上；
+		// fish_max_quality 决定按哪个画质档估价。
+		service.FishWalletBalanceExtraKey,
+		service.FishWalletBalanceAtExtraKey,
+		service.FishWalletBelowExtraKey,
+		service.FishWalletBelowAtExtraKey,
+		"fish_max_quality",
 	}
 	filtered := make(map[string]any)
 	for _, key := range keys {

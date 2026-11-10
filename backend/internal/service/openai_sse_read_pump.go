@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -47,7 +48,7 @@ func (r openAISSEActivityReader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func newOpenAISSEReadPump(body io.ReadCloser, maxLineSize int) *openAISSEReadPump {
+func newOpenAISSEReadPump(body io.ReadCloser, maxLineSize int, configs ...*config.Config) *openAISSEReadPump {
 	p := &openAISSEReadPump{
 		body: body, events: make(chan openAISSEReadEvent, 1),
 		stop: make(chan struct{}), done: make(chan struct{}),
@@ -59,6 +60,11 @@ func newOpenAISSEReadPump(body io.ReadCloser, maxLineSize int) *openAISSEReadPum
 		defer putSSEScannerBuf64K(buf)
 		scanner := bufio.NewScanner(openAISSEActivityReader{pump: p})
 		scanner.Buffer(buf[:0], maxLineSize)
+		var cfg *config.Config
+		if len(configs) > 0 {
+			cfg = configs[0]
+		}
+		scanner.Split(newBoundedSSESplit(cfg, maxLineSize, nil))
 		documents := newOpenAISSEJSONDocumentScanner(scanner)
 		send := func(e openAISSEReadEvent) bool {
 			select {

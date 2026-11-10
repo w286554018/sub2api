@@ -55,6 +55,7 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"source": {}, "target_channel_id": {}, "reason_code": {}, "readback": {}, "remaining_count": {}, "target_user_id": {},
 	"anonymous_api_enabled": {},
 	"mcp_grant_id":          {}, "mcp_tool": {},
+	"admin_key_id": {}, "full_access": {}, "full_access_before": {},
 	"result": {}, "error_code": {}, "enabled": {}, "blocking_enabled": {},
 	"config_version": {}, "endpoint_count": {}, "scanner_count": {},
 	"all_groups": {}, "group_count": {}, "guard_endpoint_id": {},

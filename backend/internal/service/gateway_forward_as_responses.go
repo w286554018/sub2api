@@ -173,6 +173,9 @@ func (s *GatewayService) ForwardAsResponses(
 			resp, err = retryKiroCompactionOnContextLength(resp, compactionRetry)
 		}
 		if err != nil {
+			if failoverErr := kiroFailoverFromOpenErr(c, account, err); failoverErr != nil {
+				return nil, failoverErr
+			}
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
 			setOpsUpstreamError(c, 0, safeErr, "")
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
@@ -518,8 +521,15 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 		if errors.As(err, &rejection) {
 			writeResponsesError(c, http.StatusForbidden, "permission_error", rejection.Message)
 			MarkResponseCommitted(c)
+			return nil, err
 		}
-		return nil, err
+		_ = resp.Body.Close()
+		writeResponsesError(c, http.StatusBadGateway, "server_error", err.Error())
+		return &ForwardResult{
+			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: usage,
+			Model: originalModel, UpstreamModel: mappedModel, ReasoningEffort: reasoningEffort,
+			Duration: time.Since(startTime),
+		}, err
 	}
 
 	if finalResp == nil {
@@ -536,7 +546,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 // Anthropic 响应。onEvent 在每个事件解析成功后被调用（可为 nil），供调用方挂载
 // 心跳一类的副作用——compact 请求会借此在漫长的摘要生成期间向下游发送保活字节。
 func (s *GatewayService) collectAnthropicResponseFromSSE(
-	body io.Reader,
+	body io.ReadCloser,
 	requestID string,
 	onEvent func(),
 	contexts ...*gin.Context,
@@ -547,10 +557,12 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 		maxLineSize = s.cfg.Gateway.MaxLineSize
 	}
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineSize)
+	scanner.Split(newBoundedSSESplit(s.cfg, maxLineSize, nil))
 
 	// Accumulate the final Anthropic response from streaming events
 	var finalResp *apicompat.AnthropicResponse
 	var usage ClaudeUsage
+	streamStatus := &anthropicCompatStream{body: body}
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -591,6 +603,12 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 			return nil, usage, &anthropicSafetyRejectionError{Message: message}
 		}
 
+		streamStatus.observe(&event, payload)
+		if streamStatus.upstreamErrType != "" {
+			break
+		}
+
+		// message_start carries the initial response structure
 		if event.Type == "message_start" && event.Message != nil {
 			finalResp = event.Message
 			mergeAnthropicUsage(&usage, event.Message.Usage)
@@ -628,6 +646,7 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 		}
 	}
 
+	streamStatus.readErr = scanner.Err()
 	if err := scanner.Err(); err != nil {
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			logger.L().Warn("forward_as_responses buffered: read error",
@@ -635,6 +654,9 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 				zap.String("request_id", requestID),
 			)
 		}
+	}
+	if failure := streamStatus.failure(); failure != nil {
+		return finalResp, usage, failure.err
 	}
 	return finalResp, usage, nil
 }

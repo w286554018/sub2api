@@ -299,6 +299,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		BackendModeEnabled:                                     settings.BackendModeEnabled,
 		OpenAITTFTMode:                                         settings.OpenAITTFTMode,
 		GatewayKiroTokenizer:                                   settings.GatewayKiroTokenizer,
+		GatewayKiroCacheScopeClient:                            settings.GatewayKiroCacheScopeClient,
 		EnableFingerprintUnification:                           settings.EnableFingerprintUnification,
 		EnableMetadataPassthrough:                              settings.EnableMetadataPassthrough,
 		EnableCCHSigning:                                       settings.EnableCCHSigning,

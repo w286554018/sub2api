@@ -9,7 +9,7 @@ import (
 )
 
 // fishSweepRepoStub 只实现 ListByPlatform，其余方法经嵌入接口保持 panic
-//（不会被走到）。
+// （不会被走到）。
 type fishSweepRepoStub struct {
 	AccountRepository
 	accounts []Account
@@ -105,4 +105,33 @@ func TestFishQuotaSweepStartGuards(t *testing.T) {
 	svc2 := NewFishQuotaSweepService(nil, nil, time.Minute)
 	svc2.Start()
 	svc2.Stop()
+}
+
+func TestFishQuotaSweepTargetsOldestWalletObservationFirst(t *testing.T) {
+	now := time.Now()
+	observed := func(id int64, at time.Time) Account {
+		account := fishSweepAccount(id, StatusActive, "tok", "")
+		account.Extra = map[string]any{FishWalletBalanceExtraKey: 100, FishWalletBalanceAtExtraKey: at.UTC().Format(time.RFC3339)}
+		return account
+	}
+	accounts := []Account{
+		observed(1, now.Add(-time.Hour)),
+		fishSweepAccount(2, StatusActive, "", "https://r"), // 中转号：不巡检
+		observed(3, now.Add(-3*time.Hour)),
+		fishSweepAccount(4, StatusActive, "tok", ""), // 从没观测：最先
+		observed(5, now.Add(-2*time.Hour)),
+	}
+	var got []int64
+	for _, account := range fishQuotaSweepTargets(accounts) {
+		got = append(got, account.ID)
+	}
+	want := []int64{4, 3, 5, 1}
+	if len(got) != len(want) {
+		t.Fatalf("targets = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("targets = %v, want %v", got, want)
+		}
+	}
 }

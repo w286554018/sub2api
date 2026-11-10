@@ -942,6 +942,7 @@ const toRFC3339 = (value: string | undefined, endExclusive = false): string | un
 const buildAdminErrorLogParams = (includePagination = true): OpsErrorListQueryParams => {
   const params: OpsErrorListQueryParams = {
     view: 'all',
+    // 错误日志按当前精确时间范围清理，结束时间采用排他上界。
     start_time: toRFC3339(filters.value.start_date),
     end_time: toRFC3339(filters.value.end_date, true),
     user_id: filters.value.user_id ?? undefined,

@@ -16,7 +16,7 @@ type cyberBlockRecordingCache struct {
 	writes atomic.Int64
 }
 
-func (c *cyberBlockRecordingCache) SetCyberSessionBlocked(ctx context.Context, scopeKey string, keys []string, ttl time.Duration) error {
+func (c *cyberBlockRecordingCache) SetCyberSessionBlocked(ctx context.Context, block service.CyberSessionBlock, ttl time.Duration) error {
 	c.writes.Add(1)
-	return c.CyberSessionBlockStore.SetCyberSessionBlocked(ctx, scopeKey, keys, ttl)
+	return c.CyberSessionBlockStore.SetCyberSessionBlocked(ctx, block, ttl)
 }
