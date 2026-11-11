@@ -182,15 +182,13 @@ func prepareOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey
 		c.Request = c.Request.WithContext(service.WithAPIKeyOpenAIReasoningEffortPolicy(c.Request.Context(), apiKey.ReasoningEffort, maxEffort, mappings, overLimit, requestModel))
 		return body, nil
 	}
-	// The Messages bridge synthesizes a default OpenAI effort when
-	// output_config.effort is omitted. Bind the group policy only for an
-	// explicit client value so the ceiling does not alter that default.
 	effort := gjson.GetBytes(body, "output_config.effort")
 	if !effort.Exists() || effort.Type != gjson.String || strings.TrimSpace(effort.String()) == "" {
 		// An explicit ultra model suffix is a client preference, not a bridge
 		// default. Enforce it before conversion or account/model normalization.
 		requested := service.CanonicalRequestedReasoningEffort(nil, requestModel)
 		if requested == nil || *requested != "ultra" {
+			bindOpenAIReasoningEffortPolicyForMessagesRequest(c, apiKey, body)
 			return body, nil
 		}
 		payload, err := sjson.SetBytes(body, "output_config.effort", "ultra")
@@ -205,6 +203,41 @@ func prepareOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey
 		// turn ultra -> high -> low instead of applying one mapping.
 		return updated, nil
 	}
-	c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings, overLimit, requestModel))
+	bindOpenAIReasoningEffortPolicyForMessagesRequest(c, apiKey, body)
 	return body, nil
+}
+
+func bindOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey *service.APIKey, body []byte) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	requestModel := clientRequestedModel(c, strings.TrimSpace(gjson.GetBytes(body, "model").String()))
+	bindRequestedReasoningEffort(c, body, requestModel)
+	maxEffort, mappings, overLimit, ok := openAIReasoningEffortPolicyForRequest(c, apiKey)
+	if !ok {
+		return
+	}
+	isCNTarget := service.IsCNProvider(effectiveAPIKeyPlatform(c, apiKey))
+	effort := gjson.GetBytes(body, "output_config.effort")
+	explicitEffort := effort.Type == gjson.String && strings.TrimSpace(effort.String()) != ""
+	if isCNTarget && !explicitEffort {
+		return
+	}
+	if isCNTarget {
+		c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings, overLimit, requestModel))
+		return
+	}
+	if !explicitEffort {
+		if gjson.GetBytes(body, "thinking.type").String() != "disabled" {
+			maxEffort = ""
+		}
+		noneMappings := make([]service.ReasoningEffortMapping, 0, len(mappings))
+		for _, mapping := range mappings {
+			if strings.EqualFold(strings.TrimSpace(mapping.From), "none") {
+				noneMappings = append(noneMappings, mapping)
+			}
+		}
+		mappings = noneMappings
+	}
+	c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings, overLimit, requestModel))
 }

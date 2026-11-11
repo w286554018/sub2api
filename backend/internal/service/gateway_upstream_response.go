@@ -361,6 +361,27 @@ func (s *GatewayService) readUpstreamErrorBody(resp *http.Response) ([]byte, err
 	return io.ReadAll(io.LimitReader(resp.Body, limit))
 }
 
+// writeAnthropicSafetyRejection terminates the request without account failover.
+func writeAnthropicSafetyRejection(c *gin.Context, body []byte) error {
+	message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+	if message == "" {
+		message = "Upstream safety policy rejected this request"
+	}
+	payload := gin.H{"type": "error", "error": gin.H{"type": "permission_error", "message": message}}
+	MarkResponseCommitted(c)
+	if c.Writer.Written() {
+		encoded, _ := json.Marshal(payload)
+		_, _ = fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", encoded)
+		c.Writer.Flush()
+	} else {
+		for _, header := range []string{"Content-Type", "Cache-Control", "Connection", "X-Accel-Buffering"} {
+			c.Writer.Header().Del(header)
+		}
+		c.JSON(http.StatusForbidden, payload)
+	}
+	return &anthropicSafetyRejectionError{Message: message}
+}
+
 func (s *GatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestedModel ...string) (*ForwardResult, error) {
 	// Upstream returned a non-success HTTP status; count Ollama Cloud / OpenCode Go activity.
 	scheduleOllamaCloudUsageActivity(s.deferredService, account)
@@ -902,6 +923,9 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 		}
 
 		if eventName == "error" {
+			if isAnthropicCompatSafetyRejection([]byte(dataLine)) {
+				return nil, dataLine, nil, writeAnthropicSafetyRejection(c, []byte(dataLine))
+			}
 			return nil, dataLine, nil, &sseStreamErrorEventError{RawData: dataLine}
 		}
 

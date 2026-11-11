@@ -2542,7 +2542,10 @@ func (a *Account) ExcelBPSProxySource() string {
 // IsExcelBPSCacheCreationAsInputEnabled controls local billing and downstream usage.
 // The setting has no effect unless this account uses the Excel/BPS protocol.
 func (a *Account) IsExcelBPSCacheCreationAsInputEnabled() bool {
-	if !a.IsExcelBPSEnabled() {
+	// Usage recording receives the parent, while forwarding projects the
+	// selected connection. The endpoint gate still limits billing to BPS.
+	managedParent := a.HasManagedOpenAIConnections() && a.AuthConnectionID == "" && !a.IsShadow()
+	if !a.IsExcelBPSEnabled() && !managedParent {
 		return false
 	}
 	enabled, _ := a.Extra["openai_excel_bps_cache_creation_as_input"].(bool)

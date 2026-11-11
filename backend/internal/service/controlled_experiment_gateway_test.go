@@ -55,6 +55,26 @@ func TestControlledExperimentGatewayNativeHTTPUsesForwardAndCacheAccounting(t *t
 	require.Equal(t, cost.TotalCost, *d.CostUSD)
 }
 
+func TestControlledExperimentGatewayCacheWriteTTLAccounting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	account := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true,
+		Credentials: map[string]any{"api_key": "fixture-key", "base_url": "https://upstream.example"}}
+	terminal := strings.Replace(controlledGatewayTerminal("gpt-6-luna", "high"),
+		`"cached_tokens":60`, `"cached_tokens":60,"cache_write_tokens":20,"cache_write_tokens_details":{"ttl_30m_tokens":2,"ttl_12h_tokens":18}`, 1)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: 200,
+		Header: http.Header{"Content-Type": {"text/event-stream"}},
+		Body:   io.NopCloser(strings.NewReader("data: " + terminal + "\n\n"))}}
+	gateway := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream, cache: &stubGatewayCache{}}
+	executor, route, spec, body := controlledGatewayFixture(account, gateway, "native_http", "gpt-6-luna")
+	_, d := executor.Execute(context.Background(), route, spec, body, "fixture-session")
+	require.Equal(t, "ok", d.Code, "%+v", d)
+	cost, err := executor.billing.CalculateCost("gpt-6-luna", UsageTokens{InputTokens: 20, OutputTokens: 5,
+		CacheReadTokens: 60, CacheCreationTokens: 20, CacheCreation30mTokens: 2, CacheCreation12hTokens: 18}, 1)
+	require.NoError(t, err)
+	require.NotNil(t, d.CostUSD)
+	require.InDelta(t, cost.TotalCost, *d.CostUSD, 1e-12)
+}
+
 func TestControlledExperimentGatewayNativeHTTPDoesNotRetryCompatibilityErrors(t *testing.T) {
 	account := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Credentials: map[string]any{"access_token": "fixture-oauth"}}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{StatusCode: 400, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"error":{"code":"invalid_encrypted_content","message":"Invalid encrypted content"}}`))}}

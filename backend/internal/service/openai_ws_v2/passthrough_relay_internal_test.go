@@ -522,6 +522,69 @@ func TestObserveUpstreamMessageBareErrorBeforeNextCompletedKeepsBothTurns(t *tes
 	require.Equal(t, Usage{InputTokens: 8, OutputTokens: 3}, state.usage)
 }
 
+func TestRelayCacheWriteTTLBuckets(t *testing.T) {
+	for _, tc := range []struct {
+		name, details string
+		short, long   int
+	}{
+		{"mixed", `{"ttl_30m_tokens":9,"ttl_12h_tokens":2390}`, 9, 2390},
+		{"short", `{"ttl_30m_tokens":2399,"ttl_12h_tokens":0}`, 2399, 0},
+		{"long", `{"ttl_30m_tokens":0,"ttl_12h_tokens":2399}`, 0, 2399},
+		{"invalid", `{"ttl_30m_tokens":9,"ttl_12h_tokens":9}`, 0, 0},
+		{"missing", `{}`, 0, 0},
+		{"fractional", `{"ttl_30m_tokens":0.5,"ttl_12h_tokens":2398.5}`, 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &relayState{}
+			payload := []byte(`{"usage":{"input_tokens":2402,"output_tokens":5,"input_tokens_details":{"cache_write_tokens":2399,"cache_write_tokens_details":` + tc.details + `}}}`)
+			parseUsageAndAccumulate(state, payload, "response.in_progress", nil)
+			require.Equal(t, tc.short, state.turnUsage.CacheCreation30mInputTokens)
+			require.Equal(t, tc.long, state.turnUsage.CacheCreation12hInputTokens)
+			// A terminal without usage retains progressive values for this turn.
+			parseUsageAndAccumulate(state, []byte(`{"type":"response.completed"}`), "response.completed", nil)
+			usage := finalizeRelayTurnUsage(state)
+			require.Equal(t, 2399, usage.CacheCreationInputTokens)
+			require.Equal(t, tc.short, usage.CacheCreation30mInputTokens)
+			require.Equal(t, tc.long, usage.CacheCreation12hInputTokens)
+			require.Equal(t, usage.CacheCreation30mInputTokens, state.usage.CacheCreation30mInputTokens)
+			require.Equal(t, usage.CacheCreation12hInputTokens, state.usage.CacheCreation12hInputTokens)
+		})
+	}
+}
+
+func TestRelayCacheWriteTTLSameAggregateWithoutDetails(t *testing.T) {
+	for _, event := range []string{"response.in_progress", "response.completed"} {
+		for _, tc := range []struct {
+			name, cacheJSON        string
+			aggregate, short, long int
+		}{
+			{"same aggregate", `"cache_write_tokens":20`, 20, 2, 18},
+			{"changed aggregate", `"cache_write_tokens":21`, 21, 0, 0},
+			{"explicit invalid details", `"cache_write_tokens":20,"cache_write_tokens_details":{}`, 20, 0, 0},
+			{"zero aggregate", `"cache_write_tokens":0`, 0, 0, 0},
+		} {
+			t.Run(event+"/"+tc.name, func(t *testing.T) {
+				state := &relayState{}
+				parseUsageAndAccumulate(state, []byte(`{"usage":{"input_tokens":100,"output_tokens":5,"input_tokens_details":{"cache_write_tokens":20,"cache_write_tokens_details":{"ttl_30m_tokens":2,"ttl_12h_tokens":18}}}}`), "response.in_progress", nil)
+				parsed := parseUsageAndAccumulate(state, []byte(`{"usage":{"input_tokens":101,"output_tokens":6,"input_tokens_details":{`+tc.cacheJSON+`}}}`), event, nil)
+				if event == "response.in_progress" && tc.aggregate == 0 {
+					// Progressive zero fields retain the existing non-zero observation.
+					require.Equal(t, 20, state.turnUsage.CacheCreationInputTokens)
+					require.Equal(t, 18, state.turnUsage.CacheCreation12hInputTokens)
+					return
+				}
+				require.Equal(t, tc.aggregate, state.turnUsage.CacheCreationInputTokens)
+				require.Equal(t, tc.short, state.turnUsage.CacheCreation30mInputTokens)
+				require.Equal(t, tc.long, state.turnUsage.CacheCreation12hInputTokens)
+				if event == "response.completed" {
+					require.Equal(t, tc.short, parsed.CacheCreation30mInputTokens)
+					require.Equal(t, tc.long, parsed.CacheCreation12hInputTokens)
+				}
+			})
+		}
+	}
+}
+
 func TestOpenAICacheCreationTokensFromUsageNestedZeroWins(t *testing.T) {
 	t.Parallel()
 

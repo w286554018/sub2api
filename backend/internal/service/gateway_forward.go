@@ -414,6 +414,15 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			})
 		}
 
+		if resp.StatusCode >= 400 {
+			errorBody, _ := s.readUpstreamErrorBody(resp)
+			_ = resp.Body.Close()
+			resp.Body = io.NopCloser(bytes.NewReader(errorBody))
+			if isAnthropicCompatSafetyRejection(errorBody) {
+				return nil, writeAnthropicSafetyRejection(c, errorBody)
+			}
+		}
+
 		// 优先检测thinking block签名错误（400）并重试一次
 		if resp.StatusCode == 400 {
 			respBody, readErr := s.readUpstreamErrorBody(resp)
@@ -679,6 +688,16 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		return nil, errors.New("upstream request failed: empty response")
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// Rectification retries can replace the original response inside the loop.
+	if resp.StatusCode >= 400 {
+		errorBody, _ := s.readUpstreamErrorBody(resp)
+		_ = resp.Body.Close()
+		resp.Body = io.NopCloser(bytes.NewReader(errorBody))
+		if isAnthropicCompatSafetyRejection(errorBody) {
+			return nil, writeAnthropicSafetyRejection(c, errorBody)
+		}
+	}
 
 	// 处理重试耗尽的情况
 	if resp.StatusCode >= 400 && s.shouldRetryUpstreamError(account, resp.StatusCode) {

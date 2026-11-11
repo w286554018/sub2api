@@ -15,6 +15,17 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+func TestExtractOpenAIEmbeddingsUsageCacheWriteTTL(t *testing.T) {
+	t.Parallel()
+
+	usage := extractOpenAIEmbeddingsUsage([]byte(`{"usage":{"prompt_tokens":2402,"input_tokens_details":{"cached_tokens":1,"cache_write_tokens":2399,"cache_write_tokens_details":{"ttl_30m_tokens":9,"ttl_12h_tokens":2390}}}}`))
+	require.Equal(t, 2402, usage.InputTokens)
+	require.Equal(t, 1, usage.CacheReadInputTokens)
+	require.Equal(t, 2399, usage.CacheCreationInputTokens)
+	require.Equal(t, 9, usage.CacheCreation30mInputTokens)
+	require.Equal(t, 2390, usage.CacheCreation12hInputTokens)
+}
+
 func TestBuildOpenAIEmbeddingsURL(t *testing.T) {
 	t.Parallel()
 

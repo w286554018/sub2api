@@ -276,13 +276,15 @@
             <div class="key-usage-cell text-sm">
               <div class="flex items-center gap-1.5">
                 <span class="key-usage-label text-gray-500 dark:text-gray-400">{{ t('keys.today') }}:</span>
-                <span class="key-usage-amount font-medium text-gray-900 dark:text-white">
+                <span v-if="usageLoading && !usageStats[row.id]" data-test="usage-pending" class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600" />
+                <span v-else class="key-usage-amount font-medium text-gray-900 dark:text-white">
                   {{ formatUsageCost(row.id, 'today_actual_cost') }}
                 </span>
               </div>
               <div class="mt-0.5 flex items-center gap-1.5">
                 <span class="key-usage-label text-gray-500 dark:text-gray-400">{{ t(usagePreset === '30days' ? 'keys.total' : 'keys.selectedPeriod') }}:</span>
-                <span class="key-usage-amount font-medium text-gray-900 dark:text-white" :title="`${usageStartDate} ~ ${usageEndDate}`">
+                <span v-if="usageLoading && !usageStats[row.id]" class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600" />
+                <span v-else class="key-usage-amount font-medium text-gray-900 dark:text-white" :title="`${usageStartDate} ~ ${usageEndDate}`">
                   {{ formatUsageCost(row.id, 'total_actual_cost') }}
                 </span>
               </div>
@@ -1898,37 +1900,21 @@ const loadApiKeys = async () => {
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
-    // Load usage stats for all API keys in the list
+    // 用量统计要聚合 30 天的 usage_logs，可能比列表慢很多：不阻塞表格渲染，单独加载
+    usageLoading.value = response.items.length > 0
     if (response.items.length > 0) {
-      const keyIds = response.items.map((k) => k.id)
-      try {
-        const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, {
-          signal,
-          start_date: usageStartDate.value,
-          end_date: usageEndDate.value,
-          timezone: getBrowserTimeZone()
-        })
-        if (signal.aborted) return
-        usageStats.value = usageResponse.stats
-      } catch (e) {
-        if (signal.aborted) return
-        if (!isAbortError(e)) {
-          usageFailed.value = true
-          appStore.showError(t('keys.failedToLoadUsage'))
-          console.error('Failed to load usage stats:', e)
-        }
-      }
+      void loadUsageStats(response.items.map((k) => k.id), signal, usageStartDate.value, usageEndDate.value)
     }
   } catch (error) {
     if (signal.aborted || isAbortError(error)) {
       return
     }
     usageFailed.value = true
+    usageLoading.value = false
     appStore.showError(t('keys.failedToLoad'))
   } finally {
     if (abortController === controller) {
       loading.value = false
-      usageLoading.value = false
       concurrencyPageReady = true
       void refreshConcurrency()
     }
@@ -1937,6 +1923,29 @@ const loadApiKeys = async () => {
 
 const groupPricingLoading = ref(false)
 let groupPricingGeneration = 0
+
+const loadUsageStats = async (keyIds: number[], signal: AbortSignal, startDate: string, endDate: string) => {
+  try {
+    const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, {
+      signal,
+      start_date: startDate,
+      end_date: endDate,
+      timezone: getBrowserTimeZone()
+    })
+    if (signal.aborted) return
+    usageStats.value = usageResponse.stats
+  } catch (e) {
+    if (!signal.aborted && !isAbortError(e)) {
+      usageFailed.value = true
+      appStore.showError(t('keys.failedToLoadUsage'))
+      console.error('Failed to load usage stats:', e)
+    }
+  } finally {
+    if (!signal.aborted) {
+      usageLoading.value = false
+    }
+  }
+}
 
 const loadGroupPricing = async () => {
   const generation = ++groupPricingGeneration

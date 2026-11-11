@@ -177,11 +177,19 @@ func (g *controlledExperimentGateway) Execute(parent context.Context, route Cont
 		d.EffortEvidence = "request_sent"
 		if g.billing != nil && !result.UsageUnavailable {
 			cacheCreation := result.Usage.CacheCreationInputTokens
+			cacheCreation30m := result.Usage.CacheCreation30mInputTokens
+			cacheCreation12h := result.Usage.CacheCreation12hInputTokens
 			if account.IsExcelBPSCacheCreationAsInputEnabled() && result.UpstreamEndpoint == "/basispoints/api/responses" {
 				cacheCreation = 0
+				cacheCreation30m = 0
+				cacheCreation12h = 0
 			}
 			inputTokens := max(result.Usage.InputTokens-result.Usage.CacheReadInputTokens-cacheCreation, 0)
-			cost, err := g.billing.CalculateCost(d.UpstreamModel, UsageTokens{InputTokens: inputTokens, OutputTokens: result.Usage.OutputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreationTokens: cacheCreation}, 1)
+			cost, err := g.billing.CalculateCost(d.UpstreamModel, UsageTokens{
+				InputTokens: inputTokens, OutputTokens: result.Usage.OutputTokens,
+				CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreationTokens: cacheCreation,
+				CacheCreation30mTokens: cacheCreation30m, CacheCreation12hTokens: cacheCreation12h,
+			}, 1)
 			if err == nil && cost != nil {
 				d.CostUSD = &cost.TotalCost
 				d.CostIncomplete = d.UsageSource != "provider"

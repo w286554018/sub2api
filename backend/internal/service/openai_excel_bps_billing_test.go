@@ -17,6 +17,12 @@ func TestAccount_IsExcelBPSCacheCreationAsInputEnabled(t *testing.T) {
 	}
 	require.False(t, (*Account)(nil).IsExcelBPSCacheCreationAsInputEnabled())
 	require.True(t, newAccount().IsExcelBPSCacheCreationAsInputEnabled())
+	managedParent := newAccount()
+	managedParent.Extra["openai_connections_managed"] = true
+	delete(managedParent.Extra, "openai_excel_bps")
+	require.True(t, managedParent.IsExcelBPSCacheCreationAsInputEnabled())
+	managedParent.AuthConnectionID = "codex-connection"
+	require.False(t, managedParent.IsExcelBPSCacheCreationAsInputEnabled())
 	for name, modify := range map[string]func(*Account){
 		"missing option":  func(a *Account) { delete(a.Extra, "openai_excel_bps_cache_creation_as_input") },
 		"disabled option": func(a *Account) { a.Extra["openai_excel_bps_cache_creation_as_input"] = false },
@@ -90,7 +96,7 @@ func TestExcelBPSCacheCreationAsInputBilling(t *testing.T) {
 					if tt.option != nil {
 						extra["openai_excel_bps_cache_creation_as_input"] = tt.option
 					}
-					original := OpenAIUsage{InputTokens: tt.input, CacheCreationInputTokens: tt.creation, CacheReadInputTokens: tt.read, OutputTokens: tt.output}
+					original := OpenAIUsage{InputTokens: tt.input, CacheCreationInputTokens: tt.creation, CacheCreation12hInputTokens: tt.creation, CacheReadInputTokens: tt.read, OutputTokens: tt.output}
 					result := &OpenAIForwardResult{RequestID: "resp_bps_billing", UpstreamEndpoint: "/basispoints/api/responses", Usage: original, Model: "gpt-6-astra", Stream: stream, Duration: time.Second}
 					input := &OpenAIRecordUsageInput{
 						Result: result, APIKey: &APIKey{ID: 1001}, User: &User{ID: 2001},
@@ -106,6 +112,7 @@ func TestExcelBPSCacheCreationAsInputBilling(t *testing.T) {
 					log := usageRepo.lastLog
 					require.Equal(t, tt.wantInput, log.InputTokens)
 					require.Equal(t, tt.wantCreation, log.CacheCreationTokens)
+					require.Equal(t, tt.wantCreation, log.CacheCreation12hTokens)
 					require.Equal(t, tt.read, log.CacheReadTokens)
 					require.Equal(t, tt.output, log.OutputTokens)
 					require.Equal(t, tt.input+tt.output, log.TotalTokens())
@@ -136,6 +143,34 @@ func TestExcelBPSCacheCreationAsInputBilling(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestExcelBPSCacheCreationAsInputManagedParent(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
+	account := &Account{ID: 3001, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{
+		"openai_connections_managed":               true,
+		"openai_excel_bps_cache_creation_as_input": true,
+	}}
+	for _, endpoint := range []string{"/basispoints/api/responses", "/v1/responses"} {
+		result := &OpenAIForwardResult{
+			RequestID: endpoint, Model: "gpt-6-astra", UpstreamEndpoint: endpoint,
+			AuthConnectionID: "selected-connection",
+			Usage: OpenAIUsage{InputTokens: 1000, OutputTokens: 50, CacheReadInputTokens: 100,
+				CacheCreationInputTokens: 200, CacheCreation12hInputTokens: 200},
+		}
+		require.NoError(t, svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+			Result: result, APIKey: &APIKey{ID: 1001}, User: &User{ID: 2001}, Account: account,
+		}))
+		wantCreation := 200
+		if endpoint == "/basispoints/api/responses" {
+			wantCreation = 0
+		}
+		require.Equal(t, 900-wantCreation, usageRepo.lastLog.InputTokens)
+		require.Equal(t, wantCreation, usageRepo.lastLog.CacheCreationTokens)
+		require.Equal(t, wantCreation, usageRepo.lastLog.CacheCreation12hTokens)
+		require.Equal(t, 1050, usageRepo.lastLog.TotalTokens())
 	}
 }
 

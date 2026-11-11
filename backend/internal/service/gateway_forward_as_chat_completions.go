@@ -192,7 +192,15 @@ func (s *GatewayService) ForwardAsChatCompletions(
 			return nil, fmt.Errorf("upstream safety rejection: %s", upstreamMsg)
 		}
 
-		if s.shouldFailoverUpstreamError(resp.StatusCode) {
+		// Apply account policies even for statuses outside the default failover list.
+		shouldDisable := false
+		// Direct Kiro 429s already persist their exponential cooldown in
+		// executeKiroUpstreamWithParsed; the generic fallback would shorten it.
+		kiro429 := isKiroDirectModeAccount(account) && resp.StatusCode == http.StatusTooManyRequests
+		if s.rateLimitService != nil && !kiro429 {
+			shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, mappedModel)
+		}
+		if shouldDisable || s.shouldFailoverUpstreamError(resp.StatusCode) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				ProxyID:            opsUpstreamProxyID(account),
 				ProxyName:          opsUpstreamProxyName(account),
@@ -204,10 +212,6 @@ func (s *GatewayService) ForwardAsChatCompletions(
 				Kind:               "failover",
 				Message:            upstreamMsg,
 			})
-			shouldDisable := false
-			if s.rateLimitService != nil {
-				shouldDisable = s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, mappedModel)
-			}
 			return nil, &UpstreamFailoverError{
 				StatusCode:             resp.StatusCode,
 				ResponseBody:           respBody,
@@ -235,13 +239,21 @@ func (s *GatewayService) ForwardAsChatCompletions(
 		var sseErr *sseStreamErrorEventError
 		switch {
 		case errors.As(handleErr, &sseErr):
-			return nil, s.sseStreamErrorEventFailover(ctx, c, account, resp, sseErr.RawData, mappedModel, c.Writer.Size() != writerSizeBeforeStream)
+			outputStarted := c.Writer.Size() != writerSizeBeforeStream
+			if kiroResult, handled, kiroErr := s.handleKiroStreamErrorEvent(ctx, c, account, resp, anthropicBody, originalModel, mappedModel, mappedModel, startTime, sseErr.RawData, outputStarted, writeKiroCCError); handled {
+				return kiroResult, kiroErr
+			}
+			return nil, s.sseStreamErrorEventFailover(ctx, c, account, resp, sseErr.RawData, mappedModel, outputStarted)
 		case errors.Is(handleErr, errAnthropicNativeStreamIdle) && s.rateLimitService != nil:
 			s.rateLimitService.HandleStreamTimeout(ctx, account, originalModel)
 		}
 	} else {
 		writerSizeBeforeBody := c.Writer.Size()
 		result, handleErr = s.handleCCBufferedFromAnthropic(resp, c, originalModel, mappedModel, reasoningEffort, startTime)
+		if exc := kiroUpstreamExceptionFromError(handleErr); exc != nil {
+			// 非流式客户端还没收到任何字节：与 /v1/messages 非流式一致，按 Kiro HTTP 错误处理。
+			return nil, s.handleKiroUpstreamException(ctx, c, account, mappedModel, anthropicBody, exc, resp.Header, writeKiroCCError)
+		}
 		var sseErr *sseStreamErrorEventError
 		if errors.As(handleErr, &sseErr) {
 			return nil, s.sseStreamErrorEventFailover(ctx, c, account, resp, sseErr.RawData, mappedModel, c.Writer.Size() != writerSizeBeforeBody)
@@ -386,6 +398,10 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 	streamStatus.readErr = scanner.Err()
 	if failure := streamStatus.failure(); failure != nil {
 		_ = resp.Body.Close()
+		if kiroUpstreamExceptionFromError(failure.err) != nil {
+			// Kiro 流内异常：不写响应、不计费，由调用方按 Kiro HTTP 错误处理（换号或回 4xx）。
+			return nil, failure.err
+		}
 		writeGatewayCCError(c, http.StatusBadGateway, "server_error", failure.message)
 		return &ForwardResult{
 			RequestID: requestID, UpstreamHeaders: resp.Header, Usage: usage,
