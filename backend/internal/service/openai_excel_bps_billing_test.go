@@ -118,7 +118,9 @@ func TestExcelBPSCacheCreationAsInputBilling(t *testing.T) {
 					require.Equal(t, tt.input+tt.output, log.TotalTokens())
 					require.Equal(t, stream, log.Stream)
 					wantInputCost := float64(tt.wantInput) * 5e-6
-					wantCreationCost := float64(tt.wantCreation) * 6.25e-6
+					// All fixture writes carry an explicit 12h TTL. Without an
+					// operator override, Astra prices them at input price ×2.5.
+					wantCreationCost := float64(tt.wantCreation) * (5e-6 * 2.5)
 					wantReadCost := float64(tt.read) * 0.5e-6
 					wantOutputCost := float64(tt.output) * 30e-6
 					wantTotal := wantInputCost + wantCreationCost + wantReadCost + wantOutputCost

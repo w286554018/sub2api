@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import OpsNetworkChart from '../OpsNetworkChart.vue'
+import { chooseSelectOption, selectModelValue } from '@/__tests__/helpers/select'
 import en from '@/i18n/locales/en/latencyObservability'
 const mocks = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('@/api/admin/opsNetwork', () => ({ getNetworkSeries: mocks.read }))
@@ -29,5 +30,21 @@ it('Issue605 renders measured root qdisc deltas including zero instead of invent
   expect(w.get('[data-testid="network-qdisc"]').text()).toContain('3 · measured_root_egress_qdisc')
   expect(w.get('[data-testid="network-qdisc"] path').attributes('d')).toContain('L')
   expect(w.get('[data-testid="network-qdisc"] circle').get('title').text()).toContain('0 · measured_root_egress_qdisc')
+  w.unmount()
+})
+
+it('switches network curves with string instance IDs through the shared selector', async () => {
+  mocks.read.mockResolvedValue({ points: [
+    { at: '2026-10-30T00:00:00Z', instance: '0001', egress_mbps: 3, tcp_retrans_percent: 1, qdisc_drops: 0, egress_status: 'measured', tcp_status: 'measured', qdisc_status: 'measured_root_egress_qdisc' },
+    { at: '2026-10-30T00:00:00Z', instance: '0002', egress_mbps: 7, tcp_retrans_percent: 2, qdisc_drops: 4, egress_status: 'measured', tcp_status: 'measured', qdisc_status: 'measured_root_egress_qdisc' }
+  ], body_points: [] })
+  const w = mount(OpsNetworkChart, { global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en: { latencyObservability: en } } })] } })
+  await flushPromises()
+  expect(selectModelValue(w, '[data-testid="network-instance"]')).toBe('0001')
+  expect(w.get('[data-testid="network-egress"]').text()).toContain('3 · measured')
+  await chooseSelectOption(w, '[data-testid="network-instance"]', '0002')
+  expect(selectModelValue(w, '[data-testid="network-instance"]')).toBe('0002')
+  expect(w.get('[data-testid="network-egress"]').text()).toContain('7 · measured')
+  expect(w.get('[data-testid="network-qdisc"]').text()).toContain('4 · measured_root_egress_qdisc')
   w.unmount()
 })

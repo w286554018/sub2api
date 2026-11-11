@@ -215,12 +215,7 @@
         >
           <label class="min-w-0 sm:w-64"
             ><span class="input-label">{{ t('lottery.pools') }}</span
-            ><select v-model="filterPool" class="input mt-1">
-              <option :value="0">{{ t('lottery.allPools') }}</option>
-              <option v-for="pool in pools" :key="pool.id" :value="pool.id">
-                {{ pool.name }}
-              </option>
-            </select></label
+            ><Select v-model="filterPool" :options="poolFilterOptions" :aria-label="t('lottery.pools')" data-testid="lottery-filter-pool" class="mt-1" /></label
           ><label class="w-36"
             ><span class="input-label">{{ t('lottery.userID') }}</span
             ><input
@@ -383,19 +378,7 @@
                 class="input mt-1" /></label
             ><label class="block"
               ><span class="input-label">{{ t('lottery.mode') }}</span
-              ><select
-                v-model="poolForm.mode"
-                class="input mt-1"
-                :disabled="locked"
-              >
-                <option value="single">{{ t('lottery.single') }}</option>
-                <option value="cumulative">
-                  {{ t('lottery.cumulative') }}
-                </option>
-                <option value="invite_visit">{{ t('lottery.invite_visit') }}</option>
-                <option value="invite_signup">{{ t('lottery.invite_signup') }}</option>
-                <option value="invite_recharge">{{ t('lottery.invite_recharge') }}</option>
-              </select></label
+              ><Select v-model="poolForm.mode" :options="poolModeOptions" :disabled="locked || saving" :aria-label="t('lottery.mode')" data-testid="lottery-pool-mode" class="mt-1" /></label
             ><label v-if="!isInvitationPool(poolForm) || poolForm.mode === 'invite_recharge'" class="block"
               ><span class="input-label">{{ t('lottery.threshold') }}</span
               ><input
@@ -410,7 +393,7 @@
             /></label>
             <template v-if="isInvitationPool(poolForm)">
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label><span class="input-label">{{ t('lottery.rewardTo') }}</span><select v-model="inviteForm.reward_to" class="input mt-1" :disabled="locked" data-testid="invite-recipient"><option value="inviter">{{ t('lottery.inviterOnly') }}</option><option value="both">{{ t('lottery.both') }}</option></select></label>
+                <label><span class="input-label">{{ t('lottery.rewardTo') }}</span><Select v-model="inviteForm.reward_to" :options="inviteRecipientOptions" :disabled="locked || saving" :aria-label="t('lottery.rewardTo')" data-testid="invite-recipient" class="mt-1" /></label>
                 <label><span class="input-label">{{ t('lottery.inviteTickets') }}</span><input v-model.number="inviteForm.tickets" type="number" min="1" max="100" step="1" required :disabled="locked" class="input mt-1" /></label>
               </div>
               <p class="text-xs leading-5 text-gray-500">{{ t('lottery.inviteOnce') }} <span v-if="poolForm.mode === 'invite_visit' && inviteForm.reward_to === 'both'">{{ t('lottery.visitRecipientNote') }}</span></p>
@@ -493,13 +476,7 @@
                 class="input mt-1" /></label
             ><label class="block"
               ><span class="input-label">{{ t('lottery.reward') }}</span
-              ><select v-model="prizeForm.kind" class="input mt-1">
-                <option value="balance">{{ t('lottery.balance') }}</option>
-                <option value="subscription">
-                  {{ t('lottery.subscription') }}
-                </option>
-                <option value="text">{{ t('lottery.text') }}</option>
-              </select></label
+              ><Select v-model="prizeForm.kind" :options="prizeKindOptions" :disabled="saving" :aria-label="t('lottery.reward')" data-testid="lottery-prize-kind" class="mt-1" /></label
             ><label v-if="prizeForm.kind === 'balance'" class="block"
               ><span class="input-label">{{ t('lottery.amount') }}</span
               ><input
@@ -512,21 +489,7 @@
                 class="input mt-1" /></label
             ><label v-else-if="prizeForm.kind === 'subscription'" class="block"
               ><span class="input-label">{{ t('lottery.plan') }}</span
-              ><select v-model="prizeForm.plan_id" required class="input mt-1">
-                <option :value="0" disabled>{{ t('lottery.plan') }}</option>
-                <option
-                  v-if="
-                    oldPrize?.plan_id &&
-                    !plans.some((p) => p.id === oldPrize?.plan_id)
-                  "
-                  :value="oldPrize.plan_id"
-                >
-                  {{ oldPrize.plan_name }}
-                </option>
-                <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                  {{ plan.name }}
-                </option></select
-              ><span
+              ><Select v-model="prizeForm.plan_id" :options="prizePlanOptions" :disabled="saving" :placeholder="t('lottery.plan')" :aria-label="t('lottery.plan')" aria-required="true" data-testid="lottery-prize-plan" class="mt-1" /><span
                 v-if="
                   oldPrize?.kind === 'subscription' &&
                   oldPrize.plan_id === prizeForm.plan_id
@@ -630,6 +593,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import Select from '@/components/common/Select.vue'
 import { useAppStore } from '@/stores/app'
 import { useLotteryStore } from '@/stores/lottery'
 import {
@@ -696,6 +660,23 @@ const prizeForm = reactive<PrizeInput>({
   plan_id: 0,
   text: '',
 })
+const poolFilterOptions = computed(() => [
+  { value: 0, label: t('lottery.allPools') },
+  ...pools.value.map(pool => ({ value: pool.id, label: pool.name })),
+])
+const poolModeOptions = computed(() => ['single', 'cumulative', 'invite_visit', 'invite_signup', 'invite_recharge'].map(value => ({ value, label: t(`lottery.${value}`) })))
+const inviteRecipientOptions = computed(() => [
+  { value: 'inviter', label: t('lottery.inviterOnly') },
+  { value: 'both', label: t('lottery.both') },
+])
+const prizeKindOptions = computed(() => ['balance', 'subscription', 'text'].map(value => ({ value, label: t(`lottery.${value}`) })))
+const prizePlanOptions = computed(() => [
+  { value: 0, label: t('lottery.plan'), disabled: true },
+  ...(oldPrize.value?.plan_id && !plans.value.some(plan => plan.id === oldPrize.value?.plan_id)
+    ? [{ value: oldPrize.value.plan_id, label: oldPrize.value.plan_name }]
+    : []),
+  ...plans.value.map(plan => ({ value: plan.id, label: plan.name })),
+])
 const unlimited = computed({
   get: () => prizeForm.stock === -1,
   set: (value) => {

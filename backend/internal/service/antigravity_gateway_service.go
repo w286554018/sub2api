@@ -489,7 +489,11 @@ func (s *AntigravityGatewayService) buildGeminiTestRequest(projectID, model stri
 }
 
 func (s *AntigravityGatewayService) buildGeminiTestRequestWithPrompt(projectID, model, prompt string) ([]byte, error) {
-	return s.buildGeminiTestRequestBody(projectID, model, antigravityTestPrompt(prompt), antigravityTestMaxOutputTokens)
+	maxOutputTokens := antigravityTestMaxOutputTokens
+	if strings.TrimSpace(prompt) != "" {
+		maxOutputTokens = 4096
+	}
+	return s.buildGeminiTestRequestBody(projectID, model, antigravityTestPrompt(prompt), maxOutputTokens)
 }
 
 func (s *AntigravityGatewayService) buildGeminiTestRequestBody(projectID, model, testPrompt string, maxOutputTokens int) ([]byte, error) {
@@ -550,13 +554,6 @@ func (s *AntigravityGatewayService) buildGeminiTestRequestBody(projectID, model,
 	payloadBytes, _ := json.Marshal(payload)
 	return s.wrapV1InternalRequest(projectID, model, payloadBytes)
 }
-
-// buildClaudeTestRequest 构建 Claude 格式测试请求并转换为 Gemini 格式
-// Leave room for thinking models to answer the default test prompt.
-func (s *AntigravityGatewayService) buildClaudeTestRequest(projectID, mappedModel string) ([]byte, error) {
-	return s.buildClaudeTestRequestWithPrompt(projectID, mappedModel, "")
-}
-
 func (s *AntigravityGatewayService) buildClaudeTestRequestWithPrompt(projectID, mappedModel, prompt string) ([]byte, error) {
 	testPrompt := antigravityTestPrompt(prompt)
 	content, err := json.Marshal(testPrompt)

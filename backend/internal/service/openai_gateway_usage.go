@@ -192,7 +192,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	cacheCreationTokens := result.Usage.CacheCreationInputTokens
 	cacheCreation30mTokens := result.Usage.CacheCreation30mInputTokens
 	cacheCreation12hTokens := result.Usage.CacheCreation12hInputTokens
-	if account.IsExcelBPSCacheCreationAsInputEnabled() && result.UpstreamEndpoint == "/basispoints/api/responses" {
+	if excelBPSCacheCreationBilledAsInput(account, result) {
 		// Total input already includes cache creation. Retain those tokens in the
 		// ordinary input bucket without changing the original upstream usage.
 		cacheCreationTokens = 0

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import LotteryView from '../LotteryView.vue'
+import { chooseSelectOption, selectModelValue, selectOptionDisabled, selectOptionValues } from '@/__tests__/helpers/select'
 const { settings, saveSettings, deletePool, deletePrize, refresh } = vi.hoisted(() => ({
   settings: vi.fn(), saveSettings: vi.fn(), deletePool: vi.fn(), deletePrize: vi.fn(), refresh: vi.fn(),
 }))
@@ -142,7 +143,7 @@ describe('Lottery admin', () => {
     await flushPromises()
     await w.find('[aria-label="lottery.editPool"]').trigger('click')
     expect(
-      w.find('#lottery-pool-form select').attributes('disabled'),
+      w.get('[data-testid="lottery-pool-mode"] button').attributes('disabled'),
     ).toBeDefined()
     expect(
       w.find('#lottery-pool-form input[type="number"]').attributes('disabled'),
@@ -161,6 +162,40 @@ describe('Lottery admin', () => {
       }),
       expect.any(String),
     )
+    w.unmount()
+  })
+  it('keeps numeric pool filters and the all-pools zero value', async () => {
+    const w = render()
+    await flushPromises()
+    await w.findAll('[role="tab"]').find(button => button.text() === 'lottery.records')!.trigger('click')
+    await flushPromises()
+    await chooseSelectOption(w, '[data-testid="lottery-filter-pool"]', 1)
+    expect(selectModelValue(w, '[data-testid="lottery-filter-pool"]')).toBe(1)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(records).toHaveBeenLastCalledWith(1, 1, undefined)
+    await chooseSelectOption(w, '[data-testid="lottery-filter-pool"]', 0)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(records).toHaveBeenLastCalledWith(1, undefined, undefined)
+    w.unmount()
+  })
+  it('preserves a retired subscription plan and saves newly selected numeric plan IDs', async () => {
+    pools.mockResolvedValue([{ ...pool, prizes: [{ ...prize, kind: 'subscription', plan_id: 9, plan_name: 'Retired plan', validity_days: 30 }] }])
+    getPlans.mockResolvedValue({ data: [{ id: 25, name: 'Current plan', for_sale: true }, { id: 26, name: 'Unavailable plan', for_sale: false }] })
+    const w = render()
+    await flushPromises()
+    await w.get('[aria-label="lottery.editPrize: Credit"]').trigger('click')
+    await flushPromises()
+    const selector = '[data-testid="lottery-prize-plan"]'
+    expect(selectModelValue(w, selector)).toBe(9)
+    expect(selectOptionValues(w, selector)).toEqual([0, 9, 25])
+    expect(selectOptionDisabled(w, selector, 0)).toBe(true)
+    expect(w.get(selector).text()).toContain('Retired plan')
+    await chooseSelectOption(w, selector, 25)
+    await w.get('#lottery-prize-form').trigger('submit')
+    await flushPromises()
+    expect(savePrize).toHaveBeenCalledWith(1, 10, expect.objectContaining({ kind: 'subscription', plan_id: 25 }), expect.any(String))
     w.unmount()
   })
   it('preserves stock version and request key on a failed save retry', async () => {
@@ -185,8 +220,8 @@ describe('Lottery admin', () => {
     await flushPromises()
     await w.findAll('button').find(b => b.text() === 'lottery.addPool')!.trigger('click')
     await w.get('#lottery-pool-form input').setValue('Invite friends')
-    await w.get('#lottery-pool-form select').setValue('invite_visit')
-    await w.get('[data-testid="invite-recipient"]').setValue('both')
+    await chooseSelectOption(w, '[data-testid="lottery-pool-mode"]', 'invite_visit')
+    await chooseSelectOption(w, '[data-testid="invite-recipient"]', 'both')
     await w.get('[data-testid="invite-ip-limit"]').setValue(2)
     await w.get('[data-testid="invite-blocked-ips"]').setValue('203.0.113.8\n198.51.100.0/24')
     await w.get('[data-testid="invite-blocked-countries"]').setValue('cn, US')
@@ -204,7 +239,7 @@ describe('Lottery admin', () => {
     const w = render()
     await flushPromises()
     await w.get('[aria-label="lottery.editPool"]').trigger('click')
-    expect(w.get('[data-testid="invite-recipient"]').attributes('disabled')).toBeDefined()
+    expect(w.get('[data-testid="invite-recipient"] button').attributes('disabled')).toBeDefined()
     expect(w.get('[data-testid="invite-ip-limit"]').attributes('disabled')).toBeUndefined()
     expect(w.get('[data-testid="invite-blocked-countries"]').attributes('disabled')).toBeUndefined()
     w.unmount()

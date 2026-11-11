@@ -124,11 +124,6 @@ func (b *responsesClientToolStreamBody) Close() error {
 func newResponsesClientToolStreamBody(source io.ReadCloser, mapping apicompat.ResponsesClientToolMapping, maxLineSize int, timingContext ...context.Context) io.ReadCloser {
 	return newResponsesClientToolStreamBodyWithConfig(source, mapping, maxLineSize, nil, timingContext...)
 }
-
-func transformResponsesClientToolStream(source io.ReadCloser, destination *io.PipeWriter, mapping apicompat.ResponsesClientToolMapping, maxLineSize int, timingContext ...context.Context) {
-	transformResponsesClientToolStreamWithConfig(source, destination, mapping, maxLineSize, nil, timingContext...)
-}
-
 func newResponsesClientToolStreamBodyWithConfig(
 	source io.ReadCloser,
 	mapping apicompat.ResponsesClientToolMapping,

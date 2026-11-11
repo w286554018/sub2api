@@ -218,14 +218,6 @@ func kiroUpstreamExceptionFromError(err error) *kiropkg.KiroUpstreamException {
 	return kiroUpstreamExceptionFromSSE(sseErr.RawData)
 }
 
-// kiroException 返回 compat 流失败里携带的 Kiro 异常；不是 Kiro 异常（或没有失败）时为 nil。
-func (f *anthropicCompatStreamFailure) kiroException() *kiropkg.KiroUpstreamException {
-	if f == nil {
-		return nil
-	}
-	return kiroUpstreamExceptionFromError(f.err)
-}
-
 // kiroUpstreamExceptionIsContextLength 判断异常是否为「输入太长」（与 HTTP 400 同口径）。
 func kiroUpstreamExceptionIsContextLength(exc *kiropkg.KiroUpstreamException) bool {
 	if exc == nil {

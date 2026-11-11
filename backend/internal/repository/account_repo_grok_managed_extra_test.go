@@ -33,13 +33,13 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 		wantSync         map[string]any
 	}{
 		{
-			name:        "old client snapshot and metadata lose to the locked row",
+			name:         "old client snapshot and metadata lose to the locked row",
 			databaseSync: freshSync,
-			wantSync: map[string]any{"status": "fresh-locked-sync"},
-			accountType: service.AccountTypeOAuth,
-			credentials: map[string]any{"access_token": "token-keep"},
+			wantSync:     map[string]any{"status": "fresh-locked-sync"},
+			accountType:  service.AccountTypeOAuth,
+			credentials:  map[string]any{"access_token": "token-keep"},
 			inputExtra: map[string]any{
-				"note": "from-form",
+				"note":                            "from-form",
 				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"old-model"}, "fetched_at": "2026-10-24T12:00:00Z",
@@ -78,7 +78,7 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 			accountType: service.AccountTypeOAuth,
 			credentials: map[string]any{"access_token": "token-keep"},
 			inputExtra: map[string]any{
-				"note": "from-form",
+				"note":                            "from-form",
 				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"injected"}, "fetched_at": "2026-10-25T12:00:00Z",
@@ -91,7 +91,7 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 			accountType: service.AccountTypeAPIKey,
 			credentials: map[string]any{"api_key": "sk-keep"},
 			inputExtra: map[string]any{
-				"note": "from-form",
+				"note":                            "from-form",
 				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"old-model"}, "fetched_at": "2026-10-24T12:00:00Z",

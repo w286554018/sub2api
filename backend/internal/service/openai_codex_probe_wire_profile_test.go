@@ -90,7 +90,7 @@ func newCodexProbeAdminContext() (*gin.Context, *httptest.ResponseRecorder) {
 	return c, rec
 }
 
-func assertFreshCodexModelsRequest(t *testing.T, req *http.Request, body []byte) {
+func assertCodexModelsRequest(t *testing.T, req *http.Request, body []byte, fresh bool) {
 	t.Helper()
 	require.Equal(t, http.MethodGet, req.Method)
 	require.Equal(t, "/backend-api/codex/models", req.URL.Path)
@@ -99,8 +99,14 @@ func assertFreshCodexModelsRequest(t *testing.T, req *http.Request, body []byte)
 	require.Equal(t, "Bearer offline-token", req.Header.Get("Authorization"))
 	require.Equal(t, "offline-account", req.Header.Get("ChatGPT-Account-ID"))
 	require.Equal(t, "*/*", req.Header.Get("Accept"))
-	require.Equal(t, "no-cache", req.Header.Get("Cache-Control"))
-	require.Equal(t, "no-cache", req.Header.Get("Pragma"))
+	if fresh {
+		require.Equal(t, "no-cache", req.Header.Get("Cache-Control"))
+		require.Equal(t, "no-cache", req.Header.Get("Pragma"))
+		require.Empty(t, req.Header.Get("If-None-Match"))
+	} else {
+		require.Empty(t, req.Header.Get("Cache-Control"))
+		require.Empty(t, req.Header.Get("Pragma"))
+	}
 	require.NotEmpty(t, req.Header.Get("Version"))
 	require.NotEmpty(t, req.Header.Get("Originator"))
 	require.NotEmpty(t, req.Header.Get("User-Agent"))
@@ -111,7 +117,11 @@ func assertFreshCodexModelsRequest(t *testing.T, req *http.Request, body []byte)
 			names = append(names, key)
 		}
 	}
-	require.ElementsMatch(t, []string{"authorization", "chatgpt-account-id", "accept", "cache-control", "pragma", "version", "originator", "user-agent"}, names)
+	expected := []string{"authorization", "chatgpt-account-id", "accept", "version", "originator", "user-agent"}
+	if fresh {
+		expected = append(expected, "cache-control", "pragma")
+	}
+	require.ElementsMatch(t, expected, names)
 }
 
 func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {
@@ -144,7 +154,7 @@ func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {
 						require.NoError(t, err)
 						require.Empty(t, up.requests)
 						require.Len(t, requests, 2, "test must bypass an already fresh catalog")
-						assertFreshCodexModelsRequest(t, requests[1], bodies[1])
+						assertCodexModelsRequest(t, requests[1], bodies[1], true)
 						require.Contains(t, rec.Body.String(), `"success":true`)
 						require.NotContains(t, rec.Body.String(), "admin-session")
 						require.True(t, c.GetBool("account_test_credentials_only"))
@@ -152,7 +162,7 @@ func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {
 						require.NoError(t, svc.testOpenAIAccountConnection(c, account, model, "", testMode))
 						requests, bodies = models.captured()
 						require.Len(t, requests, 3)
-						assertFreshCodexModelsRequest(t, requests[2], bodies[2])
+						assertCodexModelsRequest(t, requests[2], bodies[2], true)
 					} else {
 						require.ErrorContains(t, err, "offline-probe-captured")
 						require.Empty(t, requests)
@@ -210,7 +220,7 @@ func TestCodexModelsSetupTokenOnlyUnderDeviceWireProfile(t *testing.T) {
 				if mode == "device" && enabled {
 					require.NoError(t, err)
 					require.Len(t, requests, 1)
-					assertFreshCodexModelsRequest(t, requests[0], bodies[0])
+					assertCodexModelsRequest(t, requests[0], bodies[0], false)
 				} else {
 					require.ErrorContains(t, err, "OPENAI_CODEX_MODELS_ACCOUNT_TYPE_UNSUPPORTED")
 					require.Empty(t, requests)
@@ -576,7 +586,7 @@ func TestCodexDeviceProbeUsesSelectedModeAndCredentialOwnerGate(t *testing.T) {
 			if tc.wantProbe {
 				require.NoError(t, err)
 				require.Len(t, requests, 1)
-				assertFreshCodexModelsRequest(t, requests[0], bodies[0])
+				assertCodexModelsRequest(t, requests[0], bodies[0], true)
 				require.Empty(t, up.requests)
 			} else {
 				require.Error(t, err)

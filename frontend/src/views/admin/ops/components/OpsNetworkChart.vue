@@ -5,7 +5,7 @@
     <p v-if="error" role="alert">{{ t('latencyObservability.error') }}</p>
     <p v-else-if="!data?.points.length && !data?.body_points.length">{{ t('latencyObservability.empty') }}</p>
     <label v-if="instances.length" class="text-sm">{{ t('latencyObservability.instance') }}
-      <select v-model="selected" class="input ml-2"><option v-for="(id, i) in instances" :key="id" :value="id">{{ i + 1 }} · {{ id.slice(0, 8) }}</option></select>
+      <Select v-model="selected" :options="instanceOptions" :aria-label="t('latencyObservability.instance')" data-testid="network-instance" class="ml-2 inline-block min-w-48" />
     </label>
     <div class="grid gap-4 md:grid-cols-2">
       <div v-for="series in curves" :key="series.key" :data-testid="`network-${series.key}`">
@@ -23,11 +23,13 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Select from '@/components/common/Select.vue'
 import { getNetworkSeries, type NetworkSeries } from '@/api/admin/opsNetwork'
 const props = defineProps<{ refreshToken?: number }>()
 const { t } = useI18n()
 const data = ref<NetworkSeries | null>(null), error = ref(false), selected = ref('')
 const instances = computed(() => [...new Set(data.value?.points.map(p => p.instance) ?? [])])
+const instanceOptions = computed(() => instances.value.map((value, index) => ({ value, label: `${index + 1} · ${value.slice(0, 8)}` })))
 const points = computed(() => data.value?.points.filter(p => p.instance === selected.value) ?? [])
 interface Value { at: string; value: number | null; status: string }
 const curves = computed(() => [

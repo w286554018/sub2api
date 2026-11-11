@@ -3,7 +3,7 @@ import { findModelConflict, validateIntervals, validateReasoningEffortMultiplier
 
 export const MAX_PRICING_FILE_BYTES = 2 * 1024 * 1024
 const FORMAT = 'sub2api-channel-pricing'
-const priceFields = ['input_price', 'output_price', 'cache_write_price', 'cache_write_1h_price', 'cache_read_price', 'per_request_price'] as const
+const priceFields = ['input_price', 'output_price', 'cache_write_price', 'cache_write_1h_price', 'cache_write_12h_price', 'cache_read_price', 'per_request_price'] as const
 const multiplierFields = ['input_multiplier', 'output_multiplier', 'cache_write_multiplier', 'cache_read_multiplier'] as const
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
@@ -30,6 +30,7 @@ function integer(value: unknown): number {
   return value
 }
 
+// Older v1 exports omit the optional 12h price; preserve that absence at both levels.
 function entry(value: unknown, t: Translate): PricingFormEntry {
   const row = object(value, [...priceFields, 'models', 'billing_mode', 'fast_multiplier', 'flex_multiplier', 'reasoning_effort_multipliers', 'image_input_price', 'image_output_price', 'intervals', 'time_pricing'])
   if (!Array.isArray(row.models) || !row.models.length || row.models.some(m => typeof m !== 'string' || !m.trim())) return invalid()
@@ -39,7 +40,7 @@ function entry(value: unknown, t: Translate): PricingFormEntry {
     const iv = object(value, [...priceFields, ...multiplierFields, 'min_tokens', 'max_tokens', 'tier_label', 'sort_order'])
     if (typeof iv.tier_label !== 'string') return invalid()
     return {
-      ...Object.fromEntries(priceFields.map(key => [key, number(iv[key])])),
+      ...Object.fromEntries(priceFields.filter(key => key !== 'cache_write_12h_price' || key in iv).map(key => [key, number(iv[key])])),
       ...Object.fromEntries(multiplierFields.map(key => [key, number(iv[key], true)])),
       min_tokens: integer(iv.min_tokens),
       max_tokens: iv.max_tokens === null ? null : integer(iv.max_tokens),
@@ -59,7 +60,7 @@ function entry(value: unknown, t: Translate): PricingFormEntry {
   const time = object(row.time_pricing, ['timezone', 'weekdays_only', 'periods'])
   if (typeof time.timezone !== 'string' || typeof time.weekdays_only !== 'boolean' || !Array.isArray(time.periods)) return invalid()
   const result: PricingFormEntry = {
-    ...Object.fromEntries(priceFields.map(key => [key, number(row[key])])),
+    ...Object.fromEntries(priceFields.filter(key => key !== 'cache_write_12h_price' || key in row).map(key => [key, number(row[key])])),
     models: row.models.map(m => (m as string).trim()),
     billing_mode: row.billing_mode as PricingFormEntry['billing_mode'],
     image_input_price: number(row.image_input_price),

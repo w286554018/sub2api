@@ -179,7 +179,7 @@ func (g *controlledExperimentGateway) Execute(parent context.Context, route Cont
 			cacheCreation := result.Usage.CacheCreationInputTokens
 			cacheCreation30m := result.Usage.CacheCreation30mInputTokens
 			cacheCreation12h := result.Usage.CacheCreation12hInputTokens
-			if account.IsExcelBPSCacheCreationAsInputEnabled() && result.UpstreamEndpoint == "/basispoints/api/responses" {
+			if excelBPSCacheCreationBilledAsInput(account, result) {
 				cacheCreation = 0
 				cacheCreation30m = 0
 				cacheCreation12h = 0

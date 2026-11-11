@@ -1766,14 +1766,14 @@ func (s *OpenAIGatewayService) fetchNativeCodexModelsManifest(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-    if isFreshOpenAICredentialProbe(ctx) {
-        request.headers.Set("Cache-Control", "no-cache")
-        request.headers.Set("Pragma", "no-cache")
-        if request.useAPIKeyUpstream {
-            return s.fetchCodexModelsManifestUpstream(ctx, request, "")
-        }
-        return s.codexModelsOAuthFetch(request, account, credAccount, false)(ctx, "")
-    }
+	if isFreshOpenAICredentialProbe(ctx) {
+		request.headers.Set("Cache-Control", "no-cache")
+		request.headers.Set("Pragma", "no-cache")
+		if request.useAPIKeyUpstream {
+			return s.fetchCodexModelsManifestUpstream(ctx, request, "")
+		}
+		return s.codexModelsOAuthFetch(request, account, credAccount, false)(ctx, "")
+	}
 
 	if request.useAPIKeyUpstream {
 		return s.fetchCachedOpenAIModels(ctx, request, s.fetchCodexModelsManifestUpstreamForRequest(request), ifNoneMatch)

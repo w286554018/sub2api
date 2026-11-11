@@ -33,19 +33,6 @@ func managedBPSConnectionFailureFixture(t *testing.T) (*OpenAIOAuthReauthService
 	return reauth, repo, connection
 }
 
-func managedBPSConnectionFailureParent() *Account {
-	return &Account{ID: 42, Name: "managed-bps", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 10,
-		Credentials: map[string]any{"access_token": "synthetic-parent-token", "chatgpt_account_id": "synthetic-workspace"},
-		Extra: map[string]any{
-			"openai_excel_bps":              true,
-			ExcelBPSAuthorizationPendingKey: true,
-			"openai_connections_managed":    true,
-			"openai_excel_bps_mihomo":       false,
-			"openai_excel_bps_models":       []any{"gpt-6-astra"},
-		},
-	}
-}
-
 func forwardManagedBPS(t *testing.T, gateway *OpenAIGatewayService, parent *Account) (*OpenAIForwardResult, error) {
 	t.Helper()
 	body := []byte(`{"model":"gpt-6-astra","stream":true,"input":"managed BPS failure regression"}`)
@@ -69,7 +56,7 @@ func TestManagedBPSConnectionTransientServerErrorKeepsConnectionSchedulable(t *t
 			}}
 			gateway := openAIClientToolsTestService(upstream)
 			gateway.excelOAuthReauth = reauth
-			parent := managedBPSConnectionFailureParent()
+			parent := managedBPSBillingParent(nil)
 
 			_, err := forwardManagedBPS(t, gateway, parent)
 			require.Error(t, err, "the failed BPS request itself is still reported to the client")
@@ -96,7 +83,7 @@ func TestManagedBPSConnectionForbiddenStillCoolsConnection(t *testing.T) {
 		Body: io.NopCloser(strings.NewReader(`{"error":{"message":"forbidden"}}`))}}
 	gateway := openAIClientToolsTestService(upstream)
 	gateway.excelOAuthReauth = reauth
-	_, err := forwardManagedBPS(t, gateway, managedBPSConnectionFailureParent())
+	_, err := forwardManagedBPS(t, gateway, managedBPSBillingParent(nil))
 	require.Error(t, err)
 	require.NotNil(t, repo.rows[0].CooldownUntil, fmt.Sprintf("BPS %d is attributed to the connection", http.StatusForbidden))
 	require.False(t, repo.rows[0].Supports("responses"))

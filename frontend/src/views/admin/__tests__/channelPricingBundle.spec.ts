@@ -32,7 +32,7 @@ const collection = () => JSON.parse(serializePricingCollection(bundles(), t))
 const apiPricing = (platform: string): ChannelModelPricing => ({
   id: 42, platform, models: ['shared-model'], billing_mode: 'token',
   input_price: 0.000002, output_price: 0.000008, cache_write_price: 0,
-  cache_write_1h_price: null, cache_read_price: 0.0000002,
+  cache_write_1h_price: null, cache_write_12h_price: 0.000003, cache_read_price: 0.0000002,
   image_input_price: 0.000005, image_output_price: 0.00001, per_request_price: 0.04,
   fast_multiplier: 2, flex_multiplier: 0.5, reasoning_effort_multipliers: { high: 1.5 },
   intervals: [{ ...formIntervalsToAPI(pricing().intervals)[0], id: 43 }],
@@ -142,11 +142,24 @@ describe('channel pricing bundle', () => {
     expect(imported.per_request_price).toBe(0.04)
     expect(imported.cache_write_price).toBe(0)
     expect(imported.cache_write_1h_price).toBeNull()
+    expect(imported.cache_write_12h_price).toBe(3)
+    expect(mTokToPerToken(imported.cache_write_12h_price)).toBe(original[0].cache_write_12h_price)
+    expect(imported.intervals[0].cache_write_12h_price).toBeNull()
     entries[0].models.push('other-model')
     entries[0].intervals[0].input_price = 99
     entries[0].reasoning_effort_multipliers!.high = 99
     entries[0].time_pricing.periods[0].multiplier = 99
     expect(original).toEqual(snapshot)
+  })
+
+  it('preserves independent interval 12h cache prices when converting API pricing', () => {
+    const row = apiPricing('openai')
+    row.intervals[0].cache_write_12h_price = 0.000007
+    const converted = channelPricingToPlatforms([row])
+    const imported = parsePricingBundle(serializePricingBundle('Cache TTL', converted, t), t).platforms[0].entries[0]
+    expect(imported.cache_write_12h_price).toBe(3)
+    expect(imported.intervals[0].cache_write_12h_price).toBe(7)
+    expect(formIntervalsToAPI(imported.intervals)[0].cache_write_12h_price).toBe(0.000007)
   })
 
   it('groups nonadjacent API entries by platform and supports empty channels', () => {
@@ -160,6 +173,8 @@ describe('channel pricing bundle', () => {
   it.each([
     ['default token prices', (row: ChannelModelPricing) => { row.input_price = 0.000001234567890123 }],
     ['tier token prices', (row: ChannelModelPricing) => { row.intervals[0].cache_write_price = 0.000001234567890123 }],
+    ['default 12h cache prices', (row: ChannelModelPricing) => { row.cache_write_12h_price = 0.000001234567890123 }],
+    ['tier 12h cache prices', (row: ChannelModelPricing) => { row.intervals[0].cache_write_12h_price = 0.000001234567890123 }],
     ['image token prices', (row: ChannelModelPricing) => { row.image_output_price = 0.000001234567890123 }],
     ['time multipliers', (row: ChannelModelPricing) => { row.time_pricing!.periods[0].multiplier = 1.234 }],
   ] as const)('rejects lossy conversion of %s without changing the API source', (_label, mutate) => {

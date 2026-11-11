@@ -24,12 +24,6 @@ func isAdobeRelayAccount(account *Account) bool {
 	return IsAdobeRelayAccount(account)
 }
 
-// shouldSkipAdobeNativeAccount 在本次请求已撞上内容安全拒绝后，禁止再打
-// Firefly Cookie 号。中转号不受影响。
-func shouldSkipAdobeNativeAccount(skipNative bool, account *Account) bool {
-	return skipNative && !isAdobeRelayAccount(account)
-}
-
 // adobeRelayIdentityMapping 是中转号的默认模型映射：键与 DefaultAdobeModelMapping
 // 相同（调度白名单不变），值是恒等，这样上游收到的是 gpt-image-2 而不是
 // firefly-gpt-image-2。

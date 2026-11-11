@@ -95,6 +95,7 @@ func TestAntigravityBuildGeminiTestRequest_UsesPromptAndRoomToAnswer(t *testing.
 		maxOutputTokens int64
 	}{
 		{prompt: "hello there", want: "hello there", maxOutputTokens: 4096},
+		{prompt: "  hello there  ", want: "hello there", maxOutputTokens: 4096},
 		{prompt: "", want: "hi", maxOutputTokens: antigravityTestMaxOutputTokens},
 		{prompt: "   ", want: "hi", maxOutputTokens: antigravityTestMaxOutputTokens},
 	} {

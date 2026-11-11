@@ -33,6 +33,22 @@ describe('channel pricing transfer', () => {
     expect(imported.output_price).toBeNull()
     expect(imported.fast_multiplier).toBeNull()
   })
+  it.each([6, 0, null, '4.5'])('round trips optional 12h cache prices at row and interval level (%s)', value => {
+    const original = pricing()
+    original.cache_write_12h_price = value
+    original.intervals[0].cache_write_12h_price = value
+    const snapshot = structuredClone(original)
+    const [imported] = parseChannelPricing(serializeChannelPricing('openai', [original], t), 'openai', t)
+    const expected = value === null ? null : Number(value)
+    expect(imported.cache_write_12h_price).toBe(expected)
+    expect(imported.intervals[0].cache_write_12h_price).toBe(expected)
+    expect(original).toEqual(snapshot)
+  })
+  it('keeps older files without optional 12h cache prices unchanged', () => {
+    const [imported] = parseChannelPricing(serializeChannelPricing('openai', [pricing()], t), 'openai', t)
+    expect(imported).not.toHaveProperty('cache_write_12h_price')
+    expect(imported.intervals[0]).not.toHaveProperty('cache_write_12h_price')
+  })
   it('supports empty exports and UTF-8 BOM', () => {
     expect(parseChannelPricing('\uFEFF' + serializeChannelPricing('openai', [], t), 'openai', t)).toEqual([])
   })
@@ -43,6 +59,9 @@ describe('channel pricing transfer', () => {
     (f: ReturnType<typeof file>) => { f.model_pricing[0].input_price = -1 },
     (f: ReturnType<typeof file>) => { f.model_pricing[0].input_price = 'Infinity' },
     (f: ReturnType<typeof file>) => { f.model_pricing[0].input_price = true },
+    (f: ReturnType<typeof file>) => { f.model_pricing[0].cache_write_12h_price = -1 },
+    (f: ReturnType<typeof file>) => { f.model_pricing[0].intervals[0].cache_write_12h_price = 'Infinity' },
+    (f: ReturnType<typeof file>) => { f.model_pricing[0].intervals[0].cache_write_12h_price = true },
     (f: ReturnType<typeof file>) => { f.model_pricing[0].fast_multiplier = 0 },
     (f: ReturnType<typeof file>) => { f.model_pricing[0].models = [] },
     (f: ReturnType<typeof file>) => { f.model_pricing[0].models = ['example-*', 'example-model'] },

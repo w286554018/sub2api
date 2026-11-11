@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/tidwall/sjson"
 )
 
 var codexSelectedPageName = regexp.MustCompile(`^codex_apps_selected_page_part_([1-9][0-9]*)_of_([1-9][0-9]*)$`)
@@ -26,6 +28,7 @@ func normalizeCodexPageContext(body []byte) ([]byte, bool) {
 		return body, false
 	}
 	changed := false
+inputLoop:
 	for i, raw := range input {
 		var item map[string]json.RawMessage
 		if json.Unmarshal(raw, &item) != nil {
@@ -39,10 +42,12 @@ func normalizeCodexPageContext(body []byte) ([]byte, bool) {
 		if readString("type") != "function_call_output" || readString("namespace") != "agent" {
 			continue
 		}
-		if callID, exists := item["call_id"]; exists {
-			var value string
-			if bytes.Equal(bytes.TrimSpace(callID), []byte("null")) || json.Unmarshal(callID, &value) != nil || strings.TrimSpace(value) != "" {
-				continue
+		for _, field := range []string{"call_id", "tool_call_id"} {
+			if callID, exists := item[field]; exists {
+				var value string
+				if bytes.Equal(bytes.TrimSpace(callID), []byte("null")) || json.Unmarshal(callID, &value) != nil || strings.TrimSpace(value) != "" {
+					continue inputLoop
+				}
 			}
 		}
 		name, output := readString("name"), readString("output")
@@ -67,12 +72,9 @@ func normalizeCodexPageContext(body []byte) ([]byte, bool) {
 	if !changed {
 		return body, false
 	}
-	encodedInput, err := json.Marshal(input)
-	if err != nil {
-		return body, false
-	}
-	request["input"] = encodedInput
-	encoded, err := json.Marshal(request)
+	// Replace only input; untouched request fields and raw input items retain
+	// their original numbers without decoding them through float64.
+	encoded, err := sjson.SetBytes(body, "input", input)
 	if err != nil {
 		return body, false
 	}

@@ -62,7 +62,11 @@ type ScheduledTestPlan struct {
 // ScheduledTestResult represents a single test execution result.
 type ScheduledTestResult struct {
 	// Transient recovery policy; never persisted as part of a scheduled result.
-	CredentialsOnly bool               `json:"-"`
+	CredentialsOnly bool `json:"-"`
+	// Runtime-only; set solely from an actual own-credential OAuth HTTP 401.
+	DirectOAuth401        bool `json:"-"`
+	DirectOAuthRevoked401 bool `json:"-"`
+
 	QualityRoundID  string             `json:"quality_round_id,omitempty"`
 	QualityJudgment *QualityJudgment   `json:"quality_judgment,omitempty"`
 	QualityAction   string             `json:"quality_action,omitempty"`

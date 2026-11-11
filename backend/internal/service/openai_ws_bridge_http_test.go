@@ -435,7 +435,15 @@ func TestOpenAIWSBridge_Forward_PreviousResponseNotFoundIsNotSilentlyDropped(t *
 	svc := newWSBridgeTestService(cfg, upstream)
 	account := newWSBridgeTestAccount(wsServer.URL, OpenAIWSIngressModeWSBridge)
 	c, rec := newWSBridgeTestContext("/openai/v1/responses")
-	c.MustGet("api_key").(*APIKey).AllowLongContext = true
+	value, exists := c.Get("api_key")
+	if !exists {
+		t.Fatal("api_key missing")
+	}
+	apiKey, ok := value.(*APIKey)
+	if !ok || apiKey == nil {
+		t.Fatal("api_key has unexpected type")
+	}
+	apiKey.AllowLongContext = true
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.1","stream":true,"previous_response_id":"resp_prev","input":"hello"}`))
 	require.Error(t, err)
@@ -640,7 +648,15 @@ func TestOpenAIWSBridge_Forward_FallbackErrorAfterKeepaliveWritesResponseFailed(
 	svc := newWSBridgeTestService(cfg, upstream)
 	account := newWSBridgeTestAccount(wsServer.URL, OpenAIWSIngressModeWSBridge)
 	c, rec := newWSBridgeTestContext("/openai/v1/responses")
-	c.MustGet("api_key").(*APIKey).AllowLongContext = true
+	value, exists := c.Get("api_key")
+	if !exists {
+		t.Fatal("api_key missing")
+	}
+	apiKey, ok := value.(*APIKey)
+	if !ok || apiKey == nil {
+		t.Fatal("api_key has unexpected type")
+	}
+	apiKey.AllowLongContext = true
 
 	result, err := svc.Forward(context.Background(), c, account, []byte(`{"model":"gpt-5.1","stream":true,"previous_response_id":"resp_prev","input":"hello"}`))
 	require.Nil(t, result)

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
@@ -420,23 +419,4 @@ func redactIntelligentTestError(value string) string {
 		"secret",
 		"proxy_password",
 	)
-}
-
-func isIntelligentTerminalStatus(status string) bool {
-	switch status {
-	case IntelligentTestStatusQueued, IntelligentTestStatusRunning:
-		return false
-	default:
-		return true
-	}
-}
-
-func intelligentTestRunError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return err
-	}
-	return err
 }
