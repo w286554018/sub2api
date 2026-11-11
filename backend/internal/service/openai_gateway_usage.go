@@ -120,7 +120,7 @@ func (s *OpenAIGatewayService) ResolveUserGroupRateMultiplier(ctx context.Contex
 	}
 	resolver := s.userGroupRateResolver
 	if resolver == nil {
-		resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
+		return groupDefaultMultiplier
 	}
 	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
 }
@@ -238,23 +238,40 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	var cost *CostBreakdown
-	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	// Use the rewrite captured during forwarding, never current key settings:
+	// skipped endpoints and policy changes after admission retain their price.
+	requestedBillingModel := input.OriginalModel
+	if input.APIKeyMappedModel != "" {
+		requestedBillingModel = input.APIKeyMappedModel
+	}
+	channelBillingModel := input.ChannelMappedModel
+	if !input.ChannelMappingApplied && channelBillingModel == input.OriginalModel {
+		// An unchanged channel field is the audit alias, not an explicit price
+		// override. Do not resurrect its price when the key target is unpriced.
+		channelBillingModel = requestedBillingModel
+	}
+	resultBillingModel := result.Model
+	if !input.ChannelMappingApplied && result.Model == input.OriginalModel {
+		resultBillingModel = requestedBillingModel
+	}
+	billingModel := forwardResultBillingModel(resultBillingModel, result.UpstreamModel)
 	if result.BillingModel != "" {
 		billingModel = strings.TrimSpace(result.BillingModel)
 	}
-	if input.BillingModelSource == BillingModelSourceChannelMapped && input.ChannelMappedModel != "" && input.ChannelMappedModel != input.OriginalModel {
+	if input.BillingModelSource == BillingModelSourceChannelMapped && input.ChannelMappedModel != "" &&
+		((input.APIKeyMappedModel != "" && input.ChannelMappingApplied) || input.ChannelMappedModel != input.OriginalModel) {
 		billingModel = input.ChannelMappedModel
 	}
 	if input.BillingModelSource == BillingModelSourceRequested && input.OriginalModel != "" {
-		billingModel = input.OriginalModel
+		billingModel = requestedBillingModel
 	}
 	billingModels := usageBillingModelCandidates(
 		billingModel,
 		result.BillingModel,
-		input.ChannelMappedModel,
-		input.OriginalModel,
+		channelBillingModel,
+		requestedBillingModel,
 		result.UpstreamModel,
-		result.Model,
+		resultBillingModel,
 	)
 	billingModels = s.filterCNProviderBillingModelCandidates(ctx, account, apiKey, billingModels)
 	serviceTier := ""
@@ -631,7 +648,8 @@ const openAIGPT61SolSubscriptionLongContextThreshold = 500_000
 //
 // 豁免 OpenAI 的 OAuth、Setup Token、API Key 及 BPS OAuth 凭据上的 GPT-6.1 Sol，
 // 且计入长上下文判断的输入 token 不超过 500,000。超过该边界时仍按价卡执行。
-// 其它模型、其它平台和 upstream 透传不因这次规则被豁免。
+// Terra 的 OAuth/Setup Token 订阅沿用上游豁免，不受 Sol 的 500k 边界限制。
+// 其它模型、其它平台和 upstream 透传不因这些规则被豁免。
 //
 // 该标志只关闭官方模型长上下文阶梯（DisableModelLongContextPricing），
 // 分组自定义区间价格不受影响。token 口径与 shouldApplySessionLongContextPricing
@@ -646,6 +664,9 @@ func openAIGPT61SolLongContextExempt(account *Account, result *OpenAIForwardResu
 	model := strings.TrimSpace(result.UpstreamModel)
 	if model == "" {
 		model = result.Model
+	}
+	if openai.IsGPT61TerraModelSpelling(model) {
+		return account.Type == AccountTypeOAuth || account.Type == AccountTypeSetupToken
 	}
 	if !openai.IsGPT61SolModelSpelling(model) {
 		return false
@@ -721,7 +742,8 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)
 		explicitImageMode := resolved != nil && (resolved.Mode == BillingModePerRequest || resolved.Mode == BillingModeImage)
 		tokenPricingSelected := resolved != nil && resolved.Mode == BillingModeToken
-		if !tokenPricingSelected && (explicitImageMode || imageCountBillingApplies(apiKey, result.ImageEndpoint)) {
+		defaultImageFallback := result.ImageEndpoint && !s.billingService.HasIdentifiedTokenPricing(billingModel)
+		if !tokenPricingSelected && (explicitImageMode || defaultImageFallback || imageCountBillingApplies(apiKey, result.ImageEndpoint)) {
 			return s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier, platform), nil
 		}
 	}

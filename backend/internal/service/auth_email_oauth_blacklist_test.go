@@ -42,19 +42,19 @@ func TestLoginOrRegisterVerifiedEmailOAuth_BlacklistedExistingUserCanStillSignIn
 func TestLoginOrRegisterVerifiedEmailOAuth_BlacklistedNewEmailRejected(t *testing.T) {
 	svc, _, client := newAuthServiceForEmailBindWithRefreshCache(t, map[string]string{
 		service.SettingKeyRegistrationEnabled:        "true",
-		service.SettingKeyRegistrationEmailBlacklist: `["blocked.user@gmail.com"]`,
+		service.SettingKeyRegistrationEmailBlacklist: `["blocked@example.com"]`,
 	}, nil, nil, newEmailBindRefreshTokenCacheStub())
 	ctx := context.Background()
 
 	_, _, err := svc.LoginOrRegisterVerifiedEmailOAuth(ctx, service.EmailOAuthIdentityInput{
 		ProviderType:    "google",
 		ProviderSubject: "google-blocked-user",
-		Email:           "blockeduser+x@googlemail.com",
+		Email:           "blocked@example.com",
 		EmailVerified:   true,
 	})
 	require.ErrorIs(t, err, service.ErrEmailBlocked)
 
-	count, err := client.User.Query().Where(dbuser.EmailEQ("blockeduser+x@googlemail.com")).Count(ctx)
+	count, err := client.User.Query().Where(dbuser.EmailEQ("blocked@example.com")).Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, count)
 }

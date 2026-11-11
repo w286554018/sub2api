@@ -68,6 +68,12 @@ func (s *OpenAIGatewayService) handleExcelBPSAccountUpstreamError(ctx context.Co
 	if s == nil || account == nil || (status != http.StatusPaymentRequired && status < 500) {
 		return
 	}
+	// Managed authorization connections outlive individual BPS requests. A
+	// transient BPS server error must fail over only this request; marking the
+	// credential connection unhealthy would block subsequent requests account-wide.
+	if status >= 500 && account.AuthConnectionID != "" {
+		return
+	}
 	fields := map[string]string{"message": fmt.Sprintf("Excel BPS returned HTTP %d", status)}
 	if code := extractUpstreamErrorCode(raw); bpsTestDiagnosticIdentifier.MatchString(code) {
 		fields["code"] = code

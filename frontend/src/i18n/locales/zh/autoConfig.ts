@@ -1,4 +1,41 @@
 export default {
+ degradation: {
+  "title": "降智后处置",
+  "hint": "独立适用于所有 OAuth 账号。使用账号性能相同的统一滚动窗口：仅统计完整、可明确判定的质量探针轮次，探针失败比例达到或超过阈值时处置；不是全部请求的降智率。无需开启账号性能停调监控。",
+  "threshold": "降智率阈值（%）",
+  "actions": "达到阈值后执行（可多选）",
+  "limitConcurrency": "限制并发",
+  "limitModels": "限制模型",
+  "limitGroups": "限制分组",
+  "actionsRequired": "启用时至少勾选一项处置。",
+  "concurrency": "目标并发数（默认 10）",
+  "thresholdRequired": "请先设置阈值；未设置时不能启用。",
+  "models": "处置后模型范围（与账号已有授权取交集）",
+  "empty": "当前全不选：被处置账号将不支持任何模型。",
+  "groups": "关闭这些分组的账号绑定",
+  "groupsHint": "选择最多 100 个分组。被处置账号会移出这些分组，后续编辑也不能重新绑定；保留其他分组，不会关闭分组本身或影响组内其他账号。",
+  "groupsRequired": "请至少勾选一个要关闭绑定的分组。",
+  "unavailableGroup": "分组不可用，已保留选择；取消勾选可移除此 ID",
+  "scope": "仅执行勾选的处置：并发取当前值与目标值中的较小值；模型与已有授权取交集；分组移除所选绑定。处置只执行一次，不因指标改善、关闭开关或修改模板自动恢复。限制并发时，成功请求不能自动升档。",
+  "invalid": "请设置 0–100 的阈值并至少勾选一项处置；检查已勾选项的目标并发（1–10000 的整数）、精确模型 ID（最多 500 个）或分组选择（1–100 个）。",
+  "event": "探针降智 {percent}% ≥ {threshold}% · {samples} 个明确轮次 · {actions} · 窗口 {start} — {end}",
+  "concurrencyEvent": "并发 {before} → {after}",
+  "modelsEvent": "模型：{models}",
+  "groupsEvent": "禁用分组绑定：{groups}；实际移出：{removed}"
+},
+  selection: {
+    "accountHint": "此账号保留首次模型范围（空范围表示禁用全部）。普通保存和重新授权会保留；更改模型映射会转为手动配置。",
+    "takeOver": "保存时由手动模型配置接管（解除首次范围；空映射将恢复默认支持）",
+    "title": "首次模型选择",
+    "enable": "为新 OAuth 账号限定模型范围",
+    "hint": "关闭或未设置时保持原模型行为。启用后只允许勾选的具体请求模型及目标模型；候选来自账号编辑的同一平台模型目录，不代表上游一定可用。",
+    "all": "勾选全部候选",
+    "none": "取消全部勾选",
+    "custom": "添加自定义模型（精确名称）",
+    "add": "添加并勾选",
+    "empty": "当前全不选：保存后，新账号将不支持任何模型。这与账号编辑的空映射恢复默认不同；如需沿用原行为，请关闭模型范围。",
+    "scope": "仅初始化新账号，已有账号和重新授权不受模板影响。导入白名单与选择取交集；映射源和目标都须勾选。自动模型同步不会恢复排除项；手动更改账号模型范围后由手动配置接管。"
+},
   admission: {
     "pending": "待准入：21 连续 {count}/{required}",
     "passed": "准入已通过",
@@ -83,13 +120,25 @@ export default {
   },
   "initial": "OAuth 账户首次配置",
   "enable": "启用",
-  "initialHint": "仅对所选平台的新 OAuth 账号生效，四项模板值优先于导入值。已有账号、重新授权和手动编辑不触发首次配置。",
+  "initialHint": "仅对所选平台的新 OAuth 账号生效，字段和开关的模板值优先于导入值。已有账号、重新授权和手动编辑不触发首次配置。",
+  ws: {
+    modeHint: '随首次配置为新 OpenAI OAuth 账号设置 WS 模式，默认上下文池；选择“关闭”可禁用 WS。全局 WS 开关仍生效，其余模式需 gateway.openai_ws.mode_router_v2_enabled=true 才按所选方式连接，未开启时统一使用上下文池。',
+    accelerationHint: '随首次配置为新 OpenAI OAuth 账号设置加速开关，默认不勾选。已有账号、重新授权和手动编辑不受影响。'
+  },
   "platform": "OAuth 平台",
   "priority": "优先级",
   "load_factor": "负载因子",
   "concurrency": "初始并发",
   "cost_multiplier": "成本倍率",
   "groups": "首次加入分组",
+  totp429: {
+    label: '429 后自动更换 2FA',
+    hint: '随首次配置为新 OpenAI OAuth 账号启用。遇到 429 时，使用凭证运营已保存的邮箱、密码和当前 2FA 更换密钥，新密钥加密保存。同一账号 1 小时内最多自动创建一次更换任务；凭据不完整或更换结果待确认时不自动更换。'
+  },
+  disableScheduling429: {
+    label: '429 后自动关闭调度',
+    hint: '随首次配置为新 OpenAI OAuth 账号启用。收到上游 429 时关闭账号调度开关，可手动重新开启；可与自动更换 2FA 同时启用。'
+  },
   "noGroups": "暂无符合条件的启用分组，请先在分组管理中创建。",
   "loadHint": "优先级数值越小越优先；负载因子影响调度频率，与实际并发上限、计费倍率独立。",
   "upgrade": "账号并发升级",
@@ -138,6 +187,7 @@ export default {
     "upgradeDetail": "并发 {before} → {after}，进入 {seconds} 秒冷却。",
     "cooldownDetail": "请求失败，成功进度已清零，冷却 {seconds} 秒；并发保持 {concurrency}。",
     "kinds": {
+ "degradation_applied": "降智后处置",
       "config_saved": "配置已保存",
       "initial_applied": "首次配置已应用",
       "concurrency_upgraded": "并发已升级",

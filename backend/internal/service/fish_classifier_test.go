@@ -274,7 +274,7 @@ func TestFishInsufficientCooldownFreePlanGoesStraightToMidnight(t *testing.T) {
 }
 
 func TestFishInsufficientCooldownExtendsToMidnightWhenResetAtUnusable(t *testing.T) {
-	// 日窗口确认耗尽但 resetAt 缺失/过期：兜底到下一个 UTC 零点而不是保持 2h。
+	// 日窗口确认耗尽但 resetAt 缺失/过期：兜底到下一个 UTC 零点，但不缩短已有的 2h 冷却。
 	cases := []struct {
 		name string
 		body string
@@ -299,10 +299,21 @@ func TestFishInsufficientCooldownExtendsToMidnightWhenResetAtUnusable(t *testing
 			if repo.sets != 2 {
 				t.Fatalf("cooldown writes = %d, want 2 (2h then midnight)", repo.sets)
 			}
-			if want := nextUTCMidnight(started); !repo.until.Equal(want) {
-				t.Fatalf("until = %v, want next UTC midnight %v", repo.until, want)
-			}
-			if repo.reason != fishDailyQuotaExhaustedReason {
+			finished := time.Now()
+			earliestMidnight := nextUTCMidnight(started)
+			latestMidnight := nextUTCMidnight(finished)
+			earliestBaseline := started.Add(fishInsufficientCooldown)
+			latestBaseline := finished.Add(fishInsufficientCooldown)
+			switch repo.reason {
+			case fishDailyQuotaExhaustedReason:
+				if (!repo.until.Equal(earliestMidnight) && !repo.until.Equal(latestMidnight)) || !repo.until.After(earliestBaseline) {
+					t.Fatalf("until = %v, want next UTC midnight after the baseline cooldown", repo.until)
+				}
+			case fishInsufficientFailure().CooldownReason:
+				if repo.until.Before(earliestBaseline) || repo.until.After(latestBaseline) || repo.until.Before(earliestMidnight) {
+					t.Fatalf("until = %v, want a baseline cooldown that reaches at least %v", repo.until, earliestMidnight)
+				}
+			default:
 				t.Fatalf("reason = %q", repo.reason)
 			}
 		})

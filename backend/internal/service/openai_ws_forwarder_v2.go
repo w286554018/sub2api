@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/requesttiming"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -35,7 +37,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	lastFailureReason string,
 	agentTaskRecoveryTried *bool,
 	bridgeHTTPClient bool,
-) (*OpenAIForwardResult, error) {
+) (result *OpenAIForwardResult, resultErr error) {
 	if anchor := codexWSAnchorFromContext(ctx); anchor != nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithDeadline(ctx, anchor.expires)
@@ -48,6 +50,22 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	// 响应头与终态事件上对齐 HTTP 上游路径（见 openai_ws_bridge_http.go）。
 	bridgeHTTPClient = bridgeHTTPClient && reqStream
 	ctx = withOpenAITransportMode(ctx, "ctx_pool")
+	route := openAIWSCaptureRoute(ctx, "")
+	if decision.Reason != "" {
+		route.Reason = decision.Reason
+	}
+	if reqStream {
+		route.ResponseFormat = "sse"
+	} else {
+		route.ResponseFormat = "json"
+	}
+	var timingProxyID int64
+	if proxyID := opsUpstreamProxyID(account); proxyID != nil {
+		timingProxyID = *proxyID
+	}
+	ctx, responseTrace := requesttiming.StartResponseAttempt(ctx, account.ID, timingProxyID, route)
+	responseTerminal := ""
+	defer func() { responseTrace.FinishResponseAttempt(resultErr, responseTerminal) }()
 	responseModelObserver := &upstreamResponseModelObserver{}
 
 	wsURL, err := s.buildOpenAIResponsesWSURL(account)
@@ -475,7 +493,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	}
 
 	checkBeforeWrite := func() error {
-		latest, err := s.admitOpenAITurn(ctx, c, account, mappedModel)
+		latest, err := s.admitOpenAITurn(ctx, c, account, mappedModel, payloadAsJSONBytes(payload))
 		if err == nil {
 			err = s.checkOpenAIWSBinding(latest, mappedModel, lease.conn.turnBinding)
 		}
@@ -736,6 +754,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	flushBatchSize := s.openAIWSEventFlushBatchSize()
 	flushInterval := s.openAIWSEventFlushInterval()
 	pendingFlushEvents := 0
+	var deliveryObservation openAISSEDeliveryObservation
 	lastFlushAt := time.Now()
 	flushStreamWriter := func(force bool) {
 		if clientDisconnected || flusher == nil || pendingFlushEvents <= 0 {
@@ -746,7 +765,11 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 				return
 			}
 		}
-		flusher.Flush()
+		if err := FlushGatewayResponse(c.Writer); err != nil {
+			markClientDisconnected("downstream_flush_error")
+			return
+		}
+		deliveryObservation.flushed(ctx)
 		pendingFlushEvents = 0
 		lastFlushAt = time.Now()
 	}
@@ -762,10 +785,12 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		frame = append(frame, "data: "...)
 		frame = append(frame, message...)
 		frame = append(frame, '\n', '\n')
-		_, wErr := c.Writer.Write(frame)
-		if wErr == nil {
+		n, wErr := c.Writer.Write(frame)
+		if wErr == nil && n == len(frame) {
 			s.noteOpenAICodexTurnStateFromWSEvent(c, account, message)
 			wroteDownstream = true
+			deliveryObservation.data(message, gjson.GetBytes(message, "type").String())
+			deliveryObservation.boundary()
 			pendingFlushEvents++
 			flushStreamWriter(forceFlush)
 			return
@@ -933,7 +958,19 @@ readLoop:
 		if isTerminalEvent {
 			terminalEventCount++
 		}
-		if firstTokenMs == nil && isTokenEvent {
+		startsSemanticOutput := false
+		if firstTokenMs == nil || responseTrace != nil {
+			startsSemanticOutput = openai.ResponseStartsSemanticOutput(message, eventType)
+		}
+		if responseTrace != nil {
+			requesttiming.Content(ctx, message, eventType)
+			responseTerminal = timingTerminal(eventType)
+			if eventType == "response.cancelled" || eventType == "response.canceled" {
+				responseTerminal = "canceled"
+			}
+			requesttiming.Output(ctx, startsSemanticOutput, openAIStreamDataStartsVisibleOutput(string(message), eventType), responseTerminal)
+		}
+		if firstTokenMs == nil && startsSemanticOutput {
 			ms := int(time.Since(startTime).Milliseconds())
 			firstTokenMs = &ms
 		}
@@ -1079,7 +1116,7 @@ readLoop:
 		if reqStream {
 			// 默认缓冲首 token 前的事件，保留既有的早期错误处理窗口。
 			// 显式开启 HTTP SSE 加速时立即刷出，之后不再重放请求。
-			shouldBuffer := !flushEarlyEvents && firstTokenMs == nil && !isTokenEvent && !isTerminalEvent
+			shouldBuffer := !flushEarlyEvents && tokenEventCount == 0 && !isTokenEvent && !isTerminalEvent
 			clientMessage := message
 			if bridgeOutput != nil && !clientDisconnected {
 				clientMessage = bridgeOutput.prepare(eventType, message, wroteDownstream)
@@ -1203,7 +1240,7 @@ readLoop:
 	if anchor != nil {
 		anchor.qualified = responseModelObserver.astraCompleted && !responseModelObserver.Conflict()
 	}
-	result := resultWithUsage()
+	result = resultWithUsage()
 	result.ImageCount = imageCounter.Count()
 	result.ImageOutputSizes = imageCounter.Sizes()
 	return result, nil

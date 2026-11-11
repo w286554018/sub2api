@@ -201,7 +201,7 @@ const planIconName = computed<'bolt' | null>(() => {
 })
 
 const platformClass = computed(() => {
-  if (props.platform === 'anthropic') {
+  if (props.platform === 'anthropic' || props.platform === 'mistral') {
     return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
   }
   if (props.platform === 'openai') {
@@ -232,7 +232,7 @@ const platformClass = computed(() => {
 })
 
 const typeClass = computed(() => {
-  if (props.platform === 'anthropic') {
+  if (props.platform === 'anthropic' || props.platform === 'mistral') {
     return 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
   }
   if (props.platform === 'openai') {

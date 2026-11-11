@@ -1,7 +1,13 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <UsageStatsCards v-if="activeTab !== 'traffic'" :stats="usageStats" />
+      <UsageStatsCards
+        v-if="activeTab !== 'traffic'"
+        :stats="usageStats"
+        show-rate
+        :rate-window="usageStatsWindow"
+        :notice-user-id="props.observerMode ? undefined : authStore.user?.id"
+      />
       <!-- Charts Section -->
       <div v-if="activeTab !== 'traffic'" class="space-y-4">
         <div class="card p-4">
@@ -129,6 +135,7 @@
         <div v-show="activeTab === 'usage'" class="overflow-hidden rounded-b-2xl">
           <UsageTable
             enable-timing-details
+            :notice-user-id="props.observerMode ? undefined : authStore.user?.id"
             flat
             :data="usageLogs"
             :loading="loading"
@@ -225,13 +232,15 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, provide } from 
 import { observerUsageAPI } from '@/api/observerUsage'
 import { observerUsageContext } from '@/components/admin/usage/observerUsageContext'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { saveAs } from 'file-saver'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
-import { formatReasoningEffort } from '@/utils/format'
+import { formatReasoningEffort, getBrowserTimeZone } from '@/utils/format'
 import { formatUsageCacheRate, showUsageCacheRate } from '@/utils/usageCacheRate'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
+import { resolveUsageStatsWindow, type UsageRateWindow } from '@/utils/usageRate'
 import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
@@ -255,11 +264,12 @@ const props = withDefaults(defineProps<{ observerMode?: boolean }>(), { observer
 provide(observerUsageContext, props.observerMode)
 const { t } = useI18n()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
-const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
+const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageStatsWindow = ref<UsageRateWindow | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
 const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const modelDistributionSource = ref<ModelDistributionSource>('requested')
@@ -473,17 +483,25 @@ const loadLogs = async () => {
 }
 const loadStats = async (force = false) => {
   const seq = ++statsReqSeq
+  // Pin endpoint-specific defaults so the request and RPM/TPM share one range.
+  const rateWindow = resolveUsageStatsWindow(
+    { start: filters.value.start_date, end: filters.value.end_date, now: Date.now() },
+    props.observerMode ? 'observer' : 'admin'
+  )
   endpointStatsLoading.value = true
   try {
     const requestType = filters.value.request_type
     const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
     const s = await (props.observerMode ? observerUsageAPI.getStats : adminAPI.usage.getStats)({
       ...filters.value,
+      start_date: rateWindow.start,
+      end_date: rateWindow.end,
       stream: legacyStream === null ? undefined : legacyStream,
       ...(force ? { nocache: 1 } : {}),
     })
     if (seq !== statsReqSeq) return
     usageStats.value = s
+    usageStatsWindow.value = rateWindow
     inboundEndpointStats.value = s.endpoints || []
     upstreamEndpointStats.value = s.upstream_endpoints || []
     endpointPathStats.value = s.endpoint_paths || []
@@ -752,9 +770,6 @@ const allColumns = computed(() => [
   { key: 'tokens', label: t('usage.tokens'), sortable: false },
   { key: 'cost', label: t('usage.cost'), sortable: false },
   { key: 'latency', label: t('usage.latency'), sortable: false },
-  { key: 'content_reasoning_first_ms', label: t('latencyObservability.reasoning_first_ms'), sortable: false },
-  { key: 'content_visible_text_first_ms', label: t('latencyObservability.visible_text_first_ms'), sortable: false },
-  { key: 'content_response_byte_first_ms', label: t('latencyObservability.response_byte_first_ms'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'request_id', label: t('admin.usage.requestId'), sortable: false },
   { key: 'upstream_request_id', label: t('admin.usage.upstreamRequestId'), sortable: false },
@@ -942,9 +957,17 @@ const toRFC3339 = (value: string | undefined, endExclusive = false): string | un
 const buildAdminErrorLogParams = (includePagination = true): OpsErrorListQueryParams => {
   const params: OpsErrorListQueryParams = {
     view: 'all',
-    // 错误日志按当前精确时间范围清理，结束时间采用排他上界。
-    start_time: toRFC3339(filters.value.start_date),
-    end_time: toRFC3339(filters.value.end_date, true),
+    // 日历日期走无窗口上限的日期合同；精确时间范围保留排他上界。
+    ...(filters.value.start_date?.includes('T') || filters.value.end_date?.includes('T')
+      ? {
+          start_time: toRFC3339(filters.value.start_date),
+          end_time: toRFC3339(filters.value.end_date, true),
+        }
+      : {
+          start_date: filters.value.start_date,
+          end_date: filters.value.end_date,
+          timezone: getBrowserTimeZone(),
+        }),
     user_id: filters.value.user_id ?? undefined,
     api_key_id: filters.value.api_key_id ?? undefined,
     account_id: filters.value.account_id ?? undefined,
@@ -966,12 +989,16 @@ const loadAdminErrors = async () => {
   errLoading.value = true
   try {
     const resp = await (props.observerMode ? observerUsageAPI.listErrors : listErrorLogs)({
-      ...(props.observerMode ? { start_date: filters.value.start_date, end_date: filters.value.end_date, status_code: filters.value.status_code } : {}),
+      ...(props.observerMode ? {
+        start_date: filters.value.start_date,
+        end_date: filters.value.end_date,
+        status_code: filters.value.status_code,
+        start_time: toRFC3339(filters.value.start_date),
+        end_time: toRFC3339(filters.value.end_date, true),
+      } : buildAdminErrorLogParams()),
       page: errPage.value,
       page_size: errPageSize.value,
       view: 'all',
-      start_time: toRFC3339(filters.value.start_date),
-      end_time: toRFC3339(filters.value.end_date, true),
       user_id: filters.value.user_id ?? undefined,
       api_key_id: filters.value.api_key_id ?? undefined,
       account_id: filters.value.account_id ?? undefined,

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"math/rand/v2"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 34 // v34: merged fork recovery epochs and upstream key/group policy snapshots
+const apiKeyAuthSnapshotVersion = 35 // v35: combined recovery epochs, model policy, RPM provenance and long-context permission
 
 // Local-only generation wrapper. Old entries remain bounded by existing TTL
 // and capacity, but cannot authorize after a subscription recovery checkpoint.
@@ -377,6 +378,9 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		GroupID:          apiKey.GroupID,
 		Name:             apiKey.Name,
 		Status:           apiKey.Status,
+		ModelMapping:     maps.Clone(apiKey.ModelMapping),
+		ReasoningEffort:  apiKey.ReasoningEffort,
+		AllowLongContext: apiKey.AllowLongContext,
 		IPWhitelist:      apiKey.IPWhitelist,
 		IPBlacklist:      apiKey.IPBlacklist,
 		Quota:            apiKey.Quota,
@@ -509,6 +513,9 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		Key:              key,
 		Name:             snapshot.Name,
 		Status:           snapshot.Status,
+		ModelMapping:     maps.Clone(snapshot.ModelMapping),
+		ReasoningEffort:  snapshot.ReasoningEffort,
+		AllowLongContext: snapshot.AllowLongContext,
 		IPWhitelist:      snapshot.IPWhitelist,
 		IPBlacklist:      snapshot.IPBlacklist,
 		Quota:            snapshot.Quota,

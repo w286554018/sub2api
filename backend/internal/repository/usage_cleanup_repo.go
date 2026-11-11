@@ -17,6 +17,7 @@ import (
 )
 
 type usageCleanupRepository struct {
+	configuredTimezone
 	client *dbent.Client
 	sql    sqlExecutor
 }
@@ -376,7 +377,7 @@ func (r *usageCleanupRepository) deleteUsageLogsBatchWithRollupInvalidation(ctx 
 	}
 
 	if deleted > 0 {
-		if err := invalidateGroupUsageRollupsAt(ctx, tx, earliestDeletedAt); err != nil {
+		if err := invalidateGroupUsageRollupsAt(ctx, tx, earliestDeletedAt, r.timezoneLocation().String()); err != nil {
 			return rollback(err)
 		}
 	}

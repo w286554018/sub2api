@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 const { channelsList, getModelDefaultPricing, groupsGetAll, settingsGetWebSearchEmulationConfig, syncPricingModels } = vi.hoisted(() => ({
   channelsList: vi.fn(),
@@ -141,6 +142,7 @@ const SelectStub = defineComponent({
 
 describe('ChannelsView 弹框布局', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     channelsList.mockResolvedValue({ items: [], total: 0 })
     getModelDefaultPricing.mockResolvedValue({ found: false })

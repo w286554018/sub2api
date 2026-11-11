@@ -263,6 +263,9 @@ func mapAntigravityModel(account *Account, requestedModel string) string {
 		return ""
 	}
 	requestedModel = strings.TrimPrefix(requestedModel, "models/")
+	if account.hasOAuthInitialModelSelection() && !account.IsModelSupported(requestedModel) {
+		return ""
+	}
 
 	// 获取映射表（未配置时自动使用 DefaultAntigravityModelMapping）
 	mapping := account.GetModelMapping()
@@ -303,7 +306,13 @@ func (s *AntigravityGatewayService) getMappedModel(account *Account, requestedMo
 // 404 "Requested entity was not found." 拒绝，因此所有转发入口都必须经过这一步。
 // thinkingLevel 为空时按 high 兜底；调用方可按自身协议传入推导出的档位。
 func (s *AntigravityGatewayService) getMappedModelForThinkingLevel(account *Account, requestedModel string, thinkingLevel string) string {
+	if account.hasOAuthInitialModelSelection() && !account.IsModelSupported(strings.TrimPrefix(requestedModel, "models/")) {
+		return ""
+	}
 	if mapped, ok := resolveGeminiThinkingVariantForLevel(account, requestedModel, thinkingLevel); ok {
+		if !account.oauthInitialSelectionAllows(mapped) {
+			return ""
+		}
 		return mapped
 	}
 	return mapAntigravityModel(account, requestedModel)
@@ -395,7 +404,11 @@ func (s *AntigravityGatewayService) TestConnectionWithPrompt(ctx context.Context
 	// 构建请求体
 	var requestBody []byte
 	if shouldUseAntigravityGeminiTestRequest(modelID, mappedModel) {
-		requestBody, err = s.buildGeminiTestRequestWithPrompt(projectID, mappedModel, prompt)
+		if strings.TrimSpace(prompt) == "" {
+			requestBody, err = s.buildGeminiTestRequest(projectID, mappedModel)
+		} else {
+			requestBody, err = s.buildGeminiTestRequestWithPrompt(projectID, mappedModel, prompt)
+		}
 	} else {
 		requestBody, err = s.buildClaudeTestRequestWithPrompt(projectID, mappedModel, prompt)
 	}
@@ -472,17 +485,16 @@ func testConnectionHandleError(
 // buildGeminiTestRequest 构建 Gemini 格式测试请求
 // 使用最小 token 消耗：输入 "." + maxOutputTokens: 1
 func (s *AntigravityGatewayService) buildGeminiTestRequest(projectID, model string) ([]byte, error) {
-	return s.buildGeminiTestRequestWithPrompt(projectID, model, "")
+	return s.buildGeminiTestRequestBody(projectID, model, ".", 1)
 }
 
 func (s *AntigravityGatewayService) buildGeminiTestRequestWithPrompt(projectID, model, prompt string) ([]byte, error) {
-	testPrompt := resolveAccountTestPrompt(prompt, ".")
-	maxOutputTokens := 1
-	if strings.TrimSpace(prompt) != "" {
-		maxOutputTokens = 4096
-	}
+	return s.buildGeminiTestRequestBody(projectID, model, antigravityTestPrompt(prompt), antigravityTestMaxOutputTokens)
+}
+
+func (s *AntigravityGatewayService) buildGeminiTestRequestBody(projectID, model, testPrompt string, maxOutputTokens int) ([]byte, error) {
 	if isImageGenerationModel(model) {
-		imagePrompt := strings.TrimSpace(prompt)
+		imagePrompt := strings.TrimSpace(testPrompt)
 		if imagePrompt == "" {
 			imagePrompt = defaultGeminiImageTestPrompt
 		}
@@ -540,18 +552,18 @@ func (s *AntigravityGatewayService) buildGeminiTestRequestWithPrompt(projectID, 
 }
 
 // buildClaudeTestRequest 构建 Claude 格式测试请求并转换为 Gemini 格式
-// 使用最小 token 消耗：输入 "." + MaxTokens: 1
+// Leave room for thinking models to answer the default test prompt.
 func (s *AntigravityGatewayService) buildClaudeTestRequest(projectID, mappedModel string) ([]byte, error) {
 	return s.buildClaudeTestRequestWithPrompt(projectID, mappedModel, "")
 }
 
 func (s *AntigravityGatewayService) buildClaudeTestRequestWithPrompt(projectID, mappedModel, prompt string) ([]byte, error) {
-	testPrompt := resolveAccountTestPrompt(prompt, ".")
+	testPrompt := antigravityTestPrompt(prompt)
 	content, err := json.Marshal(testPrompt)
 	if err != nil {
 		return nil, err
 	}
-	maxTokens := 1
+	maxTokens := antigravityTestMaxOutputTokens
 	if strings.TrimSpace(prompt) != "" {
 		maxTokens = 4096
 	}

@@ -93,11 +93,3 @@ func (s *BalanceNotifyService) submitUsageNotifications(p *postUsageBillingParam
 		}
 	})
 }
-
-// Stop cancels notification work and waits for the bounded workers to exit.
-// Billing persistence belongs to usage tasks and is never dropped here.
-func (s *BalanceNotifyService) Stop() {
-	if s != nil {
-		s.usageNotifications.stop()
-	}
-}

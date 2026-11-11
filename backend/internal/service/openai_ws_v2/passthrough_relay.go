@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -26,6 +27,8 @@ type FrameConn interface {
 }
 
 type Usage struct {
+	ProtectionMediaObserved  bool
+	CacheReadKnown           bool
 	InputTokens              int
 	ImageInputTokens         int
 	OutputTokens             int
@@ -824,7 +827,7 @@ func observeUpstreamMessage(
 		}
 	}
 
-	if state.firstTokenMs == nil && isTokenEvent(eventType) {
+	if state.firstTokenMs == nil && openai.ResponseStartsSemanticOutput(message, eventType) {
 		ms := int(now.Sub(startAt).Milliseconds())
 		if ms >= 0 {
 			state.firstTokenMs = &ms
@@ -842,6 +845,13 @@ func observeUpstreamMessage(
 	} else {
 		// delta 等 token 事件不携带 response.id，归属当前活跃 turn。
 		turnTiming = state.activeTurn
+	}
+
+	if turnTiming != nil && turnTiming.firstTokenMs == nil && openai.ResponseStartsSemanticOutput(message, eventType) {
+		ms := int(now.Sub(turnTiming.startAt).Milliseconds())
+		if ms >= 0 {
+			turnTiming.firstTokenMs = &ms
+		}
 	}
 	if turnTiming != nil && turnTiming.firstUpstreamEventMs == nil {
 		ms := int(now.Sub(turnTiming.startAt).Milliseconds())
@@ -867,13 +877,8 @@ func observeUpstreamMessage(
 			}
 		}
 	}
-	// 每个 turn 独立记录首 token；连接级 firstTokenMs 只反映整条连接的第一个 token。
-	if turnTiming != nil && turnTiming.firstTokenMs == nil && isTokenEvent(eventType) {
-		ms := int(now.Sub(turnTiming.startAt).Milliseconds())
-		if ms >= 0 {
-			turnTiming.firstTokenMs = &ms
-		}
-	}
+	// Both connection and turn timing use semantic output detection above;
+	// empty token events and metadata must not count as a first token.
 	observeRelayTurnResponseModel(turnTiming, firstRelayResponseModel(message), isTerminalEvent(eventType))
 	if !isTerminalEvent(eventType) {
 		return observed
@@ -1187,7 +1192,13 @@ func parseUsageAndAccumulate(
 	eventType string,
 	onParseFailure func(eventType string, usageRaw string),
 ) Usage {
-	if state == nil || len(message) == 0 || !shouldParseUsage(eventType) || !bytes.Contains(message, []byte(`"usage"`)) {
+	if state == nil || len(message) == 0 || !shouldParseUsage(eventType) {
+		return Usage{}
+	}
+	if isTerminalEvent(strings.TrimSpace(eventType)) {
+		state.turnUsage.CacheReadKnown = false
+	}
+	if !bytes.Contains(message, []byte(`"usage"`)) {
 		return Usage{}
 	}
 	usageResult := gjson.GetBytes(message, "response.usage")
@@ -1273,9 +1284,19 @@ func parseUsageAndAccumulate(
 		OutputTokens:             outputTokens,
 		CacheCreationInputTokens: openAICacheCreationTokensFromUsage(usageResult),
 		CacheReadInputTokens:     cachedTokens,
+		CacheReadKnown:           cachedResult.Exists() && cachedResult.Type == gjson.Number && cachedResult.Num >= 0 && cachedResult.Num < float64(int(^uint(0)>>1)) && math.Trunc(cachedResult.Num) == cachedResult.Num && (eventType == "response.completed" || eventType == "response.done"),
 		ImageOutputTokens:        int(imageTokens),
 	}
 
+	parsedUsage.ProtectionMediaObserved = state.turnUsage.ProtectionMediaObserved ||
+		state.turnUsage.ImageInputTokens > 0 || state.turnUsage.ImageOutputTokens > 0 ||
+		parsedUsage.ImageInputTokens > 0 || parsedUsage.ImageOutputTokens > 0
+	if parsedUsage.ProtectionMediaObserved {
+		parsedUsage.CacheReadKnown = false
+	}
+	if status := gjson.GetBytes(message, "response.status").String(); status != "" && status != "completed" {
+		parsedUsage.CacheReadKnown = false
+	}
 	if isTerminalEvent(strings.TrimSpace(eventType)) {
 		if relayUsageHasTokens(parsedUsage) || !relayUsageHasTokens(state.turnUsage) {
 			state.turnUsage = parsedUsage
@@ -1318,6 +1339,7 @@ func mergeRelayUsageNonZero(dst *Usage, src Usage) {
 	if dst == nil {
 		return
 	}
+	dst.ProtectionMediaObserved = dst.ProtectionMediaObserved || src.ProtectionMediaObserved
 	if src.InputTokens > 0 {
 		dst.InputTokens = src.InputTokens
 	}

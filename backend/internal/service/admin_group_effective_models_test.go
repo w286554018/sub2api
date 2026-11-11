@@ -59,7 +59,7 @@ func TestResolveGroupEffectiveModelsFallsBackToPlatformDefaults(t *testing.T) {
 
 	models := resolveGroupEffectiveModels(&Group{Platform: PlatformOpenAI}, accounts)
 
-	require.Contains(t, models, "gpt-5.4")
+	require.ElementsMatch(t, defaultModelsListCandidateIDs(PlatformOpenAI), models)
 }
 
 func TestResolveGroupEffectiveModelsReturnsEmptyWithoutMatchingAccounts(t *testing.T) {

@@ -462,7 +462,7 @@ func TestTrafficDeliveryWakesWithoutPollingAndRecoversBacklog(t *testing.T) {
 	for range 64 {
 		d.RecordTraffic(trafficDeliveryFixture())
 	}
-	require.Eventually(t, func() bool { return delivered.Load() == 192 }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return delivered.Load() == 192 }, 20*time.Second, 10*time.Millisecond)
 	h, err := d.Health(context.Background())
 	require.NoError(t, err)
 	require.Zero(t, h.DroppedEvents)

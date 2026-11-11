@@ -231,6 +231,11 @@ func (s *OpenAICodexUsageSnapshot) Normalize() *NormalizedCodexLimits {
 
 // OpenAIUsage represents OpenAI API response usage
 type OpenAIUsage struct {
+	// CacheReadKnown records an explicit, valid cache read counter from the
+	// upstream. Missing counters must never become zero-cache protection samples.
+	CacheReadKnown bool `json:"-"`
+	// Preserve request modality when a terminal usage omits earlier media details.
+	cacheReadMediaObserved   bool
 	InputTokens              int `json:"input_tokens"`
 	ImageInputTokens         int `json:"image_input_tokens,omitempty"`
 	ImageCacheReadTokens     int `json:"image_cache_read_tokens,omitempty"`
@@ -342,7 +347,8 @@ type OpenAIForwardResult struct {
 	wsAccountFailoverReplayInput []json.RawMessage
 	// Local stream-read timeout is not an observed upstream terminal event.
 	// Keep observed partial usage without reporting a successful generation.
-	streamReadIncomplete bool
+	streamReadIncomplete      bool
+	antiDistillationRequestID string
 }
 
 const maxOpenAIQueueWait = time.Hour
@@ -518,12 +524,15 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
+	agentMessageRecovery    openAIAgentRecoveryState
+	groupAntiDistillation   *GroupAntiDistillationService
 	smartProtocolHistory    openAISmartProtocolHistory
 	requestTimezoneEgress   openAIRequestTimezoneEgress
 	requestTimezoneProber   ProxyExitInfoProber
 	stopAstraSetup          func()
 	codexWSAnchors          codexWSAnchorStore
 	priorityScheduling      prioritySchedulingState
+	priorityAnalysis        priorityAnalysisFlights
 	excelBPSRecoveryMu      sync.Mutex
 	excelBPSRecoveryCancel  context.CancelFunc
 	excelBPSRecoveryDone    chan struct{}
@@ -614,9 +623,6 @@ type OpenAIGatewayService struct {
 	codexSnapshotMu                     sync.Mutex
 	codexSnapshotClosed                 bool
 	openAIModelsCache                   openAIModelsCache
-	excelBPSModelCooldowns              excelBPSModelCooldowns
-	excelBPSCooldownUntil               sync.Map // key: int64(accountID), value: time.Time
-	excelBPSAttachments                 basispoints.AttachmentCache
 	excelBPSModelsCache                 openAIModelsCache
 	openaiCompatSessionResponses        sessionMemoryCache
 	openaiCompatBridgeSessions          sync.Map
@@ -884,6 +890,7 @@ func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
 	s.openaiCompatSessionResponses.Close()
 	s.openaiCompatAnthropicDigestSessions.Close()
 	if s != nil {
+		s.priorityAnalysis.close()
 		s.codexSnapshotMu.Lock()
 		s.codexSnapshotClosed = true
 		throttle := s.codexSnapshotThrottle

@@ -271,7 +271,9 @@
             :class="[
               'flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2.5 text-xs font-medium transition-all sm:gap-2 sm:px-4 sm:text-sm',
               form.platform === spec.id
-                ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-400'
+                ? spec.id === 'mistral'
+                  ? 'bg-white text-orange-600 shadow-sm dark:bg-dark-600 dark:text-orange-400'
+                  : 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             ]"
           >
@@ -1604,7 +1606,7 @@
         <div v-if="modelRestrictionMode === 'whitelist'">
           <ModelWhitelistSelector
             v-model="allowedModels"
-            :model-mappings="modelMappings"
+            v-model:model-mappings="modelMappings"
             platform="fish"
           />
           <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -2101,7 +2103,9 @@
         <div v-if="modelRestrictionMode === 'whitelist'">
           <ModelWhitelistSelector
             v-model="allowedModels"
+            v-model:model-mappings="modelMappings"
             platform="kiro"
+            :kiro-direct="accountCategory !== 'apikey-relay'"
             :sync-credentials="kiroCreateSyncCredentials"
             @update:kiroUpstreamIDs="mergeKiroUpstreamIDs"
           />
@@ -2644,8 +2648,9 @@
             <div v-if="modelRestrictionMode === 'whitelist'">
               <ModelWhitelistSelector
                 v-model="allowedModels"
-                :model-mappings="modelMappings"
+                v-model:model-mappings="modelMappings"
                 :platform="form.platform"
+                :kiro-direct="form.platform === 'kiro' && accountCategory !== 'apikey-relay'"
                 :sync-credentials="syncPreviewCredentials"
                 @upstream-synced="upstreamModelsPreviewed = true"
               />
@@ -3140,7 +3145,7 @@
           <div v-if="modelRestrictionMode === 'whitelist'">
             <ModelWhitelistSelector
               v-model="allowedModels"
-              :model-mappings="modelMappings"
+              v-model:model-mappings="modelMappings"
               platform="anthropic"
               :sync-credentials="syncPreviewCredentials"
               @upstream-synced="upstreamModelsPreviewed = true"
@@ -3483,8 +3488,9 @@
           <div v-if="modelRestrictionMode === 'whitelist'">
             <ModelWhitelistSelector
               v-model="allowedModels"
-              :model-mappings="modelMappings"
+              v-model:model-mappings="modelMappings"
               :platform="form.platform"
+              :kiro-direct="form.platform === 'kiro' && accountCategory !== 'apikey-relay'"
               :available-models="isOpenAIBPSOAuth ? bpsCandidateModels : undefined"
               :sync-credentials="syncPreviewCredentials"
               @upstream-synced="upstreamModelsPreviewed = true"
@@ -4456,6 +4462,38 @@
               :class="[
                 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
                 openAILongContextBillingEnabled ? 'translate-x-5' : 'translate-x-0'
+              ]"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="form.platform === 'openai' && accountCategory === 'apikey'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.ultrafastBilling') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.ultrafastBillingDesc') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="create-openai-ultrafast-billing-toggle"
+            role="switch"
+            :aria-checked="openAIResponseTierBillingEnabled"
+            @click="openAIResponseTierBillingEnabled = !openAIResponseTierBillingEnabled"
+            :class="[
+              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+              openAIResponseTierBillingEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+            ]"
+          >
+            <span
+              :class="[
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                openAIResponseTierBillingEnabled ? 'translate-x-5' : 'translate-x-0'
               ]"
             />
           </button>
@@ -5483,6 +5521,8 @@ const apiKeyValuePlaceholder = computed(() => {
       return 'sk-...'
     case 'typesafe':
       return 'ts-...'
+    case 'mistral':
+      return 'API Key'
     default:
       return isMultiProtocolPlatform.value ? 'sk-...' : 'sk-ant-...'
   }
@@ -5676,6 +5716,8 @@ const cnAccentActiveClass = computed(() => {
       return 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
     case 'opencode_go':
       return 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+    case 'mistral':
+      return 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
     default:
       return 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
   }
@@ -5692,6 +5734,8 @@ const cnAccentIconClass = computed(() => {
       return 'bg-rose-500 text-white'
     case 'opencode_go':
       return 'bg-amber-500 text-white'
+    case 'mistral':
+      return 'bg-orange-500 text-white'
     default:
       return 'bg-primary-500 text-white'
   }
@@ -5912,6 +5956,7 @@ const openaiPassthroughEnabled = ref(false)
 const openaiFlattenNamespacesEnabled = ref(false)
 const openAILongContextBillingEnabled = ref(false)
 const openAILongContextBillingTouched = ref(false)
+const openAIResponseTierBillingEnabled = ref(false)
 const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 // Images 非流式响应缺 b64_json 时由网关下载 url 回填（仅 OpenAI API Key）。
@@ -7261,6 +7306,7 @@ const resetForm = () => {
   openaiFlattenNamespacesEnabled.value = false
   openAILongContextBillingEnabled.value = false
   openAILongContextBillingTouched.value = false
+  openAIResponseTierBillingEnabled.value = false
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
   openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
@@ -7390,6 +7436,11 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     delete extra.openai_responses_flatten_namespaces
   }
   extra.openai_long_context_billing_enabled = openAILongContextBillingEnabled.value
+  if (form.type === 'apikey' && openAIResponseTierBillingEnabled.value) {
+    extra.openai_response_tier_billing_enabled = true
+  } else {
+    delete extra.openai_response_tier_billing_enabled
+  }
 
   if (accountCategory.value === 'oauth-based' && codexCLIOnlyEnabled.value) {
     extra.codex_cli_only = true

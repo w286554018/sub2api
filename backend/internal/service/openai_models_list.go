@@ -195,7 +195,11 @@ func projectAccountModelAliases(body []byte, account *Account, group *Group, cod
 	if group != nil {
 		groupID = &group.ID
 	}
-	if account.IsOpenAIPassthroughEnabled() || len(account.GetModelMapping()) == 0 {
+	field, idField := "data", "id"
+	if codex {
+		field, idField = "models", "slug"
+	}
+	if !account.HasOAuthDegradationModelLimit() && !account.hasOAuthInitialModelSelection() && (account.IsOpenAIPassthroughEnabled() || len(account.GetModelMapping()) == 0) {
 		if len(account.GroupAllowedModels(derefGroupID(groupID))) == 0 {
 			return body, nil
 		}
@@ -204,10 +208,6 @@ func projectAccountModelAliases(body []byte, account *Account, group *Group, cod
 			field, idField = "models", "slug"
 		}
 		return filterModelsBodyForGroup(body, account, groupID, field, idField)
-	}
-	field, idField := "data", "id"
-	if codex {
-		field, idField = "models", "slug"
 	}
 	envelope, entries, err := modelCatalogEntries(body, field)
 	if err != nil {
@@ -264,9 +264,16 @@ func projectAccountModelAliases(body []byte, account *Account, group *Group, cod
 		if !account.IsModelAllowedInGroup(groupID, id) {
 			continue
 		}
+		if (account.HasOAuthDegradationModelLimit() || account.hasOAuthInitialModelSelection()) && !account.IsModelSupported(id) {
+			continue
+		}
 		target, matched := account.ResolveMappedModel(id)
-		raw, available := byID[strings.TrimSpace(target)]
 		allowed := matched || (account.IsOpenAIModelMappingAliases() && account.IsModelSupported(id))
+		if account.HasOAuthDegradationModelLimit() {
+			target = resolveOpenAIAccountUpstreamModelForRequest(account, id, false)
+			allowed = account.IsModelSupported(id)
+		}
+		raw, available := byID[strings.TrimSpace(target)]
 		if !available || !allowed {
 			continue
 		}

@@ -115,9 +115,8 @@ func applyDurableUsageBilling(ctx context.Context, repo DurableUsageBillingRepos
 	if deps.deferredService != nil && p.Account != nil {
 		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 	}
-	if recovered != nil && recovered.Result.Applied && !p.SimpleModeKeyRateLimitOnly {
-		go notifyBalanceLow(p, deps, &recovered.Result)
-		go notifyAccountQuota(p, deps, &recovered.Result)
+	if recovered != nil && recovered.Result.Applied && !p.SimpleModeKeyRateLimitOnly && deps.balanceNotifyService != nil {
+		deps.balanceNotifyService.submitUsageNotifications(p, deps, &recovered.Result)
 	}
 	return recovered != nil && recovered.Result.Applied, nil
 }

@@ -1160,10 +1160,14 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	return s.persistOpenAICodexProbeResponse(account.ID, resp, observed)
+	return s.persistOpenAICodexProbeResponseContext(ctx, account.ID, resp, observed)
 }
 
 func (s *AccountUsageService) persistOpenAICodexProbeResponse(accountID int64, resp *http.Response, observed *openAIQuotaRecoveryObservation) (map[string]any, error) {
+	return s.persistOpenAICodexProbeResponseContext(context.Background(), accountID, resp, observed)
+}
+
+func (s *AccountUsageService) persistOpenAICodexProbeResponseContext(ctx context.Context, accountID int64, resp *http.Response, observed *openAIQuotaRecoveryObservation) (map[string]any, error) {
 	updates, err := extractOpenAICodexProbeUpdates(resp)
 	if err != nil {
 		return nil, err

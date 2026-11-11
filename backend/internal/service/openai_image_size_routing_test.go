@@ -340,7 +340,7 @@ func TestSelectAccountWithSchedulerForImages_SpilloverReplacesClearedStaleBindin
 	}
 }
 
-func TestSelectAccountWithSchedulerForImages_AllPassesQueuedKeepBindingOnReturnedAccount(t *testing.T) {
+func TestSelectAccountWithSchedulerForImages_AllPassesQueuedDoNotBind(t *testing.T) {
 	for _, mode := range openAIImageSizeSchedulerModes {
 		t.Run(mode.name, func(t *testing.T) {
 			groupID := int64(93015)
@@ -367,12 +367,8 @@ func TestSelectAccountWithSchedulerForImages_AllPassesQueuedKeepBindingOnReturne
 			require.NoError(t, err)
 			require.Equal(t, int64(81171), selection.Account.ID)
 			require.NotNil(t, selection.WaitPlan)
-			bound, ok := cache.sessionBindings["openai:"+sessionHash]
-			if mode.loadBatch {
-				require.False(t, ok, "a queued selection does not bind the session")
-			} else {
-				require.Equal(t, int64(81171), bound, "eager sequential binding stays on the returned queued account")
-			}
+			_, ok := cache.sessionBindings["openai:"+sessionHash]
+			require.False(t, ok, "a queued selection does not bind the session before acquiring a slot")
 		})
 	}
 }

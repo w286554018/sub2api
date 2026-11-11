@@ -6,12 +6,14 @@ import (
 )
 
 // A fetched or pinned native manifest is not evidence of the inference route's
-// capabilities. Restrict only models that this group can send through BPS.
+// capabilities. Restrict models this group can send through BPS or a Chat
+// Completions bridge, neither of which reads native encrypted agent payloads.
 // Operate on the caller's copy and update its ETag after all group transforms.
 func restrictExcelBPSCodexModelsManifest(body []byte, accounts []Account, group *Group) ([]byte, bool, error) {
 	hasBPS := false
 	for i := range accounts {
-		hasBPS = hasBPS || accounts[i].IsExcelBPSEnabled()
+		hasBPS = hasBPS || accounts[i].IsExcelBPSEnabled() ||
+			(accounts[i].IsOpenAI() && shouldForwardOpenAIResponsesViaRawChatCompletions(&accounts[i]))
 	}
 	if !hasBPS {
 		return body, false, nil
@@ -75,15 +77,19 @@ func codexGroupModelUsesExcelBPS(model string, accounts []Account, group *Group)
 	if model == "" {
 		return false
 	}
+	var groupID *int64
+	if group != nil {
+		groupID = &group.ID
+	}
 	routed := codexModelRoutingAccountIDs(group, model)
 	for i := range accounts {
 		account := &accounts[i]
 		if len(routed) > 0 && !containsInt64(routed, account.ID) {
 			continue
 		}
-		// Per-account-group model allowlists are not part of this build; group
-		// membership itself is the only gate here.
-		if account.IsModelSupported(model) && account.IsExcelBPSEnabledForModel(model) {
+		incompatible := account.IsExcelBPSEnabledForModel(model) ||
+			(account.IsOpenAI() && shouldForwardOpenAIResponsesViaRawChatCompletions(account))
+		if account.IsModelAllowedInGroup(groupID, model) && account.IsModelSupported(model) && incompatible {
 			return true
 		}
 	}

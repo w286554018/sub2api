@@ -300,7 +300,12 @@ func (s *GatewayService) ForwardAsResponses(
 			s.rateLimitService.HandleStreamTimeout(ctx, account, originalModel)
 		}
 	} else {
+		writerSizeBeforeBody := c.Writer.Size()
 		result, handleErr = s.handleResponsesBufferedStreamingResponse(resp, c, originalModel, mappedModel, reasoningEffort, startTime, clientToolMapping)
+		var sseErr *sseStreamErrorEventError
+		if errors.As(handleErr, &sseErr) {
+			return nil, s.sseStreamErrorEventFailover(ctx, c, account, resp, sseErr.RawData, mappedModel, c.Writer.Size() != writerSizeBeforeBody)
+		}
 	}
 
 	attachClaudeCodeMimicInjection(c, account, result)
@@ -523,6 +528,11 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 			MarkResponseCommitted(c)
 			return nil, err
 		}
+		var streamErr *sseStreamErrorEventError
+		if errors.As(err, &streamErr) {
+			_ = resp.Body.Close()
+			return nil, err
+		}
 		_ = resp.Body.Close()
 		writeResponsesError(c, http.StatusBadGateway, "server_error", err.Error())
 		return &ForwardResult{
@@ -601,6 +611,9 @@ func (s *GatewayService) collectAnthropicResponseFromSSE(
 		if event.Type == "error" && isAnthropicCompatSafetyRejection([]byte(payload)) {
 			message := sanitizeUpstreamErrorMessage(gjson.Get(payload, "error.message").String())
 			return nil, usage, &anthropicSafetyRejectionError{Message: message}
+		}
+		if event.Type == "error" {
+			return nil, usage, &sseStreamErrorEventError{RawData: payload}
 		}
 
 		streamStatus.observe(&event, payload)

@@ -671,7 +671,11 @@ func (s *OpenAIGatewayService) forwardExcelBPS(ctx context.Context, c *gin.Conte
 		}
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 512<<10))
 		observeBPSTestFailure(ctx, resp, model, token, raw, account)
-		if account.AuthConnectionID != "" {
+		// A BPS 5xx is a transient server failure, not a connection credential
+		// failure. Like a legacy BPS account, fail only this request and keep the
+		// managed connection schedulable; cooling it would stop every request on
+		// the account until the cooldown expires.
+		if account.AuthConnectionID != "" && resp.StatusCode < http.StatusInternalServerError {
 			s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, raw, model)
 		}
 		// BPS throttles its own endpoint. A BPS 429 must not write Codex

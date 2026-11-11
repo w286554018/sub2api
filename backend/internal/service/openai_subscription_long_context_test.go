@@ -55,10 +55,12 @@ func TestOpenAIGPT61SolLongContextExempt(t *testing.T) {
 		{name: "上游透传不豁免", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeUpstream}, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}},
 		{name: "BPS OAuth", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeBPSOAuth}, result: &OpenAIForwardResult{Model: "gpt-6.1-sol"}, want: true},
 		{name: "Terra订阅", account: oauth, result: &OpenAIForwardResult{Model: "gpt-6.1-terra"}, want: true},
+		{name: "Terra订阅超过500k", account: oauth, result: &OpenAIForwardResult{Model: "gpt-6.1-terra"}, tokens: UsageTokens{InputTokens: 500_001}, want: true},
 		{name: "Terra别名", account: oauth, result: &OpenAIForwardResult{Model: "openai/GPT_6.1_TERRA-none"}, want: true},
 		{name: "映射到Terra", account: oauth, result: &OpenAIForwardResult{Model: "custom", UpstreamModel: "gpt-6.1-terra"}, want: true},
 		{name: "Terra映射离开", account: oauth, result: &OpenAIForwardResult{Model: "gpt-6.1-terra", UpstreamModel: "gpt-5.6-terra"}},
 		{name: "Terra API账号", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}, result: &OpenAIForwardResult{Model: "gpt-6.1-terra"}},
+		{name: "Terra BPS账号", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeBPSOAuth}, result: &OpenAIForwardResult{Model: "gpt-6.1-terra"}},
 		{name: "Terra订阅访问令牌", account: &Account{Platform: PlatformOpenAI, Type: AccountTypeSetupToken}, result: &OpenAIForwardResult{Model: "gpt-6.1-terra"}, want: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

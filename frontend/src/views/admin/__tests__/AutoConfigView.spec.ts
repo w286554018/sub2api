@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { mount, flushPromises } from '@vue/test-utils'
 import AutoConfigView from '../AutoConfigView.vue'
-import { chooseSelectOption, selectOptionValues } from '@/__tests__/helpers/select'
+import { chooseSelectOption, selectModelValue, selectOptionValues } from '@/__tests__/helpers/select'
+import NewFeatureBadge from '@/components/common/NewFeatureBadge.vue'
+import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
+import { useNewFeatureNoticeStore } from '@/stores/newFeatureNotices'
 import { getAutoConfig, saveAutoConfig, type AutoConfig } from '@/api/admin/autoConfig'
 import { listQualityPlans } from '@/api/admin/accountQuality'
 import { getAll, list as listGroups } from '@/api/admin/groups'
@@ -10,6 +14,7 @@ import type { Group } from '@/types'
 import { defaultModelBillingConfig } from '@/utils/modelBilling'
 import { defaultExcelBPSDefaults } from '@/utils/excelBPSDefaults'
 import { defaultOAuthModelMappings } from '@/utils/oauthModelMappings'
+import { defaultOAuthDegradationConfig } from '@/utils/oauthDegradation'
 import { defaultOpenAITwoFAAdmissionConfig } from '@/utils/openaiTwoFAAdmission'
 vi.mock('@/components/account/ModelWhitelistSelector.vue', () => ({ default: { props: ['modelValue'], template: '<div data-testid="model-selection">{{ modelValue.join(", ") }}</div>' } }))
 const state = vi.hoisted(() => ({ auth: null as any }))
@@ -22,14 +27,269 @@ vi.mock('@/api/client', () => ({ apiClient: { get: vi.fn(), put: vi.fn() } }))
 vi.mock('@/api/admin/autoConfig', async importOriginal => ({ ...await importOriginal<typeof import('@/api/admin/autoConfig')>(), getAutoConfig: vi.fn(), saveAutoConfig: vi.fn() }))
 vi.mock('@/api/admin/accountQuality', () => ({ listQualityPlans: vi.fn() }))
 vi.mock('@/api/admin/groups', () => ({ getAll: vi.fn(), list: vi.fn() }))
-const config: AutoConfig = { openai_two_fa_admission: defaultOpenAITwoFAAdmissionConfig(), model_billing: defaultModelBillingConfig(), model_mappings: defaultOAuthModelMappings('openai'), excel_bps: defaultExcelBPSDefaults(), enabled: false, platform: 'openai', priority: 50, load_factor: 1, concurrency: 3, cost_multiplier: 0.07, group_ids: [], upgrade_enabled: false, upgrade_group_ids: [], successes_per_step: 20, upgrade_step: 1, max_concurrency: 100, cooldown_seconds: 60, revision: '' }
+const config: AutoConfig = { degradation_action: defaultOAuthDegradationConfig(), openai_ws_mode: 'ctx_pool', openai_ws_sse_acceleration: false, openai_totp_rotate_on_429: false, openai_disable_scheduling_on_429: false, openai_two_fa_admission: defaultOpenAITwoFAAdmissionConfig(), model_billing: defaultModelBillingConfig(), model_mappings: defaultOAuthModelMappings('openai'), excel_bps: defaultExcelBPSDefaults(), enabled: false, platform: 'openai', priority: 50, load_factor: 1, concurrency: 3, cost_multiplier: 0.07, group_ids: [], upgrade_enabled: false, upgrade_group_ids: [], successes_per_step: 20, upgrade_step: 1, max_concurrency: 100, cooldown_seconds: 60, revision: '' }
 beforeEach(() => {
+ localStorage.clear(); setActivePinia(createPinia())
  vi.resetAllMocks(); vi.mocked(listQualityPlans).mockResolvedValue([]); state.auth = reactive({ user: { id: 1, role: 'admin' } })
  vi.mocked(listGroups).mockImplementation(async () => ({ items: await getAll(), page: 1, page_size: 100, pages: 1, total: 2 }) as any)
  vi.mocked(getAutoConfig).mockResolvedValue(structuredClone(config)); vi.mocked(saveAutoConfig).mockImplementation(async c => c)
  vi.mocked(getAll).mockResolvedValue([{ id: 5, name: 'OpenAI test', platform: 'openai', status: 'active' }, { id: 6, name: 'Anthropic test', platform: 'anthropic', status: 'active' }] as Group[])
 })
 describe('AutoConfigView', () => {
+ it('preserves degradation actions when saving WS settings and preserves WS settings when saving degradation actions', async () => {
+  const degradation = { ...defaultOAuthDegradationConfig(), enabled: true, threshold_percent: 42, limit_concurrency: false, limit_models: false, limit_groups: true, group_ids: [5] }
+  const initial: AutoConfig = { ...config, openai_ws_mode: 'off', degradation_action: degradation }
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(initial)
+  const w = mount(AutoConfigView); await flushPromises()
+  await chooseSelectOption(w, '[data-testid="initial-ws-mode-select"]', 'http_bridge')
+  await w.get('[data-testid="initial-ws-sse-acceleration-enabled"]').setValue(true)
+  await w.get('form').trigger('submit'); await flushPromises()
+  const wsSaved = JSON.parse(JSON.stringify(vi.mocked(saveAutoConfig).mock.lastCall![0])) as AutoConfig
+  expect(wsSaved).toEqual({ ...initial, openai_ws_mode: 'http_bridge', openai_ws_sse_acceleration: true })
+  w.unmount()
+
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(structuredClone(wsSaved))
+  const actions = mount(AutoConfigView); await flushPromises()
+  expect(actions.get<HTMLInputElement>('[data-testid="degradation-limit-groups"]').element.checked).toBe(true)
+  expect(actions.get<HTMLInputElement>('[data-testid="degradation-group-5"]').element.checked).toBe(true)
+  await actions.get('[data-testid="degradation-limit-concurrency"]').setValue(true)
+  await actions.get('[data-testid="degradation-limit-groups"]').setValue(false)
+  await actions.get('[data-testid="degradation-concurrency"]').setValue('7')
+  await actions.get('[data-testid="degradation-threshold"]').setValue('63.5')
+  await actions.get('form').trigger('submit'); await flushPromises()
+  const actionsSaved = JSON.parse(JSON.stringify(vi.mocked(saveAutoConfig).mock.lastCall![0])) as AutoConfig
+  expect(actionsSaved).toEqual({ ...wsSaved, degradation_action: { ...degradation, limit_concurrency: true, limit_groups: false, target_concurrency: 7, threshold_percent: 63.5 } })
+  actions.unmount()
+
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(structuredClone(actionsSaved))
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(selectModelValue(reloaded, '[data-testid="initial-ws-mode-select"]')).toBe('http_bridge')
+  expect(reloaded.get<HTMLInputElement>('[data-testid="initial-ws-sse-acceleration-enabled"]').element.checked).toBe(true)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="degradation-limit-concurrency"]').element.checked).toBe(true)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="degradation-limit-models"]').element.checked).toBe(false)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="degradation-limit-groups"]').element.checked).toBe(false)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="degradation-concurrency"]').element.value).toBe('7')
+  expect(reloaded.get<HTMLInputElement>('[data-testid="degradation-threshold"]').element.value).toBe('63.5')
+  reloaded.unmount()
+ })
+ it('defaults missing initial WS settings to context pool and unchecked acceleration before explicitly saving them', async () => {
+  const { openai_ws_mode: _mode, openai_ws_sse_acceleration: _acceleration, ...legacy } = config
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(legacy)
+  vi.mocked(saveAutoConfig).mockResolvedValueOnce(legacy)
+  const w = mount(AutoConfigView); await flushPromises()
+  const mode = '[data-testid="initial-ws-mode-select"]', acceleration = '[data-testid="initial-ws-sse-acceleration-enabled"]'
+  expect(selectModelValue(w, mode)).toBe('ctx_pool')
+  expect(w.get<HTMLInputElement>(acceleration).element.checked).toBe(false)
+  expect(selectOptionValues(w, mode)).toEqual(['off', 'ctx_pool', 'passthrough', 'http_bridge'])
+  expect(w.get(mode).element.closest('section')).toBe(w.get('[data-testid="initial-enabled"]').element.closest('section'))
+  expect(w.get(acceleration).element.closest('section')).toBe(w.get('[data-testid="initial-enabled"]').element.closest('section'))
+  expect(saveAutoConfig).not.toHaveBeenCalled()
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenCalledWith(config)
+  expect(selectModelValue(w, mode)).toBe('ctx_pool')
+  expect(w.get<HTMLInputElement>(acceleration).element.checked).toBe(false)
+  w.unmount()
+ })
+ it.each([
+  { mode: 'off', acceleration: false },
+  { mode: 'off', acceleration: true },
+  { mode: 'ctx_pool', acceleration: false },
+  { mode: 'ctx_pool', acceleration: true },
+  { mode: 'passthrough', acceleration: false },
+  { mode: 'passthrough', acceleration: true },
+  { mode: 'http_bridge', acceleration: false },
+  { mode: 'http_bridge', acceleration: true }
+ ] as const)('saves and reloads initial WS mode $mode with acceleration=$acceleration independently of 429 settings', async ({ mode, acceleration }) => {
+  const w = mount(AutoConfigView); await flushPromises()
+  await w.get('[data-testid="initial-enabled"]').setValue(true)
+  await w.get('[data-testid="initial-group-5"]').setValue(true)
+  await chooseSelectOption(w, '[data-testid="initial-ws-mode-select"]', mode)
+  await w.get('[data-testid="initial-ws-sse-acceleration-enabled"]').setValue(acceleration)
+  await w.get('[data-testid="totp-rotate-on-429"]').setValue(true)
+  await w.get('[data-testid="disable-scheduling-on-429"]').setValue(true)
+  await w.get('form').trigger('submit'); await flushPromises()
+  const saved: AutoConfig = { ...config, enabled: true, group_ids: [5], openai_ws_mode: mode, openai_ws_sse_acceleration: acceleration, openai_totp_rotate_on_429: true, openai_disable_scheduling_on_429: true }
+  expect(saveAutoConfig).toHaveBeenCalledWith(saved)
+  expect(selectModelValue(w, '[data-testid="initial-ws-mode-select"]')).toBe(mode)
+  expect(w.get<HTMLInputElement>('[data-testid="initial-ws-sse-acceleration-enabled"]').element.checked).toBe(acceleration)
+  w.unmount()
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(saved)
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(selectModelValue(reloaded, '[data-testid="initial-ws-mode-select"]')).toBe(mode)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="initial-ws-sse-acceleration-enabled"]').element.checked).toBe(acceleration)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="totp-rotate-on-429"]').element.checked).toBe(true)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="disable-scheduling-on-429"]').element.checked).toBe(true)
+  const hint = { off: null, ctx_pool: 'wsModeCtxPoolHint', passthrough: 'wsModePassthroughHint', http_bridge: 'wsModeHttpBridgeHint' }[mode]
+  if (hint) expect(reloaded.get('[data-testid="initial-ws-mode"]').text()).toContain('admin.accounts.openai.' + hint)
+  reloaded.unmount()
+ })
+ it('hides initial WS settings for other platforms and resets them before returning to OpenAI', async () => {
+  vi.mocked(getAutoConfig).mockResolvedValueOnce({ ...config, openai_ws_mode: 'passthrough', openai_ws_sse_acceleration: true })
+  const w = mount(AutoConfigView); await flushPromises()
+  for (const platform of ['anthropic', 'gemini', 'antigravity', 'grok']) {
+   await chooseSelectOption(w, '[data-testid="platform"]', platform)
+   expect(w.find('[data-testid="initial-ws-mode"]').exists()).toBe(false)
+   expect(w.find('[data-testid="initial-ws-sse-acceleration"]').exists()).toBe(false)
+   await w.get('form').trigger('submit'); await flushPromises()
+   expect(saveAutoConfig).toHaveBeenLastCalledWith({ ...config, platform, selected_models: null, quality_rule: null, model_mappings: defaultOAuthModelMappings(platform) })
+  }
+  await chooseSelectOption(w, '[data-testid="platform"]', 'openai')
+  expect(selectModelValue(w, '[data-testid="initial-ws-mode-select"]')).toBe('ctx_pool')
+  expect(w.get<HTMLInputElement>('[data-testid="initial-ws-sse-acceleration-enabled"]').element.checked).toBe(false)
+  w.unmount()
+ })
+ it('shares the initial WS notice between both controls, preserves old dismissals and remembers its dismissal per admin', async () => {
+  const id = NEW_FEATURE_NOTICES.oauthInitialWSSettings, oldId = NEW_FEATURE_NOTICES.oauthInitialDisableScheduling429
+  useNewFeatureNoticeStore().dismiss(1, oldId)
+  const w = mount(AutoConfigView); await flushPromises()
+  const wsNotices = (view: typeof w) => view.findAllComponents(NewFeatureBadge).filter(badge => badge.props('noticeId') === id)
+  expect(wsNotices(w)).toHaveLength(2)
+  expect(wsNotices(w).every(badge => badge.find('[data-testid="new-feature-badge"]').exists())).toBe(true)
+  expect(w.findAllComponents(NewFeatureBadge).find(badge => badge.props('noticeId') === oldId)!.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  await wsNotices(w)[0]!.get('[data-testid="new-feature-badge"]').trigger('click')
+  expect(wsNotices(w).every(badge => !badge.find('[data-testid="new-feature-badge"]').exists())).toBe(true)
+  expect(selectModelValue(w, '[data-testid="initial-ws-mode-select"]')).toBe('ctx_pool')
+  expect(w.get<HTMLInputElement>('[data-testid="initial-ws-sse-acceleration-enabled"]').element.checked).toBe(false)
+  expect(saveAutoConfig).not.toHaveBeenCalled()
+  w.unmount()
+  setActivePinia(createPinia())
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(wsNotices(reloaded).every(badge => !badge.find('[data-testid="new-feature-badge"]').exists())).toBe(true)
+  expect(useNewFeatureNoticeStore().isDismissed(1, oldId)).toBe(true)
+  const future = mount(NewFeatureBadge, { props: { noticeId: 'future-ws-announcement-test', userId: 1 } })
+  expect(future.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  const otherAdmin = mount(NewFeatureBadge, { props: { noticeId: id, userId: 2 } })
+  expect(otherAdmin.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  reloaded.unmount(); future.unmount(); otherAdmin.unmount()
+ })
+ it('keeps the new 429 notice independent of old dismissals and persists its dismissal', async () => {
+  const id = NEW_FEATURE_NOTICES.oauthInitialTOTPRotation429
+  const oldId = NEW_FEATURE_NOTICES.protocolFeatureSwitches
+  useNewFeatureNoticeStore().dismiss(1, oldId)
+  const w = mount(AutoConfigView); await flushPromises()
+  const rotationNotice = (view: typeof w) => view.findAllComponents(NewFeatureBadge).find(badge => badge.props('noticeId') === id)!
+  const other = mount(NewFeatureBadge, { props: { noticeId: id, userId: 1 } })
+  expect(rotationNotice(w).find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  expect(other.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  await rotationNotice(w).get('[data-testid="new-feature-badge"]').trigger('click')
+  expect(rotationNotice(w).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(w.get('[data-testid="initial-model-selection"]').find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  expect(other.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(w.get<HTMLInputElement>('[data-testid="totp-rotate-on-429"]').element.checked).toBe(false)
+  w.unmount(); other.unmount()
+  setActivePinia(createPinia())
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(rotationNotice(reloaded).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(useNewFeatureNoticeStore().isDismissed(1, oldId)).toBe(true)
+  const future = mount(NewFeatureBadge, { props: { noticeId: 'future-announcement-test', userId: 1 } })
+  expect(future.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  reloaded.unmount(); future.unmount()
+ })
+ it('saves the 429 2FA opt-in with initial OAuth configuration and reloads it', async () => {
+  const w = mount(AutoConfigView); await flushPromises()
+  const checkbox = '[data-testid="totp-rotate-on-429"]'
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(false)
+  expect(w.get(checkbox).element.closest('section')).toBe(w.get('[data-testid="initial-enabled"]').element.closest('section'))
+  await w.get('[data-testid="initial-enabled"]').setValue(true)
+  await w.get('[data-testid="initial-group-5"]').setValue(true)
+  await w.get(checkbox).setValue(true)
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenCalledWith({ ...config, enabled: true, group_ids: [5], openai_totp_rotate_on_429: true })
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(true)
+  w.unmount()
+  vi.mocked(getAutoConfig).mockResolvedValueOnce({ ...config, openai_totp_rotate_on_429: true })
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(reloaded.get<HTMLInputElement>(checkbox).element.checked).toBe(true)
+  await chooseSelectOption(reloaded, '[data-testid="platform"]', 'anthropic')
+  expect(reloaded.find(checkbox).exists()).toBe(false)
+  await reloaded.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenLastCalledWith({ ...config, platform: 'anthropic', selected_models: null, quality_rule: null, model_mappings: [] })
+  reloaded.unmount()
+ })
+ it('keeps the 429 2FA option off for legacy settings', async () => {
+  const { openai_totp_rotate_on_429: _rotation, ...legacy } = config
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(legacy)
+  const w = mount(AutoConfigView); await flushPromises()
+  expect(w.get<HTMLInputElement>('[data-testid="totp-rotate-on-429"]').element.checked).toBe(false)
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenCalledWith(config)
+  w.unmount()
+ })
+ it('shows the scheduling notice after the 2FA notice was dismissed and remembers its own dismissal', async () => {
+  const id = NEW_FEATURE_NOTICES.oauthInitialDisableScheduling429
+  const oldId = NEW_FEATURE_NOTICES.oauthInitialTOTPRotation429
+  useNewFeatureNoticeStore().dismiss(1, oldId)
+  const w = mount(AutoConfigView); await flushPromises()
+  const schedulingNotice = (view: typeof w) => view.findAllComponents(NewFeatureBadge).find(badge => badge.props('noticeId') === id)!
+  const rotationNotice = (view: typeof w) => view.findAllComponents(NewFeatureBadge).find(badge => badge.props('noticeId') === oldId)!
+  const other = mount(NewFeatureBadge, { props: { noticeId: id, userId: 1 } })
+  expect(schedulingNotice(w).find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  expect(rotationNotice(w).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  await schedulingNotice(w).get('[data-testid="new-feature-badge"]').trigger('click')
+  expect(schedulingNotice(w).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(other.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(w.get<HTMLInputElement>('[data-testid="disable-scheduling-on-429"]').element.checked).toBe(false)
+  w.unmount(); other.unmount()
+  setActivePinia(createPinia())
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(schedulingNotice(reloaded).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(rotationNotice(reloaded).find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+  expect(reloaded.get('[data-testid="initial-model-selection"]').find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  const future = mount(NewFeatureBadge, { props: { noticeId: 'future-scheduling-announcement-test', userId: 1 } })
+  expect(future.find('[data-testid="new-feature-badge"]').exists()).toBe(true)
+  reloaded.unmount(); future.unmount()
+ })
+ it.each([
+  { disable: true, rotate: false },
+  { disable: false, rotate: true },
+  { disable: true, rotate: true },
+  { disable: false, rotate: false }
+ ])('saves scheduling and 2FA independently (disable=$disable, rotate=$rotate)', async ({ disable, rotate }) => {
+  const w = mount(AutoConfigView); await flushPromises()
+  const checkbox = '[data-testid="disable-scheduling-on-429"]'
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(false)
+  expect(w.get(checkbox).element.closest('section')).toBe(w.get('[data-testid="initial-enabled"]').element.closest('section'))
+  await w.get('[data-testid="initial-enabled"]').setValue(true)
+  await w.get('[data-testid="initial-group-5"]').setValue(true)
+  await w.get(checkbox).setValue(disable)
+  await w.get('[data-testid="totp-rotate-on-429"]').setValue(rotate)
+  await w.get('form').trigger('submit'); await flushPromises()
+  const saved = { ...config, enabled: true, group_ids: [5], openai_disable_scheduling_on_429: disable, openai_totp_rotate_on_429: rotate }
+  expect(saveAutoConfig).toHaveBeenCalledWith(saved)
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(disable)
+  w.unmount()
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(saved)
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(reloaded.get<HTMLInputElement>(checkbox).element.checked).toBe(disable)
+  expect(reloaded.get<HTMLInputElement>('[data-testid="totp-rotate-on-429"]').element.checked).toBe(rotate)
+  reloaded.unmount()
+ })
+ it('resets both OpenAI 429 options when changing platforms', async () => {
+  vi.mocked(getAutoConfig).mockResolvedValueOnce({ ...config, openai_disable_scheduling_on_429: true, openai_totp_rotate_on_429: true })
+  const w = mount(AutoConfigView); await flushPromises()
+  const scheduling = '[data-testid="disable-scheduling-on-429"]', rotation = '[data-testid="totp-rotate-on-429"]'
+  await chooseSelectOption(w, '[data-testid="platform"]', 'anthropic')
+  expect(w.find(scheduling).exists()).toBe(false)
+  expect(w.find(rotation).exists()).toBe(false)
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenLastCalledWith({ ...config, platform: 'anthropic', selected_models: null, quality_rule: null, model_mappings: [] })
+  await chooseSelectOption(w, '[data-testid="platform"]', 'openai')
+  expect(w.get<HTMLInputElement>(scheduling).element.checked).toBe(false)
+  expect(w.get<HTMLInputElement>(rotation).element.checked).toBe(false)
+  w.unmount()
+ })
+ it('keeps automatic scheduling shutdown off when loading or saving legacy settings', async () => {
+  const { openai_disable_scheduling_on_429: _scheduling, ...legacy } = config
+  vi.mocked(getAutoConfig).mockResolvedValueOnce(legacy)
+  vi.mocked(saveAutoConfig).mockResolvedValueOnce(legacy)
+  const w = mount(AutoConfigView); await flushPromises()
+  const checkbox = '[data-testid="disable-scheduling-on-429"]'
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(false)
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(saveAutoConfig).toHaveBeenCalledWith(config)
+  expect(w.get<HTMLInputElement>(checkbox).element.checked).toBe(false)
+  w.unmount()
+ })
  it('starts with the Luna 10x rule disabled and saves model billing independently', async () => {
   const w = mount(AutoConfigView); await flushPromises()
   expect(w.get<HTMLInputElement>('[data-testid="model-billing-enabled"]').element.checked).toBe(false)
@@ -107,7 +367,7 @@ describe('AutoConfigView', () => {
   await w.get('[data-testid="mapping-from-0"]').setValue('claude-*')
   await w.get('[data-testid="mapping-to-0"]').setValue('claude-example')
   await w.get('form').trigger('submit'); await flushPromises()
-  expect(saveAutoConfig).toHaveBeenCalledWith({ ...config, quality_rule: null, platform: 'anthropic', model_mappings: [{ from: 'claude-*', to: 'claude-example' }] })
+  expect(saveAutoConfig).toHaveBeenCalledWith({ ...config, selected_models: null, quality_rule: null, platform: 'anthropic', model_mappings: [{ from: 'claude-*', to: 'claude-example' }] })
   w.unmount()
  })
  it('saves model mappings and billing rules together without resetting either', async () => {
@@ -172,7 +432,7 @@ describe('AutoConfigView', () => {
  it('clears incompatible initial groups when platform changes', async () => {
   const w = mount(AutoConfigView); await flushPromises(); await w.get('[data-testid="initial-group-5"]').setValue(true)
   await chooseSelectOption(w, '[data-testid="platform"]', 'anthropic'); await w.get('form').trigger('submit'); await flushPromises()
-  expect(saveAutoConfig).toHaveBeenCalledWith({ ...config, quality_rule: null, platform: 'anthropic', model_mappings: [] }); w.unmount()
+  expect(saveAutoConfig).toHaveBeenCalledWith({ ...config, selected_models: null, quality_rule: null, platform: 'anthropic', model_mappings: [] }); w.unmount()
  })
  it('does not allow saving before a successful load and supports retry', async () => {
   vi.mocked(getAutoConfig).mockRejectedValueOnce(new Error('offline')); const w = mount(AutoConfigView); await flushPromises()
@@ -311,4 +571,45 @@ it('keeps scopes during a group page failure, retries all pages and preserves ID
  expect(w.get('[data-testid="model-billing-unavailable-0-999"]').text()).toContain('#999')
  expect(listGroups).toHaveBeenLastCalledWith(2,100,expect.objectContaining({status:'active'}))
  w.unmount()
+})
+
+
+describe('initial model selection real page interactions', () => {
+ it('selects platform models, excludes Luna, persists and reloads, and distinguishes none from unset', async () => {
+  const w = mount(AutoConfigView); await flushPromises()
+  expect(w.get<HTMLInputElement>('[data-testid="model-selection-enabled"]').element.checked).toBe(false)
+  await w.get('[data-testid="model-selection-enabled"]').setValue(true)
+  expect(w.get<HTMLInputElement>('[data-model="gpt-6-luna"]').element.checked).toBe(true)
+  await w.get('[data-model="gpt-6-luna"]').setValue(false)
+  await w.get('form').trigger('submit'); await flushPromises()
+  let saved = vi.mocked(saveAutoConfig).mock.calls.at(-1)![0]
+  expect(saved.selected_models).toContain('gpt-6.1-sol')
+  expect(saved.selected_models).not.toContain('gpt-6-luna')
+  expect(saved.model_billing).toEqual(config.model_billing)
+  vi.mocked(getAutoConfig).mockResolvedValue(JSON.parse(JSON.stringify(saved))); w.unmount()
+  const reloaded = mount(AutoConfigView); await flushPromises()
+  expect(reloaded.get<HTMLInputElement>('[data-model="gpt-6-luna"]').element.checked).toBe(false)
+  await reloaded.get('[data-testid="model-selection-none"]').trigger('click')
+  expect(reloaded.get('[data-testid="model-selection-empty"]').text()).toContain('autoConfig.selection.empty')
+  await reloaded.get('form').trigger('submit'); await flushPromises()
+  saved = vi.mocked(saveAutoConfig).mock.calls.at(-1)![0]; expect(saved.selected_models).toEqual([])
+  await reloaded.get('[data-testid="model-selection-enabled"]').setValue(false)
+  await reloaded.get('form').trigger('submit'); await flushPromises()
+  expect(vi.mocked(saveAutoConfig).mock.calls.at(-1)![0].selected_models).toBeNull()
+  reloaded.unmount()
+ })
+ it('clears platform-specific selection and offers the real next-platform catalog', async () => {
+  vi.mocked(getAutoConfig).mockResolvedValue({ ...structuredClone(config), selected_models: ['gpt-6.1-sol'] })
+  const w = mount(AutoConfigView); await flushPromises()
+  await chooseSelectOption(w, '[data-testid="platform"]', 'anthropic')
+  expect(w.get<HTMLInputElement>('[data-testid="model-selection-enabled"]').element.checked).toBe(false)
+  await w.get('[data-testid="model-selection-enabled"]').setValue(true)
+  expect(w.find('[data-model="gpt-6-luna"]').exists()).toBe(false)
+  expect(w.find('[data-model="claude-sonnet-4-6"]').exists()).toBe(true)
+  await w.get('[data-testid="model-selection-custom"]').setValue(' custom-model ')
+  await w.get('[data-testid="model-selection-add"]').trigger('click')
+  await w.get('form').trigger('submit'); await flushPromises()
+  expect(vi.mocked(saveAutoConfig).mock.calls.at(-1)![0].selected_models).toContain('custom-model')
+  w.unmount()
+ })
 })

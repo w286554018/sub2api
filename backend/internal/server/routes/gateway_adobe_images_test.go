@@ -32,7 +32,7 @@ func adobeRoutesRouterWithResolver(t *testing.T, group *service.Group, resolver 
 	gateway := service.NewGatewayService(
 		nil, nil, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := &handler.Handlers{
 		Gateway: handler.NewGatewayHandler(gateway, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, service.NewAdobeImageService(nil), nil, nil, cfg, nil),
@@ -222,7 +222,7 @@ func adobeGeminiV1BetaRouterWithResolver(t *testing.T, group *service.Group, res
 	gateway := service.NewGatewayService(
 		nil, nil, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := handler.NewGatewayHandler(gateway, openAI, nil, nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, service.NewAdobeImageService(nil), nil, nil, cfg, nil)
 	router := gin.New()

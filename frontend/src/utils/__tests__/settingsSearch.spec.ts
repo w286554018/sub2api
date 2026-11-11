@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parse } from 'vue/compiler-sfc'
 import source from '@/views/admin/SettingsView.vue?raw'
+import smartOpsSource from '@/components/settings/SmartOpsSidebarSettings.vue?raw'
 import zh from '@/i18n/locales/zh'
 import en from '@/i18n/locales/en'
 import { buildFeatureSearchEntries, searchFeatures } from '../featureSearch'
@@ -37,6 +38,9 @@ describe('settings feature search', () => {
       if (node.type !== 1) return
       const show = node.props.find(prop => prop.type === 7 && prop.name === 'show')
       if (show?.type === 7 && show.exp?.type === 4) tab = show.exp.content.match(/activeTab === '([^']+)'/)?.[1] ?? tab
+      if (node.tag === 'SmartOpsSidebarSettings') {
+        for (const child of parse(smartOpsSource).descriptor.template!.ast!.children) visit(child, tab)
+      }
       const id = node.props.find(prop => prop.type === 6 && prop.name === 'id')
       if (id?.type === 6 && id.value?.content.startsWith('settings-section-')) {
         expect(anchors.has(id.value.content)).toBe(false)

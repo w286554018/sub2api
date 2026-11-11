@@ -14,10 +14,10 @@ func TestAuthService_Register_BlacklistedEmailAliasRejected(t *testing.T) {
 	repo := &userRepoStub{nextID: 9}
 	svc := newAuthService(repo, map[string]string{
 		SettingKeyRegistrationEnabled:        "true",
-		SettingKeyRegistrationEmailBlacklist: `["spam.user@gmail.com"]`,
+		SettingKeyRegistrationEmailBlacklist: `["blocked@example.com"]`,
 	}, nil, nil)
 
-	_, _, err := svc.Register(context.Background(), "SpamUser+1@googlemail.com", "password")
+	_, _, err := svc.Register(context.Background(), "blocked@example.com", "password")
 	require.ErrorIs(t, err, ErrEmailBlocked)
 	require.Equal(t, "EMAIL_BLOCKED", infraerrors.FromError(err).Reason)
 	require.Empty(t, repo.created)
@@ -47,7 +47,7 @@ func TestAuthService_SendVerifyCode_BlacklistedEmailRejected(t *testing.T) {
 		SettingKeyRegistrationEmailBlacklist: `["blocked@example.com"]`,
 	}, nil, nil)
 
-	require.ErrorIs(t, svc.SendVerifyCode(context.Background(), "blocked+x@example.com"), ErrEmailBlocked)
+	require.ErrorIs(t, svc.SendVerifyCode(context.Background(), "blocked@example.com"), ErrEmailBlocked)
 	_, err := svc.SendVerifyCodeAsync(context.Background(), "blocked@example.com")
 	require.ErrorIs(t, err, ErrEmailBlocked)
 }

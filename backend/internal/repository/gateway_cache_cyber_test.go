@@ -53,7 +53,9 @@ func TestGatewayCacheCyberBlockWritesScopeLengthsAndExactKeysTogether(t *testing
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
 	t.Cleanup(func() { _ = client.Close() })
-	store, ok := NewGatewayCache(client).(service.CyberSessionBlockStore)
+	// Transcript indexing is a legacy storage detail, outside the runtime
+	// interface that admits only exact identities and content fingerprints.
+	store, ok := NewGatewayCache(client).(*gatewayCache)
 	require.True(t, ok)
 
 	ctx := context.Background()

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import PaymentProviderDialog from '@/components/payment/PaymentProviderDialog.vue'
+import { chooseSelectOption, selectModelValue } from '@/__tests__/helpers/select'
 import { STRIPE_SDK_API_VERSION } from '@/components/payment/providerConfig'
 import type { ProviderInstance } from '@/types/payment'
 
@@ -83,10 +84,6 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
         BaseDialog: {
           template: '<div><slot /><slot name="footer" /></div>',
         },
-        Select: {
-          props: ['modelValue', 'options', 'disabled'],
-          template: '<div />',
-        },
         ToggleSwitch: {
           template: '<div />',
         },
@@ -96,6 +93,54 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
 }
 
 describe('PaymentProviderDialog callback URLs', () => {
+  it('defaults to built-in collection and saves without gateway credentials', async () => {
+    const wrapper = mountDialog()
+    ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('bepusdt')
+    await nextTick()
+    expect(selectModelValue(wrapper, '[data-testid="bepusdt-mode"]')).toBe('embedded')
+    expect(wrapper.text()).not.toContain('API Token')
+    await wrapper.findAll('input')[0].setValue('Built-in Crypto')
+    await wrapper.get('#provider-form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as { config: Record<string, string>; supported_types: string[] }
+    expect(payload.config.mode).toBe('embedded')
+    expect(payload.config.currency).toBe('CNY')
+    expect(payload.supported_types).toEqual(['usdt.bep20'])
+    expect(payload.config).not.toHaveProperty('apiToken')
+    expect(payload.config).not.toHaveProperty('apiBase')
+  })
+
+  it('preserves external mode when editing legacy BEpusdt providers', async () => {
+    const provider = providerFactory({ provider_key: 'bepusdt', config: { apiBase: 'https://gateway.example', currency: 'CNY' } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    expect(selectModelValue(wrapper, '[data-testid="bepusdt-mode"]')).toBe('external')
+    expect(wrapper.text()).toContain('API Token')
+  })
+
+  it('saves a BEpusdt instance with selected networks and generated callback URLs', async () => {
+    const wrapper = mountDialog()
+    ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('bepusdt')
+    await nextTick()
+    await chooseSelectOption(wrapper, '[data-testid="bepusdt-mode"]', 'external')
+    expect(wrapper.text()).toContain('USDT (TRC20)')
+    expect(wrapper.text()).toContain('USDT (BEP20)')
+    expect(wrapper.text()).toContain('USDC (Base)')
+    const fields = wrapper.findAll('input')
+    await fields[0].setValue('Crypto')
+    await fields[1].setValue('https://gateway.example')
+    await fields[2].setValue('test-token')
+    await wrapper.findAll('button').find(button => button.text() === 'USDT (TRC20)')!.trigger('click')
+    await wrapper.get('#provider-form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as Record<string, unknown>
+    expect(payload.provider_key).toBe('bepusdt')
+    expect(payload.supported_types).toEqual(['usdt.bep20', 'usdt.trc20'])
+    expect(payload.refund_enabled).toBe(false)
+    expect(payload.config).toMatchObject({ apiBase: 'https://gateway.example', apiToken: 'test-token', currency: 'CNY' })
+    expect((payload.config as Record<string, string>).notifyUrl).toContain('/api/v1/payment/webhook/bepusdt')
+    expect((payload.config as Record<string, string>).returnUrl).toContain('/payment/result')
+  })
+
   it.each([
     ['https://notify.example.com/', 'https://return.example.com///', 'https://notify.example.com', 'https://return.example.com'],
     [' https://notify.example.com/sub/ ', ' https://return.example.com/site/ ', 'https://notify.example.com/sub', 'https://return.example.com/site'],

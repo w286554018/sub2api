@@ -4,6 +4,7 @@ import type { InternalAxiosRequestConfig } from 'axios'
 import { apiClient } from '@/api/client'
 import { createAuthConnection } from '@/api/admin/openaiAuthConnections'
 import OpenAIAuthConnections from '../OpenAIAuthConnections.vue'
+import Select from '@/components/common/Select.vue'
 import { chooseSelectOption } from '@/__tests__/helpers/select'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -38,7 +39,7 @@ describe('independent OpenAI connection management through actual API client', (
   it('offers only Codex BPS SIWC and sends no API key in OAuth creation', async () => {
     const w = mount(OpenAIAuthConnections, { props: { accountId: 42, accountType: 'oauth', active: true } })
     await flushPromises()
-    expect(w.findAll('option').map(o => o.attributes('value'))).toEqual(['codex', 'bps', 'siwc'])
+    expect(w.getComponent(Select).props('options').map(option => option.value)).toEqual(['codex', 'bps', 'siwc'])
     expect(w.find('input[type="password"]').exists()).toBe(false)
     w.unmount()
   })
@@ -83,10 +84,10 @@ describe('independent OpenAI connection management through actual API client', (
     expect(JSON.parse(request.data)).toEqual({ kind: 'codex', label: 'Second Codex' })
     expect(w.text()).toContain('Synthetic identity'); w.unmount()
   })
-  it('uses the shared kind selector and reveals API-key credentials only for that kind', async () => {
-    const w = mount(OpenAIAuthConnections, { props: { accountId: 42, active: true } }); await flushPromises()
-    await chooseSelectOption(w, '[data-testid="connection-kind-select"]', 'api_key')
-    expect(w.find('[data-testid="connection-api-key"]').exists()).toBe(true)
+  it('uses the shared OAuth kind selector and explains SIWC approval', async () => {
+    const w = mount(OpenAIAuthConnections, { props: { accountId: 42, accountType: 'oauth', active: true } }); await flushPromises()
+    await chooseSelectOption(w, '[data-testid="connection-kind-select"]', 'bps')
+    expect(w.find('[data-testid="connection-api-key"]').exists()).toBe(false)
     await chooseSelectOption(w, '[data-testid="connection-kind-select"]', 'siwc')
     expect(w.find('[data-testid="connection-api-key"]').exists()).toBe(false)
     expect(w.text()).toContain('openaiAuth.siwcApproval')

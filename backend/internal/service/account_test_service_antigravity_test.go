@@ -89,7 +89,15 @@ func TestAntigravityBuildGeminiTestRequest_UsesPromptAndRoomToAnswer(t *testing.
 	t.Parallel()
 
 	svc := &AntigravityGatewayService{}
-	for _, tc := range []struct{ prompt, want string }{{"hello there", "hello there"}, {"", "hi"}, {"   ", "hi"}} {
+	for _, tc := range []struct {
+		prompt          string
+		want            string
+		maxOutputTokens int64
+	}{
+		{prompt: "hello there", want: "hello there", maxOutputTokens: 4096},
+		{prompt: "", want: "hi", maxOutputTokens: antigravityTestMaxOutputTokens},
+		{prompt: "   ", want: "hi", maxOutputTokens: antigravityTestMaxOutputTokens},
+	} {
 		raw, err := svc.buildGeminiTestRequestWithPrompt("proj-123", "gemini-4-argon-high", tc.prompt)
 		require.NoError(t, err)
 		var v1Req map[string]any
@@ -98,7 +106,7 @@ func TestAntigravityBuildGeminiTestRequest_UsesPromptAndRoomToAnswer(t *testing.
 		parts := inner["contents"].([]any)[0].(map[string]any)["parts"].([]any)
 		require.Equal(t, tc.want, parts[0].(map[string]any)["text"], "prompt %q", tc.prompt)
 		genCfg := inner["generationConfig"].(map[string]any)
-		require.EqualValues(t, antigravityTestMaxOutputTokens, genCfg["maxOutputTokens"])
+		require.EqualValues(t, tc.maxOutputTokens, genCfg["maxOutputTokens"])
 		require.GreaterOrEqual(t, antigravityTestMaxOutputTokens, 128, "a thinking model needs room to answer")
 	}
 }
@@ -107,12 +115,12 @@ func TestAntigravityBuildClaudeTestRequest_UsesPromptAndRoomToAnswer(t *testing.
 	t.Parallel()
 
 	svc := &AntigravityGatewayService{}
-	raw, err := svc.buildClaudeTestRequest("proj-123", "claude-sonnet-4-6", "hello there")
+	raw, err := svc.buildClaudeTestRequestWithPrompt("proj-123", "claude-sonnet-4-6", "hello there")
 	require.NoError(t, err)
 	require.Contains(t, string(raw), "hello there")
 	require.NotContains(t, string(raw), `"text":"."`)
 
-	raw, err = svc.buildClaudeTestRequest("proj-123", "claude-sonnet-4-6", "")
+	raw, err = svc.buildClaudeTestRequestWithPrompt("proj-123", "claude-sonnet-4-6", "")
 	require.NoError(t, err)
 	require.Contains(t, string(raw), `"hi"`)
 }

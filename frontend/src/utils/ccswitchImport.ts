@@ -1,5 +1,6 @@
 import type { GroupPlatform } from '@/types'
 import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
+import { encodeUtf8Base64 } from '@/utils/codexQuickConfig'
 
 export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-6.1-sol'
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
@@ -118,16 +119,18 @@ export function buildCcSwitchImportDeeplink(input: CcSwitchImportDeeplinkInput):
     const codexConfig = `model_provider = "sub2api"
 model = ${JSON.stringify(config.model)}
 web_search = "live"
+model_reasoning_effort = "high"
+disable_response_storage = true
+service_tier = "fast"
 
 [model_providers.sub2api]
-name = "Sub2API"
+name = ${JSON.stringify(input.providerName)}
 base_url = ${JSON.stringify(config.endpoint)}
 wire_api = "responses"
 ${buildCodexApiKeyAuthConfig(input.apiKey)}
 `
-    const payload = JSON.stringify({ config: codexConfig })
-    const bytes = new TextEncoder().encode(payload)
-    entries.push(['config', btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''))])
+    const payload = JSON.stringify({ auth: { OPENAI_API_KEY: input.apiKey }, config: codexConfig })
+    entries.push(['config', encodeUtf8Base64(payload)])
   }
 
   return `ccswitch://v1/import?${new URLSearchParams(entries).toString()}`

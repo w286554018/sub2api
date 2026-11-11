@@ -196,11 +196,15 @@ const ModelWhitelistSelectorStub = defineComponent({
       type: Array,
       default: () => [],
     },
+    modelMappings: {
+      type: Array,
+      default: () => [],
+    },
     platform: String,
     availableModels: { type: Array, default: undefined },
     syncCredentials: Object,
   },
-  emits: ['update:modelValue', 'upstream-synced'],
+  emits: ['update:modelValue', 'update:modelMappings', 'upstream-synced'],
   template: `<button
     type="button"
     data-testid="model-whitelist-selector"
@@ -239,7 +243,8 @@ async function selectButtonByText(wrapper: ReturnType<typeof mountModal>, text: 
 async function submitApiKeyAccount(
   platform: 'openai' | 'anthropic' | 'kiro',
   enableLongContextBilling = false,
-  disableUpstreamBillingProbe = false
+  disableUpstreamBillingProbe = false,
+  enableResponseTierBilling = false
 ) {
   const wrapper = mountModal()
   const platformLabel = {
@@ -255,6 +260,9 @@ async function submitApiKeyAccount(
   await wrapper.get('form#create-account-form input[type="password"]').setValue('test-api-key')
   if (enableLongContextBilling) {
     await wrapper.get('[data-testid="openai-long-context-billing-toggle"]').trigger('click')
+  }
+  if (enableResponseTierBilling) {
+    await wrapper.get('[data-testid="create-openai-ultrafast-billing-toggle"]').trigger('click')
   }
   if (disableUpstreamBillingProbe) {
     await wrapper.get('[data-testid="upstream-billing-auto-probe"]').trigger('click')
@@ -294,6 +302,25 @@ function expectWSAcceleration(extra: unknown, enabled: boolean) {
 }
 
 describe('CreateAccountModal OpenAI long-context billing', () => {
+  it('leaves upstream response-tier billing disabled by default', async () => {
+    await submitApiKeyAccount('openai')
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]?.extra).not.toHaveProperty(
+      'openai_response_tier_billing_enabled'
+    )
+  })
+
+  it('enables upstream UltraFast billing for every model on a new API-key account', async () => {
+    await submitApiKeyAccount('openai', false, false, true)
+
+    expect(createAccountMock).toHaveBeenCalledWith(expect.objectContaining({
+      platform: 'openai',
+      type: 'apikey',
+      extra: expect.objectContaining({ openai_response_tier_billing_enabled: true })
+    }))
+  })
+
   it('saves extra image models only for OpenAI API-key accounts', async () => {
     const wrapper = mountModal()
     await selectButtonByText(wrapper, 'OpenAI')
@@ -628,7 +655,7 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     wrapper.unmount()
   })
 
-  it('renders all 17 platforms in one grid with Adobe after Grok and Leonardo and Fish last', () => {
+  it('renders all 18 platforms in one grid with Adobe after Grok and Leonardo and Fish last', () => {
     const wrapper = mountModal()
     const platformSelector = wrapper.get('[data-tour="account-form-platform"]')
 
@@ -650,6 +677,7 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       'OpenCode',
       'Command Code',
       'Cline',
+      'Mistral',
       'Kiro',
       'Leonardo',
       'Fish Audio',
@@ -912,6 +940,41 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       'public-glm': 'glm-5.3'
     })
     expect(syncUpstreamModelsMock).toHaveBeenCalledWith(42)
+  })
+
+  it.each(['whitelist', 'mapping'] as const)('keeps reconciled creation models when inspecting %s mode', async (mode) => {
+    const wrapper = mountModal()
+    await selectButtonByText(wrapper, 'OpenAI')
+    await selectButtonByText(wrapper, 'API Key')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Synced account')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('test-api-key')
+    await selectButtonByText(wrapper, 'admin.accounts.modelMapping')
+    await selectButtonByText(wrapper, 'admin.accounts.addMapping')
+    await wrapper.get('input[placeholder="admin.accounts.requestModel"]').setValue('public-model')
+    await wrapper.get('input[placeholder="admin.accounts.actualModel"]').setValue('target')
+    await selectButtonByText(wrapper, 'admin.accounts.modelWhitelist')
+
+    const selector = wrapper.getComponent(ModelWhitelistSelectorStub)
+    expect(selector.props('modelMappings')).toEqual([{ from: 'public-model', to: 'target' }])
+    // Exercise the parent's draft and save contract; discovery is covered by the selector tests.
+    selector.vm.$emit('update:modelValue', ['public-model', 'target'])
+    selector.vm.$emit('update:modelMappings', [])
+    selector.vm.$emit('upstream-synced')
+    await flushPromises()
+
+    if (mode === 'mapping') {
+      await selectButtonByText(wrapper, 'admin.accounts.modelMapping')
+      expect(wrapper.find('input[placeholder="admin.accounts.requestModel"]').exists()).toBe(false)
+      return
+    }
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledOnce()
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials?.model_mapping).toEqual({
+      'public-model': 'public-model',
+      target: 'target'
+    })
   })
 
   it('warns when post-create capability metadata remains incomplete', async () => {
@@ -1191,7 +1254,8 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
       .get('[data-tour="account-form-platform"]')
       .findAll('button')
       .map((button) => button.text().trim())
-    expect(labels.slice(-6)).toEqual(['OpenCode', 'Command Code', 'Cline', 'Kiro', 'Leonardo', 'Fish Audio'])
+    expect(labels).toContain('Adobe')
+    expect(labels.slice(-7)).toEqual(['OpenCode', 'Command Code', 'Cline', 'Mistral', 'Kiro', 'Leonardo', 'Fish Audio'])
     expect(labels.slice(6, 11)).toEqual(['TypeSafe / Jev', 'Kimi', 'Zhipu GLM', 'DeepSeek', 'MiniMax'])
   })
 
@@ -1217,6 +1281,36 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     expect(payload?.credentials).not.toHaveProperty('protocol_rules')
     expect(payload?.credentials?.api_base_urls).not.toHaveProperty('responses')
     expect(payload?.credentials?.api_base_urls).not.toHaveProperty('anthropic')
+  })
+
+  it('creates Mistral through the catalog with API key and only its native Chat endpoint', async () => {
+    const wrapper = mountModal()
+    await wrapper.get('[data-testid="platform-button-mistral"]').trigger('click')
+    expect(wrapper.get('[data-testid="platform-button-mistral"]').classes()).toContain('text-orange-600')
+    expect(wrapper.find('button.border-orange-500').exists()).toBe(true)
+    expect(wrapper.find('button.border-orange-500 .bg-orange-500').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="generic-account-mode"]').exists()).toBe(false)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('Mistral')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('fixture-mistral-key')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock).toHaveBeenCalledTimes(1)
+    expect(createAccountMock.mock.calls[0]?.[0]).toMatchObject({
+      platform: 'mistral',
+      type: 'apikey',
+      credentials: {
+        api_key: 'fixture-mistral-key',
+        account_mode: 'payg',
+        api_protocol: 'adaptive',
+        base_url: 'https://api.mistral.ai/v1',
+        api_base_urls: { chat_completions: 'https://api.mistral.ai/v1' },
+      },
+    })
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials.api_base_urls).toEqual({
+      chat_completions: 'https://api.mistral.ai/v1',
+    })
+    expect(createAccountMock.mock.calls[0]?.[0]?.credentials.model_mapping).toHaveProperty('zai-glm-5-3', 'zai-glm-5-3')
   })
 
   it('submits adaptive Kimi protocol endpoints', async () => {

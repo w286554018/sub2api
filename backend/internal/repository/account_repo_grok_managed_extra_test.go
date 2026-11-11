@@ -16,6 +16,7 @@ import (
 
 func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 	freshModels := []byte(`{"fetched_at":"2026-10-25T12:00:00Z","models":["fresh-model"]}`)
+	freshSync := []byte(`{"status":"fresh-locked-sync"}`)
 	freshMetadata := []byte(`{"models":{"fresh-model":{"id":"fresh-model"}}}`)
 	failedModels := []byte(`{"fetched_at":"2026-10-25T12:00:00Z","last_attempt":{"error_code":"transport","finished_at":"2026-10-25T13:00:01Z","started_at":"2026-10-25T13:00:00Z","status":"failed"},"models":["fresh-model"]}`)
 
@@ -26,15 +27,20 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 		inputExtra       map[string]any
 		databaseModels   []byte
 		databaseMetadata []byte
+		databaseSync     []byte
 		wantModels       map[string]any
 		wantMetadata     map[string]any
+		wantSync         map[string]any
 	}{
 		{
 			name:        "old client snapshot and metadata lose to the locked row",
+			databaseSync: freshSync,
+			wantSync: map[string]any{"status": "fresh-locked-sync"},
 			accountType: service.AccountTypeOAuth,
 			credentials: map[string]any{"access_token": "token-keep"},
 			inputExtra: map[string]any{
 				"note": "from-form",
+				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"old-model"}, "fetched_at": "2026-10-24T12:00:00Z",
 				},
@@ -73,6 +79,7 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 			credentials: map[string]any{"access_token": "token-keep"},
 			inputExtra: map[string]any{
 				"note": "from-form",
+				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"injected"}, "fetched_at": "2026-10-25T12:00:00Z",
 				},
@@ -85,6 +92,7 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 			credentials: map[string]any{"api_key": "sk-keep"},
 			inputExtra: map[string]any{
 				"note": "from-form",
+				service.UpstreamModelSyncExtraKey: map[string]any{"status": "stale-or-injected"},
 				"grok_observed_models": map[string]any{
 					"models": []any{"old-model"}, "fetched_at": "2026-10-24T12:00:00Z",
 				},
@@ -140,6 +148,9 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 			if len(tt.databaseMetadata) > 0 {
 				locked[service.UpstreamModelMetadataExtraKey] = tt.databaseMetadata
 			}
+			if len(tt.databaseSync) > 0 {
+				locked[service.UpstreamModelSyncExtraKey] = tt.databaseSync
+			}
 			lockedJSON, err := json.Marshal(locked)
 			require.NoError(t, err)
 			credentials, err := json.Marshal(normalizeJSONMap(tt.credentials))
@@ -151,8 +162,8 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 					"enabled", "rate_sync_enabled", "snapshot",
 					"ollama_session", "ollama_auto", "ollama_snapshot",
 					"opencode_group_unchanged", "opencode_auto", "opencode_snapshot",
-					"grok_observed_models", "upstream_model_metadata", "current_extra",
-				}).AddRow(false, false, true, nil, nil, nil, nil, nil, nil, false, nil, nil, tt.databaseModels, tt.databaseMetadata, lockedJSON))
+					"grok_observed_models", "upstream_model_metadata", "current_extra", "concurrency",
+				}).AddRow(false, false, true, nil, nil, nil, nil, nil, nil, false, nil, nil, tt.databaseModels, tt.databaseMetadata, lockedJSON, 3))
 
 			account := &service.Account{
 				ID:          41,
@@ -173,6 +184,11 @@ func TestLockAndMergeAccountProbeExtraKeepsLatestGrokManagedKeys(t *testing.T) {
 				require.NotContains(t, got, service.UpstreamModelMetadataExtraKey)
 			} else {
 				require.Equal(t, tt.wantMetadata, got[service.UpstreamModelMetadataExtraKey])
+			}
+			if tt.wantSync == nil {
+				require.NotContains(t, got, service.UpstreamModelSyncExtraKey)
+			} else {
+				require.Equal(t, tt.wantSync, got[service.UpstreamModelSyncExtraKey])
 			}
 			require.NoError(t, mock.ExpectationsWereMet())
 		})

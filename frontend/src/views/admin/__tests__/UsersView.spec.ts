@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 import type { AdminUser } from '@/types'
 import UsersView from '../UsersView.vue'
@@ -26,6 +27,7 @@ const {
   listEnabledDefinitions: vi.fn(),
   getBatchUserAttributes: vi.fn(),
   authState: {
+    isAdmin: true,
     isSuperAdmin: false,
     user: { id: 100, role: 'admin' }
   }
@@ -119,6 +121,7 @@ const DataTableStub = {
         <slot name="cell-role" :value="row.role" :row="row" />
         <slot name="cell-last_used_at" :value="row.last_used_at" :row="row" />
         <div :data-test="'actions-' + row.id"><slot name="cell-actions" :row="row" /></div>
+        <div :data-test="'balance-' + row.id"><slot name="cell-balance" :row="row" :value="row.balance" /></div>
       </div>
     </div>
   `
@@ -159,6 +162,8 @@ const defaultUsersViewStubs = {
   UserPlatformQuotaModal: true,
   UserApiKeysModal: true,
   UserAllowedGroupsModal: true,
+  UserAutoCreditModal: { props: ['show', 'user'], template: '<div v-if="show" data-test="credit-dialog">{{ user.id }}</div>' },
+  NewFeatureBadge: { props: ['noticeId'], template: '<span :data-notice="noticeId" />' },
   UserBalanceModal: true,
   UserBalanceHistoryModal: true,
   GroupReplaceModal: true,
@@ -199,6 +204,7 @@ const getToggleStatusButton = (wrapper: ReturnType<typeof mountBulkDeleteView>, 
 
 describe('admin UsersView', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.useRealTimers()
     localStorage.clear()
 
@@ -558,4 +564,17 @@ describe('admin UsersView', () => {
     expect(wrapper.find('.action-menu-trigger').exists()).toBe(true)
     expect(wrapper.text()).toContain('common.edit')
   })
+  it('opens the same credit dialog from actions and visible outstanding debt with a shared notice', async () => {
+    listUsers.mockResolvedValue({ items: [createAdminUser({ auto_credit_outstanding: '5.00000001' })], total: 1, page: 1, page_size: 20, pages: 1 })
+    const wrapper = mountBulkDeleteView(); await flushPromises()
+    const action = wrapper.get('[data-test="actions-42"]').findAll('button').find(b => b.text() === 'autoCredit.title')
+    expect(action).toBeTruthy(); await action!.trigger('click')
+    expect(wrapper.get('[data-test="credit-dialog"]').text()).toBe('42')
+    const debt = wrapper.get('[data-test="balance-42"]').findAll('button').find(b => b.text() === 'autoCredit.debt')
+    expect(debt).toBeTruthy(); await debt!.trigger('click')
+    expect(wrapper.get('[data-test="credit-dialog"]').text()).toBe('42')
+    expect(wrapper.findAll('[data-notice="vip-auto-credit-initial-announcement"]')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
 })

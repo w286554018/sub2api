@@ -284,6 +284,9 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 		logClaudeMimicDebug(req, body, account, tokenType, mimicClaudeCode)
 	}
 
+	if err := checkAPIKeyLongContextBeforeForward(ctx, c, s.billingService, body, modelID); err != nil {
+		return nil, nil, err
+	}
 	return req, body, nil
 }
 
@@ -419,6 +422,9 @@ func (s *GatewayService) buildUpstreamRequestAnthropicVertex(
 		"stream":     strconv.FormatBool(reqStream),
 	})
 
+	if err := checkAPIKeyLongContextBeforeForward(ctx, c, s.billingService, vertexBody, modelID); err != nil {
+		return nil, err
+	}
 	return req, nil
 }
 

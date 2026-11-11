@@ -1307,6 +1307,9 @@ func (s *GatewayService) streamKiroWithSearchInjection(
 	}
 
 	if err := scanner.Err(); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return fmt.Errorf("scan upstream: %w", err)
 	}
 

@@ -457,6 +457,10 @@
                 {{ t('admin.users.deposit') }}
               </button>
             </div>
+            <div v-if="creditAuth.isAdmin && row.auto_credit_outstanding && !/^0(?:\.0+)?$/.test(row.auto_credit_outstanding)" class="mt-1 flex items-center gap-1">
+              <button type="button" class="text-left text-xs font-semibold text-amber-700 dark:text-amber-300" @click="autoCreditUser = row">{{ t('autoCredit.debt', { amount: row.auto_credit_outstanding }) }}</button>
+              <NewFeatureBadge :notice-id="NEW_FEATURE_NOTICES.vipAutoCredit" :user-id="creditAuth.user?.id" compact />
+            </div>
           </template>
 
           <template #cell-balance_platform_quota="{ row }">
@@ -622,6 +626,10 @@
 
           <template #cell-actions="{ row }">
             <div class="flex items-center gap-1">
+              <div v-if="creditAuth.isAdmin" class="flex items-center gap-1">
+                <button type="button" class="rounded-lg p-1.5 text-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300" @click="autoCreditUser = row">{{ t('autoCredit.title') }}</button>
+                <NewFeatureBadge :notice-id="NEW_FEATURE_NOTICES.vipAutoCredit" :user-id="creditAuth.user?.id" compact />
+              </div>
               <!-- Edit Button -->
               <button
                 v-if="canManageUser(row)"
@@ -796,6 +804,7 @@
     />
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
+    <UserAutoCreditModal :show="!!autoCreditUser" :user="autoCreditUser" @close="autoCreditUser = null" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
@@ -841,6 +850,9 @@ import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaMod
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
+import UserAutoCreditModal from '@/components/admin/user/UserAutoCreditModal.vue'
+import NewFeatureBadge from '@/components/common/NewFeatureBadge.vue'
+import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
@@ -856,6 +868,8 @@ const roleBadgeClass = (role: AdminUser['role']): string => {
   if (role === 'admin') return 'badge-purple'
   return 'badge-gray'
 }
+const creditAuth = useAuthStore()
+const autoCreditUser = ref<AdminUser | null>(null)
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>

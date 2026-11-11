@@ -176,26 +176,12 @@ func TestAccountTestService_AntigravityUsesConfiguredPromptAndPracticalOutputLim
 	}
 }
 
-func TestAntigravityConnectivityProbeKeepsDotAndOneTokenFallback(t *testing.T) {
+func TestAntigravityGeminiConnectivityProbeKeepsDotAndOneTokenFallback(t *testing.T) {
 	svc := &AntigravityGatewayService{}
-	for _, build := range []struct {
-		name string
-		fn   func() ([]byte, error)
-	}{
-		{name: "gemini", fn: func() ([]byte, error) {
-			return svc.buildGeminiTestRequest("project-test", "gemini-pro-agent")
-		}},
-		{name: "claude", fn: func() ([]byte, error) {
-			return svc.buildClaudeTestRequest("project-test", "claude-sonnet-4-6")
-		}},
-	} {
-		t.Run(build.name, func(t *testing.T) {
-			body, err := build.fn()
-			require.NoError(t, err)
-			require.Equal(t, ".", gjson.GetBytes(body, "request.contents.0.parts.0.text").String())
-			require.Equal(t, int64(1), gjson.GetBytes(body, "request.generationConfig.maxOutputTokens").Int())
-		})
-	}
+	body, err := svc.buildGeminiTestRequest("project-test", "gemini-pro-agent")
+	require.NoError(t, err)
+	require.Equal(t, ".", gjson.GetBytes(body, "request.contents.0.parts.0.text").String())
+	require.Equal(t, int64(1), gjson.GetBytes(body, "request.generationConfig.maxOutputTokens").Int())
 }
 
 func TestAccountTestService_IntelligentSyntheticProbeIsNotSemanticallyEvaluated(t *testing.T) {

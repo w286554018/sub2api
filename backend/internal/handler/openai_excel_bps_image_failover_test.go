@@ -57,6 +57,7 @@ func newExcelBPSImageFailoverContext() (*gin.Context, *httptest.ResponseRecorder
 	c.Request = req
 	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
 		ID: 99, GroupID: &groupID, Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI}, User: &service.User{ID: 100},
+		AllowLongContext: true,
 	})
 	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 100})
 	return c, rec

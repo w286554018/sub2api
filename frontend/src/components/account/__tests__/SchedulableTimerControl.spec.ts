@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { chooseSelectOption, selectModelValue } from '@/__tests__/helpers/select'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import SchedulableTimerControl from '../SchedulableTimerControl.vue'
-import { chooseSelectOption, selectModelValue } from '@/__tests__/helpers/select'
 
 const { api, toast } = vi.hoisted(() => ({
-  api: { list: vi.fn(), preview: vi.fn(), save: vi.fn(), cancel: vi.fn() },
+  api: { list: vi.fn(), preview: vi.fn(), save: vi.fn(), saveDailyWindow: vi.fn(), cancel: vi.fn() },
   toast: { showSuccess: vi.fn(), showError: vi.fn() }
 }))
 vi.mock('@/api/admin/schedulableTimers', () => ({ schedulableTimersAPI: api }))
@@ -13,6 +13,17 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const task = { account_id: 7, action: 'open', version: 3, execute_at: '2026-10-23T00:00:00Z', timezone: 'Asia/Shanghai', requested_by: 9, status: 'pending', attempts: 0, actual_at: null, reason: '' }
 const snapshot = () => ({ tasks: [], history: [], server_now: '2026-10-22T00:00:00Z', poll_seconds: 30, open_grace_seconds: 900, max_delay_minutes: 527040 })
 let wrapper: VueWrapper
+const dialogStub = { props: ['show', 'title'], template: '<section v-if="show" role="dialog" :aria-label="title"><slot /></section>' }
+function render(props: { accountId: number; refreshKey?: number; schedulable?: boolean; switching?: boolean; canManageTimers?: boolean } = { accountId: 7 }) {
+  wrapper = mount(SchedulableTimerControl, { props, global: { stubs: { BaseDialog: dialogStub } } })
+  return wrapper
+}
+async function openOnce(action = 'open') {
+  await wrapper.get('[data-test="timer-manage"]').trigger('click')
+  await flushPromises()
+  await chooseSelectOption(wrapper, '[data-test="timer-plan-type"]', 'once')
+  await chooseSelectOption(wrapper, '[data-test="timer-action"]', action)
+}
 beforeEach(() => {
   vi.clearAllMocks()
   api.list.mockResolvedValue(snapshot())
@@ -21,26 +32,28 @@ beforeEach(() => {
   api.cancel.mockResolvedValue(undefined)
 })
 afterEach(() => wrapper?.unmount())
-describe('one-shot schedulable timer', () => {
-  it('expands compact controls and saves 8h using server relative input', async () => {
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7 } })
+describe('unified scheduling tasks with one-shot compatibility', () => {
+  it('has one entry instead of the old on/off timer buttons and saves an 8h one-shot', async () => {
+    render()
     await flushPromises()
+    expect(wrapper.find('[data-test="timer-open"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="timer-close"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="timer-form"]').exists()).toBe(false)
-    await wrapper.get('[data-test="timer-open"]').trigger('click')
-    await flushPromises()
+    await openOnce()
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toContain('timer.manage')
     expect(wrapper.get('[data-test="timer-zone"]').element).toHaveProperty('value', 'Asia/Shanghai')
     await wrapper.get('[data-test="timer-preview"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-test="timer-save"]').trigger('click')
     await flushPromises()
     expect(api.save).toHaveBeenCalledWith(7, expect.objectContaining({ mode: 'relative', hours: 8, minutes: 0, action: 'open', expected_version: 0 }))
+    expect(api.saveDailyWindow).not.toHaveBeenCalled()
     expect(toast.showSuccess).toHaveBeenCalled()
   })
-  it('requires confirmation of the concrete local date, UTC offset and zone for HH:mm only', async () => {
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7 } })
+  it('requires confirmation of the concrete local date, UTC offset and zone for a one-shot time', async () => {
+    render()
     await flushPromises()
-    await wrapper.get('[data-test="timer-close"]').trigger('click')
-    await flushPromises()
+    await openOnce('close')
     await chooseSelectOption(wrapper, '[data-test="timer-mode"]', 'absolute')
     await wrapper.get('[data-test="timer-preview"]').trigger('click')
     await flushPromises()
@@ -53,29 +66,33 @@ describe('one-shot schedulable timer', () => {
     await flushPromises()
     expect(api.save).toHaveBeenCalledWith(7, expect.objectContaining({ action: 'close', date: '2026-10-23', confirmed_at: task.execute_at, hours: 0 }))
   })
-  it('reloads saved tasks, edits by version and cancels the chosen action', async () => {
+  it('reloads saved one-shot tasks, edits by version and cancels the chosen action', async () => {
     api.list.mockResolvedValue({ ...snapshot(), tasks: [task] })
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7 } })
+    render()
+    await flushPromises()
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('2026-10-23')
-    await wrapper.get('[data-test="timer-open"]').trigger('click')
-    await flushPromises()
+    expect(selectModelValue(wrapper, '[data-test="timer-plan-type"]')).toBe('once')
     expect(selectModelValue(wrapper, '[data-test="timer-mode"]')).toBe('absolute')
+    await wrapper.get('[data-test="timer-edit-open"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-test="timer-preview"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-test="timer-confirm"]').setValue(true)
     await wrapper.get('[data-test="timer-save"]').trigger('click')
     await flushPromises()
     expect(api.save).toHaveBeenCalledWith(7, expect.objectContaining({ expected_version: 3 }))
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-test="timer-cancel-open"]').trigger('click')
     await flushPromises()
     expect(api.cancel).toHaveBeenCalledWith(7, 'open', 3)
   })
   it('shows translated validation errors and clears obsolete previews after editing', async () => {
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7 } })
+    render()
     await flushPromises()
-    await wrapper.get('[data-test="timer-open"]').trigger('click')
-    await flushPromises()
+    await openOnce()
     await wrapper.get('[data-test="timer-preview"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-test="timer-zone"]').setValue('Invalid/Zone')
@@ -83,28 +100,103 @@ describe('one-shot schedulable timer', () => {
     api.preview.mockRejectedValue({ response: { data: { reason: 'TIMER_timezone' } } })
     await wrapper.get('[data-test="timer-preview"]').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('timer.errors.timezone')
+    expect(wrapper.get('[role="alert"]').text()).toContain('timer.errors.timezone')
   })
-  it('refreshes after manual changes and keeps an accessible narrow-screen form', async () => {
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7, refreshKey: 0 } })
+  it('keeps the optional immediate action and its loading guard in the task dialog', async () => {
+    render({ accountId: 7, schedulable: true })
+    await flushPromises()
+    expect(wrapper.find('[data-test="timer-immediate"]').exists()).toBe(false)
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('timer.manualOverrideHint')
+    await wrapper.get('[data-test="timer-immediate"]').trigger('click')
+    expect(wrapper.emitted('toggle')).toHaveLength(1)
+    await wrapper.setProps({ switching: true })
+    expect(wrapper.get('[data-test="timer-immediate"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-test="timer-immediate"]').trigger('click')
+    expect(wrapper.emitted('toggle')).toHaveLength(1)
+  })
+  it('preserves an authorized observer immediate switch without calling administrator timer APIs', async () => {
+    render({ accountId: 7, schedulable: false, canManageTimers: false })
+    await flushPromises()
+    expect(api.list).not.toHaveBeenCalled()
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="timer-plan-type"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="new-feature-badge"]').exists()).toBe(false)
+    await wrapper.get('[data-test="timer-immediate"]').trigger('click')
+    expect(wrapper.emitted('toggle')).toHaveLength(1)
+    expect(api.preview).not.toHaveBeenCalled()
+    expect(api.saveDailyWindow).not.toHaveBeenCalled()
+  })
+  it('keeps the immediate switch available when the timer service fails to load', async () => {
+    api.list.mockRejectedValue(new Error('timer service unavailable'))
+    render({ accountId: 7, schedulable: true })
+    await flushPromises()
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-test="timer-reload"]').exists()).toBe(true)
+    await wrapper.get('[data-test="timer-immediate"]').trigger('click')
+    expect(wrapper.emitted('toggle')).toHaveLength(1)
+  })
+  it('refreshes after manual changes and keeps an accessible narrow-screen dialog', async () => {
+    render({ accountId: 7, refreshKey: 0 })
     await flushPromises()
     await wrapper.setProps({ refreshKey: 1 })
     await flushPromises()
     expect(api.list).toHaveBeenCalledTimes(2)
-    await wrapper.get('[data-test="timer-open"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('[data-test="timer-open"]').attributes('aria-expanded')).toBe('true')
+    await openOnce()
+    expect(wrapper.get('[data-test="timer-manage"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('[data-test="timer-form"]').classes()).toContain('max-w-full')
     expect(wrapper.get('[data-test="timer-zone"]').attributes('aria-label')).toBeTruthy()
   })
-  it('requests account reconciliation after a persisted execution changes the switch', async () => {
+  it('requests account reconciliation after a persisted one-shot execution changes the switch', async () => {
     api.list.mockResolvedValueOnce({ ...snapshot(), tasks: [task] })
-    wrapper = mount(SchedulableTimerControl, { props: { accountId: 7 } })
+    render({ accountId: 7, refreshKey: 0 })
     await flushPromises()
     api.list.mockResolvedValue({ ...snapshot(), tasks: [{ ...task, status: 'executed', actual_at: task.execute_at }] })
     await wrapper.setProps({ refreshKey: 1 })
     await flushPromises()
     expect(wrapper.emitted('executed')).toHaveLength(1)
   })
-
+  it('previews both daily times and saves the window with both current versions', async () => {
+    api.list.mockResolvedValue({
+      ...snapshot(),
+      tasks: [
+        { ...task, recurrence: 'daily', daily_time: '08:00', version: 3 },
+        { ...task, action: 'close', recurrence: 'daily', daily_time: '01:00', version: 5 }
+      ]
+    })
+    api.saveDailyWindow.mockResolvedValue(snapshot())
+    render()
+    await flushPromises()
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
+    expect(selectModelValue(wrapper, '[data-test="timer-plan-type"]')).toBe('daily')
+    await wrapper.get('[data-test="timer-preview"]').trigger('click')
+    await flushPromises()
+    expect(api.preview).toHaveBeenCalledWith(7, { mode: 'daily', time: '08:00', timezone: 'Asia/Shanghai' })
+    expect(api.preview).toHaveBeenCalledWith(7, { mode: 'daily', time: '01:00', timezone: 'Asia/Shanghai' })
+    await wrapper.get('[data-test="timer-save"]').trigger('click')
+    await flushPromises()
+    expect(api.saveDailyWindow).toHaveBeenCalledWith(7, {
+      open_time: '08:00', close_time: '01:00', timezone: 'Asia/Shanghai',
+      expected_open_version: 3, expected_close_version: 5
+    })
+    expect(api.save).not.toHaveBeenCalled()
+  })
+  it('rejects a zero-length daily window before requesting a preview', async () => {
+    render()
+    await flushPromises()
+    await wrapper.get('[data-test="timer-manage"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="timer-close-time"]').setValue('08:00')
+    await wrapper.get('[data-test="timer-preview"]').trigger('click')
+    await flushPromises()
+    expect(api.preview).not.toHaveBeenCalled()
+    expect(api.saveDailyWindow).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('timer.errors.conflict')
+  })
 })

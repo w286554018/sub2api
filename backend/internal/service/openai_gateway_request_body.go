@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"net/http"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/MoeForge/moego/ojson"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -74,6 +75,9 @@ func buildOpenAIResponsesURLForPlatform(platform string, base string) string {
 func shouldPreserveOpenAIResponsesNoneReasoningEffort(account *Account) bool {
 	if account == nil {
 		return false
+	}
+	if account.Platform == PlatformMistral {
+		return true
 	}
 	if account.IsOpenAIPassthroughEnabled() {
 		return true
@@ -2776,7 +2780,7 @@ func supportsOpenAIReasoningEffortMax(model string) bool {
 	case strings.HasPrefix(normalized, "deepseek-v4"), strings.HasPrefix(normalized, "deepseek-flash"):
 		// deepseek-flash（= DeepSeek-V4.1-Flash）与 v4 系同为 low/high/max 档位。
 		return true
-	case strings.HasPrefix(normalized, "glm-"):
+	case strings.HasPrefix(normalized, "glm-"), normalized == "zai-glm-5-3", normalized == "zai-glm-5-3-flash":
 		return true
 	case strings.HasPrefix(normalized, "kimi-"), strings.HasPrefix(normalized, "moonshot-"):
 		return true

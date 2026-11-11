@@ -50,9 +50,11 @@ function unixRunner(options: { os?: string; dialogExit?: number; codeHome?: stri
   writeFileSync(join(bin, 'uname'), `#!/bin/bash\nprintf '%s\\n' '${options.os || 'Linux'}'\n`, { mode: 0o755 })
   writeFileSync(join(bin, 'osascript'), `#!/bin/bash\nprintf '%s\\n' "$@" > "$HOME/dialog.log"\n/bin/cat > "$HOME/dialog.applescript"\nexit ${options.dialogExit || 0}\n`, { mode: 0o755 })
   const env = { ...process.env, HOME: dir, CODEX_HOME: options.codeHome || '', PATH: `${bin}:/usr/bin:/bin` }
+  const systemBase64 = spawnSync('/bin/bash', ['-c', 'command -v base64'], { encoding: 'utf8', env, cwd: dir }).stdout.trim()
   return {
     dir,
     bin,
+    systemBase64,
     run: (script: string) => spawnSync('/bin/bash', ['-s'], { input: script, encoding: 'utf8', env, cwd: dir })
   }
 }
@@ -111,6 +113,15 @@ describe('codexQuickConfig', () => {
     expect(config).not.toContain('model_catalog_json')
   })
 
+  it('requests Fast at the TOML root only for OpenAI quick setup', () => {
+    const config = buildCodexQuickConfigToml(input)
+    expect(config.split('\n[')[0]).toContain('service_tier = "fast"')
+    expect(config.match(/^service_tier = /gm)).toHaveLength(1)
+    for (const platform of ['anthropic', 'grok', 'composite'] as const) {
+      expect(buildCodexQuickConfigToml({ ...input, platform })).not.toContain('service_tier')
+    }
+  })
+
   it('embeds model catalog data only when requested', () => {
     const catalog = '{"models":[{"slug":"gpt-test"}]}'
     const config = buildCodexQuickConfigToml({
@@ -158,6 +169,7 @@ describe('codexQuickConfig', () => {
     const payload = windowsScript.match(/\$configPayload = @\(\s*'([^']+)'/)?.[1]
     expect(payload).toBeDefined()
     expect(decodeBase64Utf8(payload!)).toContain('experimental_bearer_token')
+    expect(decodeBase64Utf8(payload!).split('\n[')[0]).toContain('service_tier = "fast"')
     expect(encodeUtf8Base64('中文')).not.toBe('')
   })
 
@@ -214,6 +226,7 @@ describe('codexQuickConfig', () => {
     const config = readFileSync(join(configDir, 'config.toml'), 'utf8')
     expect(config).toContain(`model_catalog_json = "${realpathSync(configDir)}/codex-models.json"`)
     expect(config).toContain('experimental_bearer_token = "sk-secret-value"')
+    expect(config.split('\n[')[0]).toContain('service_tier = "fast"')
     expect(readFileSync(join(configDir, 'codex-models.json'), 'utf8')).toBe(catalog)
     expect(statSync(join(configDir, 'config.toml')).mode & 0o777).toBe(0o600)
     expect(readdirSync(configDir).sort()).toEqual(['codex-models.json', 'config.toml'])
@@ -292,7 +305,7 @@ describe('codexQuickConfig', () => {
 
   it.runIf(nativeUnix)('supports BSD base64 -D when --decode is unavailable', () => {
     const runner = unixRunner()
-    writeFileSync(join(runner.bin, 'base64'), '#!/bin/bash\nif [ "$1" != "-D" ]; then exit 1; fi\nexec /usr/bin/base64 -d\n', { mode: 0o755 })
+    writeFileSync(join(runner.bin, 'base64'), `#!/bin/bash\nif [ "$1" != "-D" ]; then exit 1; fi\nexec '${runner.systemBase64}' -d\n`, { mode: 0o755 })
     const result = runner.run(buildMacLinuxCodexQuickConfigScript(input))
     expect(result.status, result.stderr).toBe(0)
     expect(readFileSync(join(runner.dir, '.codex/config.toml'), 'utf8')).toContain('sk-secret-value')

@@ -99,6 +99,8 @@ func assertFreshCodexModelsRequest(t *testing.T, req *http.Request, body []byte)
 	require.Equal(t, "Bearer offline-token", req.Header.Get("Authorization"))
 	require.Equal(t, "offline-account", req.Header.Get("ChatGPT-Account-ID"))
 	require.Equal(t, "*/*", req.Header.Get("Accept"))
+	require.Equal(t, "no-cache", req.Header.Get("Cache-Control"))
+	require.Equal(t, "no-cache", req.Header.Get("Pragma"))
 	require.NotEmpty(t, req.Header.Get("Version"))
 	require.NotEmpty(t, req.Header.Get("Originator"))
 	require.NotEmpty(t, req.Header.Get("User-Agent"))
@@ -109,7 +111,7 @@ func assertFreshCodexModelsRequest(t *testing.T, req *http.Request, body []byte)
 			names = append(names, key)
 		}
 	}
-	require.ElementsMatch(t, []string{"authorization", "chatgpt-account-id", "accept", "version", "originator", "user-agent"}, names)
+	require.ElementsMatch(t, []string{"authorization", "chatgpt-account-id", "accept", "cache-control", "pragma", "version", "originator", "user-agent"}, names)
 }
 
 func TestCodexDeviceWireProfileAccountProbes(t *testing.T) {

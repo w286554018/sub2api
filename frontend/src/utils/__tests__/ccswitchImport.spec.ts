@@ -47,6 +47,15 @@ describe('ccswitchImport utils', () => {
     expect(params.get('app')).toBe('codex')
     expect(params.get('endpoint')).toBe(endpoint)
     expect(params.get('model')).toBe(OPENAI_CC_SWITCH_CODEX_MODEL)
+    const embedded = JSON.parse(atob(params.get('config')!)) as {
+      auth: { OPENAI_API_KEY: string }
+      config: string
+    }
+    expect(params.get('configFormat')).toBe('json')
+    expect(embedded.auth.OPENAI_API_KEY).toBe(baseInput.apiKey)
+    expect(embedded.config.split('\n[')[0]).toContain('service_tier = "fast"')
+    expect(embedded.config.match(/^service_tier = /gm)).toHaveLength(1)
+    expect(embedded.config).toContain(`base_url = "${endpoint}"`)
     expect(atob(params.get('usageScript') || '')).toBe(baseInput.usageScript)
     const payload = JSON.parse(atob(params.get('config') || '')) as { config: string }
     expect(params.get('configFormat')).toBe('json')
@@ -128,6 +137,17 @@ describe('ccswitchImport utils', () => {
     expect(params.get('endpoint')).toBe(`${baseInput.baseUrl}/antigravity`)
     expect(params.has('model')).toBe(false)
     expect(params.has('config')).toBe(false)
+  })
+
+  it('encodes Unicode provider names and TOML string escapes in Codex config', () => {
+    const providerName = '中文 "Fast" \\ provider'
+    const params = paramsFromDeeplink(buildCcSwitchImportDeeplink({
+      ...baseInput, platform: 'openai', clientType: 'claude', providerName
+    }))
+    const bytes = Uint8Array.from(atob(params.get('config')!), (character) => character.charCodeAt(0))
+    const embedded = JSON.parse(new TextDecoder().decode(bytes)) as { config: string }
+    expect(embedded.config).toContain(`name = ${JSON.stringify(providerName)}`)
+    expect(embedded.config.split('\n[')[0]).toContain('service_tier = "fast"')
   })
 })
 
